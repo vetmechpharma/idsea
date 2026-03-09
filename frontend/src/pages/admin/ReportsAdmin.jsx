@@ -1,25 +1,35 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { BarChart3, Users, IndianRupee, TrendingUp, MapPin } from 'lucide-react';
+import { Users, IndianRupee, TrendingUp, MapPin, BarChart3 } from 'lucide-react';
+import { BarChart, Bar, PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { API } from '../../contexts/AuthContext';
 
+const COLORS = ['#0c3c60', '#1e7a4d', '#7c3aed', '#d97706', '#ef4444', '#06b6d4', '#ec4899'];
+
 export default function ReportsAdmin() {
-  const [data, setData] = useState(null);
+  const [stats, setStats] = useState(null);
+  const [charts, setCharts] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    axios.get(`${API}/admin/reports/stats`).then(r => { setData(r.data); setLoading(false); }).catch(() => setLoading(false));
+    Promise.all([
+      axios.get(`${API}/admin/reports/stats`),
+      axios.get(`${API}/admin/reports/monthly-growth`)
+    ]).then(([s, c]) => {
+      setStats(s.data);
+      setCharts(c.data);
+      setLoading(false);
+    }).catch(() => setLoading(false));
   }, []);
 
   if (loading) return <div className="loading-spinner">Loading reports...</div>;
-  if (!data) return <div className="loading-spinner">Failed to load reports.</div>;
+  if (!stats) return <div className="loading-spinner">Failed to load reports.</div>;
 
-  const memberTypeData = [
-    { label: 'Academic', count: data.membership_types?.academic || 0, color: '#1e40af', bg: '#dbeafe' },
-    { label: 'Entrepreneur', count: data.membership_types?.entrepreneur || 0, color: '#5b21b6', bg: '#ede9fe' },
-    { label: 'Corporate', count: data.membership_types?.corporate || 0, color: '#92400e', bg: '#fef3c7' },
-  ];
-  const totalApproved = memberTypeData.reduce((s, t) => s + t.count, 0);
+  const typeData = charts?.type_distribution || [];
+  const stateData = charts?.state_distribution || [];
+  const memberGrowth = charts?.member_growth || [];
+  const revenueGrowth = charts?.revenue_growth || [];
+  const statusData = charts?.status_distribution || [];
 
   return (
     <div>
@@ -27,85 +37,110 @@ export default function ReportsAdmin() {
         <h1 className="page-title">Reports & Analytics</h1>
       </div>
 
-      {/* Overview Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+      {/* Stats Cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '16px', marginBottom: '24px' }}>
         {[
-          { label: 'Total Members', value: data.total_members, icon: Users, color: '#0c3c60', bg: '#dbeafe' },
-          { label: 'Approved', value: data.approved_members, icon: Users, color: '#1e7a4d', bg: '#d1fae5' },
-          { label: 'Pending', value: data.pending_members, icon: Users, color: '#d97706', bg: '#fef3c7' },
-          { label: 'New This Month', value: data.new_this_month, icon: TrendingUp, color: '#7c3aed', bg: '#ede9fe' },
-          { label: 'Total Revenue', value: `₹${(data.total_revenue || 0).toLocaleString()}`, icon: IndianRupee, color: '#1e7a4d', bg: '#d1fae5' },
-          { label: 'Total Events', value: data.events?.total || 0, icon: BarChart3, color: '#0c3c60', bg: '#dbeafe' },
+          { label: 'Total Members', value: stats.total_members, icon: Users, color: '#0c3c60', bg: '#dbeafe' },
+          { label: 'Approved', value: stats.approved_members, icon: Users, color: '#1e7a4d', bg: '#d1fae5' },
+          { label: 'Pending', value: stats.pending_members, icon: Users, color: '#d97706', bg: '#fef3c7' },
+          { label: 'New This Month', value: stats.new_this_month, icon: TrendingUp, color: '#7c3aed', bg: '#ede9fe' },
+          { label: 'Revenue', value: `₹${(stats.total_revenue || 0).toLocaleString()}`, icon: IndianRupee, color: '#1e7a4d', bg: '#d1fae5' },
+          { label: 'Events', value: stats.events?.total || 0, icon: BarChart3, color: '#0c3c60', bg: '#dbeafe' },
         ].map(({ label, value, icon: Icon, color, bg }) => (
           <div key={label} className="stat-card" data-testid={`report-stat-${label.toLowerCase().replace(/\s+/g, '-')}`}>
-            <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '12px' }}>
-              <Icon size={18} style={{ color }} />
+            <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '10px' }}>
+              <Icon size={17} style={{ color }} />
             </div>
-            <div style={{ fontSize: '1.6rem', fontWeight: 800, color, fontFamily: 'Poppins', lineHeight: 1 }}>{value}</div>
-            <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '4px', fontFamily: 'Inter' }}>{label}</div>
+            <div style={{ fontSize: '1.5rem', fontWeight: 800, color, fontFamily: 'Poppins', lineHeight: 1 }}>{value}</div>
+            <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '4px', fontFamily: 'Inter' }}>{label}</div>
           </div>
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '20px' }}>
-        {/* Membership Distribution */}
-        <div className="admin-card">
-          <h3 style={{ fontFamily: 'Poppins', fontSize: '15px', fontWeight: 700, color: '#0c3c60', marginBottom: '20px' }}>Membership Distribution</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            {memberTypeData.map(({ label, count, color, bg }) => (
-              <div key={label}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                  <span style={{ fontSize: '13px', fontWeight: 600, color: '#374151', fontFamily: 'Inter' }}>{label}</span>
-                  <span style={{ fontSize: '13px', fontWeight: 700, color, fontFamily: 'Poppins' }}>{count}</span>
-                </div>
-                <div style={{ height: '8px', background: '#f1f5f9', borderRadius: '4px', overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${totalApproved ? (count / totalApproved * 100) : 0}%`, background: color, borderRadius: '4px', transition: 'width 0.5s ease' }} />
-                </div>
-              </div>
-            ))}
-          </div>
-          <div style={{ marginTop: '16px', padding: '12px', background: '#f8fafc', borderRadius: '8px', textAlign: 'center' }}>
-            <span style={{ fontSize: '12px', color: '#6b7280' }}>Total Approved: </span>
-            <span style={{ fontSize: '14px', fontWeight: 700, color: '#0c3c60', fontFamily: 'Poppins' }}>{totalApproved}</span>
-          </div>
+      {/* Charts Row 1 */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '20px', marginBottom: '20px' }}>
+        {/* Member Growth */}
+        <div className="admin-card" data-testid="member-growth-chart">
+          <h3 style={{ fontFamily: 'Poppins', fontSize: '14px', fontWeight: 700, color: '#0c3c60', marginBottom: '16px' }}>Member Growth (Monthly)</h3>
+          {memberGrowth.length > 0 ? (
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={memberGrowth}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#6b7280' }} />
+                <YAxis tick={{ fontSize: 11, fill: '#6b7280' }} />
+                <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '12px' }} />
+                <Bar dataKey="members" fill="#0c3c60" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : <p style={{ color: '#9ca3af', fontSize: '13px', textAlign: 'center', padding: '40px 0' }}>No growth data yet</p>}
         </div>
 
-        {/* State Distribution */}
-        <div className="admin-card">
-          <h3 style={{ fontFamily: 'Poppins', fontSize: '15px', fontWeight: 700, color: '#0c3c60', marginBottom: '20px' }}>
-            <MapPin size={16} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'middle' }} />Top States
-          </h3>
-          {data.state_stats?.length > 0 ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {data.state_stats.map((s, i) => (
-                <div key={s.state} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: i === 0 ? '#f0fdf4' : '#f8fafc', borderRadius: '6px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <span style={{ fontSize: '13px', fontWeight: 700, color: '#9ca3af', fontFamily: 'Poppins', width: '20px' }}>#{i + 1}</span>
-                    <span style={{ fontSize: '13px', fontWeight: 600, color: '#374151' }}>{s.state}</span>
-                  </div>
-                  <span style={{ fontSize: '13px', fontWeight: 700, color: '#1e7a4d', fontFamily: 'Poppins' }}>{s.count}</span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p style={{ color: '#9ca3af', fontSize: '13px', textAlign: 'center', padding: '20px 0' }}>No state data available</p>
-          )}
+        {/* Membership Type Distribution */}
+        <div className="admin-card" data-testid="type-distribution-chart">
+          <h3 style={{ fontFamily: 'Poppins', fontSize: '14px', fontWeight: 700, color: '#0c3c60', marginBottom: '16px' }}>Membership Type Distribution</h3>
+          {typeData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={220}>
+              <PieChart>
+                <Pie data={typeData} dataKey="count" nameKey="type" cx="50%" cy="50%" outerRadius={80} label={({ type, count }) => `${type} (${count})`} labelLine={true}>
+                  {typeData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                </Pie>
+                <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '12px' }} />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : <p style={{ color: '#9ca3af', fontSize: '13px', textAlign: 'center', padding: '40px 0' }}>No data</p>}
+        </div>
+      </div>
+
+      {/* Charts Row 2 */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '20px', marginBottom: '20px' }}>
+        {/* Revenue Chart */}
+        <div className="admin-card" data-testid="revenue-chart">
+          <h3 style={{ fontFamily: 'Poppins', fontSize: '14px', fontWeight: 700, color: '#0c3c60', marginBottom: '16px' }}>Revenue (Monthly)</h3>
+          {revenueGrowth.length > 0 ? (
+            <ResponsiveContainer width="100%" height={220}>
+              <LineChart data={revenueGrowth}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#6b7280' }} />
+                <YAxis tick={{ fontSize: 11, fill: '#6b7280' }} />
+                <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '12px' }} formatter={(v) => [`₹${v.toLocaleString()}`, 'Revenue']} />
+                <Line type="monotone" dataKey="revenue" stroke="#1e7a4d" strokeWidth={2} dot={{ r: 4, fill: '#1e7a4d' }} />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : <p style={{ color: '#9ca3af', fontSize: '13px', textAlign: 'center', padding: '40px 0' }}>No revenue data yet</p>}
         </div>
 
-        {/* Events Summary */}
-        <div className="admin-card">
-          <h3 style={{ fontFamily: 'Poppins', fontSize: '15px', fontWeight: 700, color: '#0c3c60', marginBottom: '20px' }}>Events Summary</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <div style={{ padding: '16px', background: '#dbeafe', borderRadius: '8px', textAlign: 'center' }}>
-              <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#0c3c60', fontFamily: 'Poppins' }}>{data.events?.total || 0}</div>
-              <div style={{ fontSize: '12px', color: '#1e40af', fontFamily: 'Inter' }}>Total Events</div>
-            </div>
-            <div style={{ padding: '16px', background: '#d1fae5', borderRadius: '8px', textAlign: 'center' }}>
-              <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#1e7a4d', fontFamily: 'Poppins' }}>{data.events?.upcoming || 0}</div>
-              <div style={{ fontSize: '12px', color: '#065f46', fontFamily: 'Inter' }}>Upcoming</div>
-            </div>
-          </div>
+        {/* Status Distribution */}
+        <div className="admin-card" data-testid="status-distribution-chart">
+          <h3 style={{ fontFamily: 'Poppins', fontSize: '14px', fontWeight: 700, color: '#0c3c60', marginBottom: '16px' }}>Member Status Distribution</h3>
+          {statusData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={220}>
+              <PieChart>
+                <Pie data={statusData} dataKey="count" nameKey="status" cx="50%" cy="50%" innerRadius={50} outerRadius={80} label={({ status, count }) => `${status} (${count})`}>
+                  {statusData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                </Pie>
+                <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '12px' }} />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : <p style={{ color: '#9ca3af', fontSize: '13px', textAlign: 'center', padding: '40px 0' }}>No data</p>}
         </div>
+      </div>
+
+      {/* State Distribution */}
+      <div className="admin-card" data-testid="state-distribution-chart">
+        <h3 style={{ fontFamily: 'Poppins', fontSize: '14px', fontWeight: 700, color: '#0c3c60', marginBottom: '16px' }}>
+          <MapPin size={15} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'middle' }} />Members by State
+        </h3>
+        {stateData.length > 0 ? (
+          <ResponsiveContainer width="100%" height={Math.max(200, stateData.length * 36)}>
+            <BarChart data={stateData} layout="vertical">
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+              <XAxis type="number" tick={{ fontSize: 11, fill: '#6b7280' }} />
+              <YAxis type="category" dataKey="state" width={120} tick={{ fontSize: 11, fill: '#374151' }} />
+              <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '12px' }} />
+              <Bar dataKey="count" fill="#1e7a4d" radius={[0, 4, 4, 0]} barSize={18} />
+            </BarChart>
+          </ResponsiveContainer>
+        ) : <p style={{ color: '#9ca3af', fontSize: '13px', textAlign: 'center', padding: '40px 0' }}>No state data available</p>}
       </div>
     </div>
   );

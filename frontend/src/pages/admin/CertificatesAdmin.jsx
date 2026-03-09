@@ -72,11 +72,11 @@ export default function CertificatesAdmin() {
         <div style={{ overflowX: 'auto' }}>
           <table className="admin-table" data-testid="certificates-table">
             <thead>
-              <tr><th>Cert ID</th><th>Member</th><th>Type</th><th>Event</th><th>Issue Date</th><th>Issued By</th></tr>
+              <tr><th>Cert ID</th><th>Member</th><th>Type</th><th>Event</th><th>Issue Date</th><th>Issued By</th><th>Actions</th></tr>
             </thead>
             <tbody>
               {certificates.length === 0 ? (
-                <tr><td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: '#9ca3af' }}>No certificates generated yet</td></tr>
+                <tr><td colSpan={7} style={{ textAlign: 'center', padding: '40px', color: '#9ca3af' }}>No certificates generated yet</td></tr>
               ) : certificates.map(c => (
                 <tr key={c.id}>
                   <td style={{ fontWeight: 700, color: '#0c3c60', fontFamily: 'Poppins', fontSize: '13px' }}>{c.id}</td>
@@ -88,6 +88,12 @@ export default function CertificatesAdmin() {
                   <td style={{ fontSize: '13px', color: '#6b7280' }}>{c.event_name || '-'}</td>
                   <td style={{ fontSize: '12px', color: '#9ca3af' }}>{c.issue_date}</td>
                   <td style={{ fontSize: '12px', color: '#9ca3af' }}>{c.issued_by}</td>
+                  <td>
+                    <button onClick={() => { axios.get(`${API}/admin/certificates/${c.id}/pdf`, { responseType: 'blob' }).then(r => { const url = URL.createObjectURL(r.data); const a = document.createElement('a'); a.href = url; a.download = `IDSEA_Certificate_${c.id}.pdf`; a.click(); URL.revokeObjectURL(url); }).catch(() => showToast('Error downloading PDF')); }}
+                      style={{ background: '#dbeafe', color: '#1e40af', border: 'none', padding: '5px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', fontFamily: 'Poppins' }} data-testid="download-cert-btn">
+                      <Award size={12} /> PDF
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>

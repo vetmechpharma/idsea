@@ -1,19 +1,25 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Send, Clock, Users, X } from 'lucide-react';
+import { Send, Clock, Settings, X, TestTube } from 'lucide-react';
 import { API } from '../../contexts/AuthContext';
 
 export default function EmailAdmin() {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [showSmtp, setShowSmtp] = useState(false);
   const [sending, setSending] = useState(false);
   const [toast, setToast] = useState('');
   const [form, setForm] = useState({ subject: '', body: '', recipient_group: 'all', recipients: '' });
+  const [smtp, setSmtp] = useState({ smtp_host: '', smtp_port: 587, smtp_user: '', smtp_pass: '', from_email: 'noreply@idsea.org' });
+  const [smtpLoading, setSmtpLoading] = useState(false);
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
-  const load = () => { axios.get(`${API}/admin/email/logs`).then(r => { setLogs(r.data); setLoading(false); }).catch(() => setLoading(false)); };
-  useEffect(() => { load(); }, []);
+
+  const loadLogs = () => { axios.get(`${API}/admin/email/logs`).then(r => { setLogs(r.data); setLoading(false); }).catch(() => setLoading(false)); };
+  const loadSmtp = () => { axios.get(`${API}/admin/smtp-settings`).then(r => setSmtp(prev => ({ ...prev, ...r.data }))).catch(() => {}); };
+
+  useEffect(() => { loadLogs(); loadSmtp(); }, []);
 
   const handleSend = async () => {
     if (!form.subject || !form.body) return showToast('Subject and body required');
@@ -27,9 +33,28 @@ export default function EmailAdmin() {
       showToast(r.data.message || 'Email queued!');
       setShowModal(false);
       setForm({ subject: '', body: '', recipient_group: 'all', recipients: '' });
-      load();
+      loadLogs();
     } catch (e) { showToast('Error: ' + (e.response?.data?.detail || 'Failed to send')); }
     setSending(false);
+  };
+
+  const handleSaveSmtp = async () => {
+    setSmtpLoading(true);
+    try {
+      await axios.put(`${API}/admin/smtp-settings`, smtp);
+      showToast('SMTP settings saved!');
+      loadSmtp();
+    } catch (e) { showToast('Error: ' + (e.response?.data?.detail || 'Failed')); }
+    setSmtpLoading(false);
+  };
+
+  const handleTestSmtp = async () => {
+    setSmtpLoading(true);
+    try {
+      const r = await axios.post(`${API}/admin/smtp-settings/test`);
+      showToast(r.data.message);
+    } catch (e) { showToast('Error: ' + (e.response?.data?.detail || 'Test failed')); }
+    setSmtpLoading(false);
   };
 
   const GROUPS = [
@@ -45,17 +70,66 @@ export default function EmailAdmin() {
       {toast && <div className="toast-success" data-testid="toast">{toast}</div>}
       <div className="page-header">
         <h1 className="page-title">Email System</h1>
-        <button onClick={() => setShowModal(true)} className="btn-primary" data-testid="compose-email-btn">
-          <Send size={16} /> Compose Email
-        </button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button onClick={() => setShowSmtp(!showSmtp)} className="btn-secondary" data-testid="smtp-settings-btn" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <Settings size={16} /> SMTP Settings
+          </button>
+          <button onClick={() => setShowModal(true)} className="btn-primary" data-testid="compose-email-btn">
+            <Send size={16} /> Compose Email
+          </button>
+        </div>
       </div>
 
-      <div className="admin-card" style={{ marginBottom: '20px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-          <Clock size={16} style={{ color: '#6b7280' }} />
-          <h3 style={{ fontFamily: 'Poppins', fontSize: '15px', fontWeight: 700, color: '#0c3c60', margin: 0 }}>Email Logs</h3>
+      {/* SMTP Settings Panel */}
+      {showSmtp && (
+        <div className="admin-card" style={{ marginBottom: '20px', border: '1px solid #dbeafe' }} data-testid="smtp-settings-panel">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <h3 style={{ fontFamily: 'Poppins', fontSize: '15px', fontWeight: 700, color: '#0c3c60', margin: 0 }}>SMTP Configuration</h3>
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '10px', fontWeight: 600, fontFamily: 'Poppins', background: smtp.is_configured ? '#d1fae5' : '#fef3c7', color: smtp.is_configured ? '#065f46' : '#92400e' }}>
+                {smtp.is_configured ? 'Configured' : 'Not Configured'}
+              </span>
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+            <div className="form-group">
+              <label className="form-label">SMTP Host</label>
+              <input value={smtp.smtp_host} onChange={e => setSmtp({ ...smtp, smtp_host: e.target.value })} className="form-input" placeholder="smtp.gmail.com" data-testid="smtp-host" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Port</label>
+              <input type="number" value={smtp.smtp_port} onChange={e => setSmtp({ ...smtp, smtp_port: e.target.value })} className="form-input" data-testid="smtp-port" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">From Email</label>
+              <input value={smtp.from_email} onChange={e => setSmtp({ ...smtp, from_email: e.target.value })} className="form-input" placeholder="noreply@idsea.org" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Username / Email</label>
+              <input value={smtp.smtp_user} onChange={e => setSmtp({ ...smtp, smtp_user: e.target.value })} className="form-input" placeholder="your-email@gmail.com" data-testid="smtp-user" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Password / App Password</label>
+              <input type="password" value={smtp.smtp_pass} onChange={e => setSmtp({ ...smtp, smtp_pass: e.target.value })} className="form-input" placeholder="Enter password" data-testid="smtp-pass" />
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '8px' }}>
+            <button onClick={handleTestSmtp} className="btn-secondary" disabled={smtpLoading} data-testid="test-smtp-btn" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <TestTube size={14} /> Send Test Email
+            </button>
+            <button onClick={handleSaveSmtp} className="btn-primary" disabled={smtpLoading} data-testid="save-smtp-btn">
+              {smtpLoading ? 'Saving...' : 'Save Settings'}
+            </button>
+          </div>
         </div>
-        <p style={{ fontSize: '13px', color: '#9ca3af', margin: 0 }}>Note: SMTP credentials must be configured in backend for actual email delivery</p>
+      )}
+
+      {/* Email Logs */}
+      <div className="admin-card" style={{ marginBottom: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Clock size={16} style={{ color: '#6b7280' }} />
+          <h3 style={{ fontFamily: 'Poppins', fontSize: '14px', fontWeight: 700, color: '#0c3c60', margin: 0 }}>Email Logs</h3>
+        </div>
       </div>
 
       {loading ? <div className="loading-spinner">Loading...</div> : (
@@ -82,6 +156,7 @@ export default function EmailAdmin() {
         </div>
       )}
 
+      {/* Compose Modal */}
       {showModal && (
         <div className="modal-overlay">
           <div className="modal-content">

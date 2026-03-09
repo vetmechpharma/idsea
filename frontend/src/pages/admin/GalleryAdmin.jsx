@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Plus, Trash2, X, Image } from 'lucide-react';
 import { API } from '../../contexts/AuthContext';
+import { FileUpload } from '../../components/admin/FileUpload';
 
 export default function GalleryAdmin() {
   const [albums, setAlbums] = useState([]);
@@ -125,7 +126,12 @@ export default function GalleryAdmin() {
                 {['conference', 'fieldvisit', 'workshop', 'research', 'other'].map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
               </select>
             </div>
-            <div className="form-group"><label className="form-label">Cover Image URL</label><input type="url" value={albumForm.cover_image} onChange={e => setAlbumForm({ ...albumForm, cover_image: e.target.value })} className="form-input" /></div>
+            <div className="form-group">
+              <label className="form-label">Cover Image</label>
+              <FileUpload accept="image/*" label="Upload Cover Image" onUpload={(url) => setAlbumForm({ ...albumForm, cover_image: url })} />
+              <input type="url" value={albumForm.cover_image} onChange={e => setAlbumForm({ ...albumForm, cover_image: e.target.value })} className="form-input" placeholder="Or paste URL" style={{ marginTop: '6px' }} />
+              {albumForm.cover_image && <img src={albumForm.cover_image} alt="" style={{ width: '100%', height: '80px', objectFit: 'cover', borderRadius: '6px', marginTop: '6px' }} onError={e => e.target.style.display='none'} />}
+            </div>
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
               <button onClick={() => setShowAlbumModal(false)} className="btn-secondary">Cancel</button>
               <button onClick={createAlbum} className="btn-primary" data-testid="save-album-btn">Create Album</button>
@@ -141,7 +147,11 @@ export default function GalleryAdmin() {
               <h2 style={{ fontFamily: 'Poppins', fontSize: '17px', fontWeight: 700, color: '#0c3c60', margin: 0 }}>Add Photo</h2>
               <button onClick={() => setShowPhotoModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={20} /></button>
             </div>
-            <div className="form-group"><label className="form-label">Image URL *</label><input type="url" value={photoForm.image_url} onChange={e => setPhotoForm({ ...photoForm, image_url: e.target.value })} className="form-input" placeholder="https://..." required /></div>
+            <div className="form-group">
+              <label className="form-label">Photo *</label>
+              <FileUpload accept="image/*" label="Upload Photo" onUpload={(url) => setPhotoForm({ ...photoForm, image_url: url })} />
+              <input type="url" value={photoForm.image_url} onChange={e => setPhotoForm({ ...photoForm, image_url: e.target.value })} className="form-input" placeholder="Or paste URL" style={{ marginTop: '6px' }} />
+            </div>
             <div className="form-group"><label className="form-label">Caption (Optional)</label><input value={photoForm.title} onChange={e => setPhotoForm({ ...photoForm, title: e.target.value })} className="form-input" /></div>
             {photoForm.image_url && <img src={photoForm.image_url} alt="preview" style={{ width: '100%', height: '150px', objectFit: 'cover', borderRadius: '8px', marginBottom: '12px' }} onError={e => e.target.style.display = 'none'} />}
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>

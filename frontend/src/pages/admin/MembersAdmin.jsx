@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Plus, Search, Edit, Trash2, Check, X, Download } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Check, X, Download, Upload } from 'lucide-react';
 import { API } from '../../contexts/AuthContext';
+import { FileUpload } from '../../components/admin/FileUpload';
 
 const STATES = ['', 'Andhra Pradesh', 'Assam', 'Bihar', 'Delhi', 'Goa', 'Gujarat', 'Haryana', 'Karnataka', 'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Odisha', 'Punjab', 'Rajasthan', 'Tamil Nadu', 'Telangana', 'Uttar Pradesh', 'West Bengal'];
 
@@ -99,6 +100,20 @@ export default function MembersAdmin() {
             <option value="entrepreneur">Entrepreneur</option>
             <option value="corporate">Corporate</option>
           </select>
+          <div style={{ display: 'flex', gap: '6px' }}>
+            <a href={`${API}/admin/members/export/excel?${statusFilter !== 'all' ? 'status=' + statusFilter + '&' : ''}${typeFilter !== 'all' ? 'membership_type=' + typeFilter : ''}`}
+              onClick={e => { e.preventDefault(); const token = localStorage.getItem('idsea_token'); window.open(`${API}/admin/members/export/excel?${statusFilter !== 'all' ? 'status=' + statusFilter + '&' : ''}${typeFilter !== 'all' ? 'membership_type=' + typeFilter : ''}`, '_blank'); }}
+              style={{ display: 'none' }}
+            >x</a>
+            <button onClick={() => { axios.get(`${API}/admin/members/export/excel`, { params: { ...(statusFilter !== 'all' && { status: statusFilter }), ...(typeFilter !== 'all' && { membership_type: typeFilter }) }, responseType: 'blob' }).then(r => { const url = URL.createObjectURL(r.data); const a = document.createElement('a'); a.href = url; a.download = 'IDSEA_Members.xlsx'; a.click(); URL.revokeObjectURL(url); }); }}
+              className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', padding: '6px 12px' }} data-testid="export-excel-btn">
+              <Download size={14} /> Excel
+            </button>
+            <button onClick={() => { axios.get(`${API}/admin/members/export/pdf`, { params: { ...(statusFilter !== 'all' && { status: statusFilter }), ...(typeFilter !== 'all' && { membership_type: typeFilter }) }, responseType: 'blob' }).then(r => { const url = URL.createObjectURL(r.data); const a = document.createElement('a'); a.href = url; a.download = 'IDSEA_Members.pdf'; a.click(); URL.revokeObjectURL(url); }); }}
+              className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', padding: '6px 12px' }} data-testid="export-pdf-btn">
+              <Download size={14} /> PDF
+            </button>
+          </div>
         </div>
       </div>
 
@@ -175,12 +190,24 @@ export default function MembersAdmin() {
               <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af' }}><X size={20} /></button>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-              {[['name', 'Full Name', 'text', true], ['email', 'Email', 'email', true], ['phone', 'Phone', 'text', false], ['qualification', 'Qualification', 'text', false], ['specialization', 'Specialization', 'text', false], ['organization', 'Organization', 'text', false], ['photo_url', 'Photo URL', 'url', false]].map(([k, label, type, req]) => (
-                <div key={k} className="form-group" style={{ gridColumn: k === 'photo_url' ? '1 / -1' : 'auto' }}>
+              {[['name', 'Full Name', 'text', true], ['email', 'Email', 'email', true], ['phone', 'Phone', 'text', false], ['qualification', 'Qualification', 'text', false], ['specialization', 'Specialization', 'text', false], ['organization', 'Organization', 'text', false]].map(([k, label, type, req]) => (
+                <div key={k} className="form-group">
                   <label className="form-label">{label}</label>
                   <input type={type} value={form[k]} onChange={e => setForm({ ...form, [k]: e.target.value })} className="form-input" required={req} />
                 </div>
               ))}
+              <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                <label className="form-label">Photo</label>
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                  <div style={{ flex: 1 }}>
+                    <FileUpload accept="image/*" label="Upload Photo" onUpload={(url) => setForm({ ...form, photo_url: url })} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <input type="url" value={form.photo_url} onChange={e => setForm({ ...form, photo_url: e.target.value })} className="form-input" placeholder="Or paste URL" />
+                    {form.photo_url && <img src={form.photo_url} alt="" style={{ width: '48px', height: '48px', borderRadius: '8px', objectFit: 'cover', marginTop: '6px' }} />}
+                  </div>
+                </div>
+              </div>
               <div className="form-group">
                 <label className="form-label">Membership Type</label>
                 <select value={form.membership_type} onChange={e => setForm({ ...form, membership_type: e.target.value })} className="form-select">

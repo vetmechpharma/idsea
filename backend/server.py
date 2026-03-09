@@ -1,9 +1,11 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, BackgroundTasks
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, BackgroundTasks, UploadFile, File, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.responses import StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
-import os, logging, uuid, hmac, hashlib, smtplib
+import os, logging, uuid, hmac, hashlib, smtplib, io
 from pathlib import Path
 from pydantic import BaseModel, Field
 from typing import List, Optional
@@ -12,6 +14,15 @@ from jose import jwt, JWTError
 from passlib.context import CryptContext
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from reportlab.lib.pagesizes import A4, landscape
+from reportlab.lib import colors
+from reportlab.lib.units import inch, mm
+from reportlab.pdfgen import canvas
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.enums import TA_CENTER, TA_LEFT
+import openpyxl
+import aiofiles
 
 try:
     import razorpay
@@ -43,6 +54,9 @@ SMTP_PORT_VAL = int(os.environ.get('SMTP_PORT', '587'))
 SMTP_USER = os.environ.get('SMTP_USER', '')
 SMTP_PASS = os.environ.get('SMTP_PASS', '')
 FROM_EMAIL = os.environ.get('FROM_EMAIL', 'noreply@idsea.org')
+
+UPLOAD_DIR = ROOT_DIR / 'uploads'
+UPLOAD_DIR.mkdir(exist_ok=True)
 
 
 def now_iso():
@@ -338,20 +352,25 @@ def get_razorpay_client():
     return None
 
 
-def send_email_smtp(recipients: List[str], subject: str, body: str):
-    if not SMTP_HOST or not SMTP_USER:
+def send_email_smtp(recipients: List[str], subject: str, body: str, smtp_settings: dict = None):
+    host = smtp_settings.get("smtp_host", SMTP_HOST) if smtp_settings else SMTP_HOST
+    port = int(smtp_settings.get("smtp_port", SMTP_PORT_VAL) if smtp_settings else SMTP_PORT_VAL)
+    user = smtp_settings.get("smtp_user", SMTP_USER) if smtp_settings else SMTP_USER
+    passwd = smtp_settings.get("smtp_pass", SMTP_PASS) if smtp_settings else SMTP_PASS
+    from_email = smtp_settings.get("from_email", FROM_EMAIL) if smtp_settings else FROM_EMAIL
+    if not host or not user:
         logging.warning("SMTP not configured, email skipped")
         return False
     try:
         msg = MIMEMultipart('alternative')
         msg['Subject'] = subject
-        msg['From'] = f"IDSEA <{FROM_EMAIL}>"
+        msg['From'] = f"IDSEA <{from_email}>"
         msg['To'] = ', '.join(recipients[:50])
         msg.attach(MIMEText(body, 'html'))
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT_VAL) as server:
+        with smtplib.SMTP(host, port) as server:
             server.starttls()
-            server.login(SMTP_USER, SMTP_PASS)
-            server.sendmail(FROM_EMAIL, recipients, msg.as_string())
+            server.login(user, passwd)
+            server.sendmail(from_email, recipients, msg.as_string())
         return True
     except Exception as e:
         logging.error(f"Email error: {e}")
@@ -740,7 +759,8 @@ async def admin_send_email(data: EmailRequest, background_tasks: BackgroundTasks
         "status": "queued"
     }
     await db.email_logs.insert_one(log)
-    background_tasks.add_task(send_email_smtp, recipients, data.subject, data.body)
+    smtp_settings = await db.smtp_settings.find_one({}, {"_id": 0})
+    background_tasks.add_task(send_email_smtp, recipients, data.subject, data.body, smtp_settings)
     return {"message": f"Email queued for {len(recipients)} recipients", "log_id": log["id"]}
 
 
@@ -952,12 +972,330 @@ async def generate_certificate(data: CertificateRequest, admin=Depends(get_curre
         "created_at": now_iso()
     }
     await db.certificates.insert_one(certificate)
+    # Remove MongoDB _id before returning
+    certificate.pop("_id", None)
     return certificate
 
 
 @api_router.get("/admin/certificates")
 async def admin_get_certificates(admin=Depends(get_current_admin)):
     return await db.certificates.find({}, {"_id": 0}).sort("created_at", -1).to_list(200)
+
+
+# =================== CERTIFICATE PDF ===================
+
+@api_router.get("/admin/certificates/{cert_id}/pdf")
+async def download_certificate_pdf(cert_id: str, admin=Depends(get_current_admin)):
+    cert = await db.certificates.find_one({"id": cert_id}, {"_id": 0})
+    if not cert:
+        raise HTTPException(status_code=404, detail="Certificate not found")
+
+    buf = io.BytesIO()
+    c = canvas.Canvas(buf, pagesize=landscape(A4))
+    w, h = landscape(A4)
+
+    # Border
+    c.setStrokeColor(colors.HexColor('#0c3c60'))
+    c.setLineWidth(4)
+    c.rect(30, 30, w - 60, h - 60)
+    c.setStrokeColor(colors.HexColor('#1e7a4d'))
+    c.setLineWidth(2)
+    c.rect(40, 40, w - 80, h - 80)
+
+    # Header
+    c.setFillColor(colors.HexColor('#0c3c60'))
+    c.setFont("Helvetica-Bold", 28)
+    c.drawCentredString(w / 2, h - 100, "Indian Dairy Scientists and")
+    c.drawCentredString(w / 2, h - 135, "Entrepreneurs Association")
+    c.setFont("Helvetica", 12)
+    c.setFillColor(colors.HexColor('#6b7280'))
+    c.drawCentredString(w / 2, h - 158, "IDSEA")
+
+    # Certificate type
+    cert_type_label = {
+        "membership": "Certificate of Membership",
+        "event": "Certificate of Participation",
+        "appreciation": "Certificate of Appreciation"
+    }.get(cert.get("certificate_type", ""), "Certificate")
+
+    c.setFillColor(colors.HexColor('#1e7a4d'))
+    c.setFont("Helvetica-Bold", 22)
+    c.drawCentredString(w / 2, h - 210, cert_type_label)
+
+    # "This is to certify..."
+    c.setFillColor(colors.HexColor('#374151'))
+    c.setFont("Helvetica", 14)
+    c.drawCentredString(w / 2, h - 260, "This is to certify that")
+
+    # Name
+    c.setFillColor(colors.HexColor('#0c3c60'))
+    c.setFont("Helvetica-Bold", 26)
+    c.drawCentredString(w / 2, h - 300, cert.get("member_name", ""))
+
+    # Membership ID
+    c.setFillColor(colors.HexColor('#6b7280'))
+    c.setFont("Helvetica", 12)
+    mid = cert.get("membership_id", "")
+    if mid:
+        c.drawCentredString(w / 2, h - 325, f"Member ID: {mid}")
+
+    # Body text
+    c.setFillColor(colors.HexColor('#374151'))
+    c.setFont("Helvetica", 13)
+    if cert.get("certificate_type") == "event" and cert.get("event_name"):
+        c.drawCentredString(w / 2, h - 358, f"has successfully participated in")
+        c.setFont("Helvetica-Bold", 15)
+        c.setFillColor(colors.HexColor('#1e7a4d'))
+        c.drawCentredString(w / 2, h - 380, cert["event_name"])
+    elif cert.get("certificate_type") == "membership":
+        c.drawCentredString(w / 2, h - 358, "is a registered member of IDSEA")
+    else:
+        c.drawCentredString(w / 2, h - 358, "is recognized by IDSEA for their contributions")
+
+    # Date and signature
+    c.setFillColor(colors.HexColor('#6b7280'))
+    c.setFont("Helvetica", 11)
+    c.drawString(80, 90, f"Date: {cert.get('issue_date', '')}")
+    c.drawString(80, 75, f"Certificate ID: {cert_id}")
+    c.line(w - 280, 100, w - 80, 100)
+    c.setFont("Helvetica", 11)
+    c.drawCentredString(w - 180, 82, "Authorized Signatory")
+    c.setFont("Helvetica-Bold", 11)
+    c.drawCentredString(w - 180, 110, cert.get("issued_by", "IDSEA"))
+
+    c.save()
+    buf.seek(0)
+    filename = f"IDSEA_Certificate_{cert_id}.pdf"
+    return StreamingResponse(buf, media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename={filename}"})
+
+
+# =================== MEMBER EXPORT ===================
+
+@api_router.get("/admin/members/export/excel")
+async def export_members_excel(status: Optional[str] = None, membership_type: Optional[str] = None, admin=Depends(get_current_admin)):
+    query = {}
+    if status:
+        query["status"] = status
+    if membership_type:
+        query["membership_type"] = membership_type
+    members = await db.members.find(query, {"_id": 0}).sort("created_at", -1).to_list(5000)
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Members"
+
+    headers = ["S.No", "Member ID", "Name", "Email", "Phone", "Qualification", "Organization", "State", "Membership Type", "Status", "Payment Status", "Join Date"]
+    header_fill = openpyxl.styles.PatternFill(start_color="0C3C60", end_color="0C3C60", fill_type="solid")
+    header_font = openpyxl.styles.Font(bold=True, color="FFFFFF", size=11)
+    for col, h in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=h)
+        cell.fill = header_fill
+        cell.font = header_font
+
+    for i, m in enumerate(members, 1):
+        ws.cell(row=i + 1, column=1, value=i)
+        ws.cell(row=i + 1, column=2, value=m.get("membership_id", ""))
+        ws.cell(row=i + 1, column=3, value=m.get("name", ""))
+        ws.cell(row=i + 1, column=4, value=m.get("email", ""))
+        ws.cell(row=i + 1, column=5, value=m.get("phone", ""))
+        ws.cell(row=i + 1, column=6, value=m.get("qualification", ""))
+        ws.cell(row=i + 1, column=7, value=m.get("organization", ""))
+        ws.cell(row=i + 1, column=8, value=m.get("state", ""))
+        ws.cell(row=i + 1, column=9, value=m.get("membership_type", ""))
+        ws.cell(row=i + 1, column=10, value=m.get("status", ""))
+        ws.cell(row=i + 1, column=11, value=m.get("payment_status", ""))
+        ws.cell(row=i + 1, column=12, value=m.get("join_date", ""))
+
+    for col in ws.columns:
+        max_len = max(len(str(cell.value or "")) for cell in col)
+        ws.column_dimensions[col[0].column_letter].width = min(max_len + 3, 40)
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return StreamingResponse(buf, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                           headers={"Content-Disposition": "attachment; filename=IDSEA_Members.xlsx"})
+
+
+@api_router.get("/admin/members/export/pdf")
+async def export_members_pdf(status: Optional[str] = None, membership_type: Optional[str] = None, admin=Depends(get_current_admin)):
+    query = {}
+    if status:
+        query["status"] = status
+    if membership_type:
+        query["membership_type"] = membership_type
+    members = await db.members.find(query, {"_id": 0}).sort("created_at", -1).to_list(5000)
+
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=landscape(A4), topMargin=30, bottomMargin=30, leftMargin=30, rightMargin=30)
+    elements = []
+
+    title_style = ParagraphStyle('title', fontName='Helvetica-Bold', fontSize=16, alignment=TA_CENTER, spaceAfter=6, textColor=colors.HexColor('#0c3c60'))
+    subtitle_style = ParagraphStyle('subtitle', fontName='Helvetica', fontSize=10, alignment=TA_CENTER, spaceAfter=16, textColor=colors.HexColor('#6b7280'))
+    elements.append(Paragraph("IDSEA - Member Directory", title_style))
+    elements.append(Paragraph(f"Generated on {datetime.now().strftime('%d %B %Y')} | Total: {len(members)} members", subtitle_style))
+
+    data = [["#", "Member ID", "Name", "Email", "Organization", "State", "Type", "Status"]]
+    for i, m in enumerate(members, 1):
+        data.append([
+            str(i), m.get("membership_id", "")[:12], m.get("name", "")[:25],
+            m.get("email", "")[:28], m.get("organization", "")[:30],
+            m.get("state", "")[:15], m.get("membership_type", "")[:12],
+            m.get("status", "")
+        ])
+
+    col_widths = [30, 70, 120, 140, 150, 80, 70, 60]
+    t = Table(data, colWidths=col_widths, repeatRows=1)
+    t.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0c3c60')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 9),
+        ('FONTSIZE', (0, 1), (-1, -1), 8),
+        ('ALIGN', (0, 0), (0, -1), 'CENTER'),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8fafc')]),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e5e7eb')),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+    ]))
+    elements.append(t)
+    doc.build(elements)
+    buf.seek(0)
+    return StreamingResponse(buf, media_type="application/pdf", headers={"Content-Disposition": "attachment; filename=IDSEA_Members.pdf"})
+
+
+# =================== FILE UPLOAD ===================
+
+ALLOWED_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx'}
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+
+
+@api_router.post("/upload")
+async def upload_file(file: UploadFile = File(...), admin=Depends(get_current_admin)):
+    ext = Path(file.filename).suffix.lower()
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(status_code=400, detail=f"File type {ext} not allowed")
+    content = await file.read()
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(status_code=400, detail="File too large (max 10MB)")
+
+    unique_name = f"{uuid.uuid4().hex[:12]}{ext}"
+    file_path = UPLOAD_DIR / unique_name
+    async with aiofiles.open(file_path, 'wb') as f:
+        await f.write(content)
+
+    file_record = {
+        "id": str(uuid.uuid4()),
+        "original_name": file.filename,
+        "stored_name": unique_name,
+        "file_url": f"/api/uploads/{unique_name}",
+        "file_type": ext,
+        "file_size": len(content),
+        "uploaded_by": admin["email"],
+        "uploaded_at": now_iso()
+    }
+    await db.uploads.insert_one(file_record)
+    return {"file_url": file_record["file_url"], "original_name": file.filename, "id": file_record["id"]}
+
+
+@api_router.get("/uploads/{filename}")
+async def serve_upload(filename: str):
+    file_path = UPLOAD_DIR / filename
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="File not found")
+    ext = file_path.suffix.lower()
+    content_types = {
+        '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png',
+        '.gif': 'image/gif', '.webp': 'image/webp', '.pdf': 'application/pdf',
+        '.doc': 'application/msword', '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        '.xls': 'application/vnd.ms-excel', '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    }
+    ct = content_types.get(ext, 'application/octet-stream')
+    return StreamingResponse(open(file_path, 'rb'), media_type=ct)
+
+
+# =================== SMTP SETTINGS ===================
+
+@api_router.get("/admin/smtp-settings")
+async def admin_get_smtp_settings(admin=Depends(get_current_admin)):
+    settings = await db.smtp_settings.find_one({}, {"_id": 0})
+    if settings:
+        settings["smtp_pass"] = "••••••••" if settings.get("smtp_pass") else ""
+    return settings or {"smtp_host": SMTP_HOST, "smtp_port": SMTP_PORT_VAL, "smtp_user": SMTP_USER, "smtp_pass": "••••••••" if SMTP_PASS else "", "from_email": FROM_EMAIL, "is_configured": bool(SMTP_HOST and SMTP_USER)}
+
+
+@api_router.put("/admin/smtp-settings")
+async def admin_update_smtp_settings(data: dict, admin=Depends(get_current_admin)):
+    if admin.get("role") != "super_admin":
+        raise HTTPException(status_code=403, detail="Only super admin can update SMTP settings")
+    settings = {"smtp_host": data.get("smtp_host", ""), "smtp_port": int(data.get("smtp_port", 587)), "smtp_user": data.get("smtp_user", ""), "from_email": data.get("from_email", "noreply@idsea.org"), "updated_at": now_iso()}
+    if data.get("smtp_pass") and data["smtp_pass"] != "••••••••":
+        settings["smtp_pass"] = data["smtp_pass"]
+    else:
+        existing = await db.smtp_settings.find_one({}, {"_id": 0})
+        if existing:
+            settings["smtp_pass"] = existing.get("smtp_pass", "")
+    settings["is_configured"] = bool(settings["smtp_host"] and settings["smtp_user"])
+    await db.smtp_settings.update_one({}, {"$set": settings}, upsert=True)
+    return {"message": "SMTP settings updated", "is_configured": settings["is_configured"]}
+
+
+@api_router.post("/admin/smtp-settings/test")
+async def test_smtp_settings(admin=Depends(get_current_admin)):
+    settings = await db.smtp_settings.find_one({}, {"_id": 0})
+    if not settings or not settings.get("smtp_host"):
+        return {"success": False, "message": "SMTP not configured. Please save settings first."}
+    success = send_email_smtp([admin["email"]], "IDSEA - SMTP Test Email", "<h2>SMTP Configuration Test</h2><p>This is a test email from IDSEA admin panel. If you received this, your SMTP settings are working correctly!</p>", settings)
+    return {"success": success, "message": "Test email sent to " + admin["email"] if success else "Failed to send. Check SMTP credentials."}
+
+
+# =================== ADVANCED REPORTS ===================
+
+@api_router.get("/admin/reports/monthly-growth")
+async def admin_monthly_growth(admin=Depends(get_current_admin)):
+    pipeline = [
+        {"$addFields": {"month": {"$substr": ["$created_at", 0, 7]}}},
+        {"$group": {"_id": "$month", "count": {"$sum": 1}}},
+        {"$sort": {"_id": 1}},
+        {"$limit": 12}
+    ]
+    member_growth = await db.members.aggregate(pipeline).to_list(12)
+
+    payment_pipeline = [
+        {"$match": {"status": "paid"}},
+        {"$addFields": {"month": {"$substr": ["$created_at", 0, 7]}}},
+        {"$group": {"_id": "$month", "revenue": {"$sum": "$amount"}, "count": {"$sum": 1}}},
+        {"$sort": {"_id": 1}},
+        {"$limit": 12}
+    ]
+    revenue_growth = await db.payments.aggregate(payment_pipeline).to_list(12)
+
+    type_pipeline = [
+        {"$match": {"status": "approved"}},
+        {"$group": {"_id": "$membership_type", "count": {"$sum": 1}}}
+    ]
+    type_dist = await db.members.aggregate(type_pipeline).to_list(10)
+
+    status_pipeline = [
+        {"$group": {"_id": "$status", "count": {"$sum": 1}}}
+    ]
+    status_dist = await db.members.aggregate(status_pipeline).to_list(10)
+
+    state_pipeline = [
+        {"$match": {"status": "approved", "state": {"$nin": ["", None]}}},
+        {"$group": {"_id": "$state", "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}},
+        {"$limit": 15}
+    ]
+    state_dist = await db.members.aggregate(state_pipeline).to_list(15)
+
+    return {
+        "member_growth": [{"month": m["_id"], "members": m["count"]} for m in member_growth],
+        "revenue_growth": [{"month": r["_id"], "revenue": r["revenue"], "transactions": r["count"]} for r in revenue_growth],
+        "type_distribution": [{"type": t["_id"], "count": t["count"]} for t in type_dist if t["_id"]],
+        "status_distribution": [{"status": s["_id"], "count": s["count"]} for s in status_dist if s["_id"]],
+        "state_distribution": [{"state": s["_id"], "count": s["count"]} for s in state_dist if s["_id"]],
+    }
 
 
 # =================== APP SETUP ===================

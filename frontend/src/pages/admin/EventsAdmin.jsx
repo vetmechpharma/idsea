@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Plus, Edit, Trash2, X } from 'lucide-react';
 import { API } from '../../contexts/AuthContext';
+import { FileUpload } from '../../components/admin/FileUpload';
 
 const initForm = { title: '', date: '', end_date: '', venue: '', description: '', registration_fee: 0, brochure_url: '', speaker_details: '', status: 'upcoming', image_url: '' };
 
@@ -109,10 +110,15 @@ export default function EventsAdmin() {
                 <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="form-textarea" rows={3} />
               </div>
               <div className="form-group"><label className="form-label">Speaker Details</label><input value={form.speaker_details} onChange={e => setForm({ ...form, speaker_details: e.target.value })} className="form-input" placeholder="Speaker names and credentials" /></div>
-              <div className="form-group"><label className="form-label">Brochure URL</label><input type="url" value={form.brochure_url} onChange={e => setForm({ ...form, brochure_url: e.target.value })} className="form-input" /></div>
+              <div className="form-group">
+                <label className="form-label">Brochure</label>
+                <FileUpload accept=".pdf,.doc,.docx" label="Upload Brochure (PDF)" onUpload={(url) => setForm({ ...form, brochure_url: url })} />
+                <input type="url" value={form.brochure_url} onChange={e => setForm({ ...form, brochure_url: e.target.value })} className="form-input" placeholder="Or paste URL" style={{ marginTop: '6px' }} />
+              </div>
               <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-                <label className="form-label">Event Image URL</label>
-                <input type="url" value={form.image_url} onChange={e => setForm({ ...form, image_url: e.target.value })} className="form-input" placeholder="https://..." />
+                <label className="form-label">Event Image</label>
+                <FileUpload accept="image/*" label="Upload Event Image" onUpload={(url) => setForm({ ...form, image_url: url })} />
+                <input type="url" value={form.image_url} onChange={e => setForm({ ...form, image_url: e.target.value })} className="form-input" placeholder="Or paste URL" style={{ marginTop: '6px' }} />
               </div>
             </div>
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>

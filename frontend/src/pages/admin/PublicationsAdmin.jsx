@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Plus, Edit, Trash2, X, ExternalLink } from 'lucide-react';
 import { API } from '../../contexts/AuthContext';
+import { FileUpload } from '../../components/admin/FileUpload';
 
 const initForm = { title: '', author: '', abstract: '', pdf_url: '', category: 'research', published_date: '' };
 
@@ -95,7 +96,11 @@ export default function PublicationsAdmin() {
                 </select>
               </div>
               <div className="form-group"><label className="form-label">Published Date</label><input type="date" value={form.published_date} onChange={e => setForm({ ...form, published_date: e.target.value })} className="form-input" /></div>
-              <div className="form-group"><label className="form-label">PDF URL</label><input type="url" value={form.pdf_url} onChange={e => setForm({ ...form, pdf_url: e.target.value })} className="form-input" placeholder="https://..." /></div>
+              <div className="form-group">
+                <label className="form-label">PDF File</label>
+                <FileUpload accept=".pdf" label="Upload PDF" onUpload={(url) => setForm({ ...form, pdf_url: url })} />
+                <input type="url" value={form.pdf_url} onChange={e => setForm({ ...form, pdf_url: e.target.value })} className="form-input" placeholder="Or paste URL" style={{ marginTop: '6px' }} />
+              </div>
             </div>
             <div className="form-group"><label className="form-label">Abstract</label><textarea value={form.abstract} onChange={e => setForm({ ...form, abstract: e.target.value })} className="form-textarea" rows={4} /></div>
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
