@@ -30,6 +30,10 @@ Build a full-stack website for IDSEA with a public-facing website and comprehens
 ### Backend (server.py)
 - Admin authentication (login, JWT, role-based)
 - Full CRUD for: Members, Events, News, Gallery (Albums + Photos), Publications, Executive Committee
+- Executive Committee supports **two categories**: `founder` (Patron/Founders) and `council` (Executive Council)
+- All founders & EC members are **linked to members** via `member_id`
+- 20 seed members auto-created (academic, entrepreneur, corporate types)
+- 6 Patron/Founders + 19 Executive Council members seeded with member links
 - Payment management (manual + Razorpay order/verify stubs)
 - Email system (SMTP + logs)
 - Certificate generation
@@ -37,7 +41,6 @@ Build a full-stack website for IDSEA with a public-facing website and comprehens
 - Reports & analytics dashboard
 - Admin user/role management
 - Public endpoints for all content types
-- Seeded data: admin user, executive committee, CMS settings
 
 ### Admin Panel (13 sections)
 1. Dashboard - Stats, recent activity, quick actions
