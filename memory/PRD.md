@@ -68,16 +68,12 @@ Build a full-stack website for IDSEA with a public-facing website and comprehens
 8. Membership Application - Type selection, full form, success flow
 
 ## Testing Status
-- Backend: 30/30 API tests passed (100%)
-- Frontend: All pages tested and functional (100%)
-- Test file: /app/backend/tests/test_idsea_api.py
+- iteration_1: Backend 30/30, Frontend all pass (core features)
+- iteration_2: Backend 12/12, Frontend all pass (founders/EC)
+- iteration_3: Backend 24/24, Frontend all pass (5 new features)
+- Test files: /app/backend/tests/test_idsea_api.py, /app/backend/tests/test_new_features.py
 
 ## Backlog / Future Tasks
-- **P1:** Razorpay live payment integration (requires API keys)
-- **P1:** SMTP email sending (requires credentials)
-- **P2:** Certificate PDF generation (currently metadata only)
-- **P2:** Excel/PDF export for member lists
-- **P2:** Responsive mobile design improvements
-- **P3:** Advanced reporting with charts (Recharts)
-- **P3:** Member subscription renewal/expiry reminders
-- **P3:** File upload for photos, brochures, PDFs (currently URL-based)
+- **P1:** Razorpay live payment integration (user deferred - will do later)
+- **P2:** Member subscription renewal/expiry reminders
+- **P3:** Mobile responsive design improvements
