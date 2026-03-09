@@ -1,100 +1,261 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Plus, Edit, Trash2, X } from 'lucide-react';
+import { Plus, Edit, Trash2, X, Search, ArrowUpDown } from 'lucide-react';
 import { API } from '../../contexts/AuthContext';
 
-const initForm = { name: '', designation: '', profile: '', photo_url: '', email: '', phone: '', order: 0 };
+const TABS = [
+  { key: 'founder', label: 'Patron / Founders' },
+  { key: 'council', label: 'Executive Council' },
+];
 
 export default function ExecutiveAdmin() {
+  const [tab, setTab] = useState('founder');
+  const [items, setItems] = useState([]);
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState(null);
-  const [form, setForm] = useState(initForm);
   const [toast, setToast] = useState('');
+  const [searchMember, setSearchMember] = useState('');
+
+  const initForm = { member_id: '', name: '', designation: tab === 'founder' ? 'Patron / Founder' : '', affiliation: '', profile: '', photo_url: '', email: '', phone: '', category: tab, order: 0 };
+  const [form, setForm] = useState(initForm);
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
-  const load = () => { axios.get(`${API}/admin/executive`).then(r => { setMembers(r.data); setLoading(false); }); };
-  useEffect(() => { load(); }, []);
 
-  const openAdd = () => { setEditItem(null); setForm(initForm); setShowModal(true); };
-  const openEdit = (m) => {
-    setEditItem(m);
-    setForm({ name: m.name, designation: m.designation, profile: m.profile || '', photo_url: m.photo_url || '', email: m.email || '', phone: m.phone || '', order: m.order || 0 });
+  const load = () => {
+    setLoading(true);
+    Promise.all([
+      axios.get(`${API}/admin/executive`, { params: { category: tab } }),
+      axios.get(`${API}/admin/members`, { params: { status: 'approved' } })
+    ]).then(([exec, mems]) => {
+      setItems(exec.data);
+      setMembers(mems.data);
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  };
+
+  useEffect(() => { load(); }, [tab]);
+
+  const openAdd = () => {
+    setEditItem(null);
+    setForm({ ...initForm, category: tab, designation: tab === 'founder' ? 'Patron / Founder' : '' });
+    setSearchMember('');
     setShowModal(true);
   };
 
+  const openEdit = (item) => {
+    setEditItem(item);
+    setForm({
+      member_id: item.member_id || '',
+      name: item.name,
+      designation: item.designation,
+      affiliation: item.affiliation || '',
+      profile: item.profile || '',
+      photo_url: item.photo_url || '',
+      email: item.email || '',
+      phone: item.phone || '',
+      category: item.category || tab,
+      order: item.order || 0,
+    });
+    setSearchMember('');
+    setShowModal(true);
+  };
+
+  const selectMember = (m) => {
+    setForm(prev => ({
+      ...prev,
+      member_id: m.id,
+      name: m.name,
+      email: m.email || '',
+      phone: m.phone || '',
+      photo_url: m.photo_url || '',
+      affiliation: m.organization || '',
+    }));
+    setSearchMember('');
+  };
+
   const handleSave = async () => {
+    if (!form.name) return showToast('Name is required');
     try {
       const payload = { ...form, order: parseInt(form.order) || 0 };
       if (editItem) await axios.put(`${API}/admin/executive/${editItem.id}`, payload);
       else await axios.post(`${API}/admin/executive`, payload);
-      showToast('Saved!'); setShowModal(false); load();
+      showToast('Saved!');
+      setShowModal(false);
+      load();
     } catch (e) { showToast('Error: ' + (e.response?.data?.detail || 'Failed')); }
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Remove this committee member?')) return;
+    if (!window.confirm('Remove this entry?')) return;
     await axios.delete(`${API}/admin/executive/${id}`);
-    showToast('Removed'); load();
+    showToast('Removed');
+    load();
   };
+
+  const filteredMembers = members.filter(m =>
+    (m.name?.toLowerCase().includes(searchMember.toLowerCase()) ||
+    m.email?.toLowerCase().includes(searchMember.toLowerCase()) ||
+    m.membership_id?.toLowerCase().includes(searchMember.toLowerCase())) &&
+    searchMember.length > 0
+  );
+
+  const DESIGNATION_OPTIONS = tab === 'council'
+    ? ['President', 'Vice President', 'General Secretary', 'Joint Secretary', 'Treasurer', 'EC Member']
+    : ['Patron / Founder'];
 
   return (
     <div>
       {toast && <div className="toast-success" data-testid="toast">{toast}</div>}
       <div className="page-header">
         <h1 className="page-title">Executive Committee</h1>
-        <button onClick={openAdd} className="btn-primary" data-testid="add-executive-btn"><Plus size={16} /> Add Member</button>
+        <button onClick={openAdd} className="btn-primary" data-testid="add-executive-btn">
+          <Plus size={16} /> Add {tab === 'founder' ? 'Founder' : 'Council Member'}
+        </button>
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: '4px', marginBottom: '20px', background: '#f1f5f9', padding: '4px', borderRadius: '10px', width: 'fit-content' }}>
+        {TABS.map(t => (
+          <button key={t.key} onClick={() => setTab(t.key)} data-testid={`tab-${t.key}`} style={{
+            padding: '8px 20px', borderRadius: '8px', border: 'none', cursor: 'pointer',
+            fontSize: '13px', fontWeight: 600, fontFamily: 'Poppins',
+            background: tab === t.key ? '#0c3c60' : 'transparent',
+            color: tab === t.key ? 'white' : '#6b7280',
+            transition: 'all 0.2s ease'
+          }}>{t.label} ({tab === t.key ? items.length : '...'})</button>
+        ))}
       </div>
 
       {loading ? <div className="loading-spinner">Loading...</div> : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
-          {members.length === 0 ? (
-            <div className="admin-card" style={{ textAlign: 'center', color: '#9ca3af', padding: '60px' }}>No committee members yet.</div>
-          ) : members.map(m => (
-            <div key={m.id} className="admin-card" data-testid="executive-card">
-              <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
-                {m.photo_url ? (
-                  <img src={m.photo_url} alt={m.name} style={{ width: '56px', height: '56px', borderRadius: '12px', objectFit: 'cover', flexShrink: 0 }} />
-                ) : (
-                  <div style={{ width: '56px', height: '56px', borderRadius: '12px', background: '#0c3c60', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '18px', fontFamily: 'Poppins', flexShrink: 0 }}>
-                    {m.name?.charAt(0)}
-                  </div>
-                )}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <h3 style={{ fontFamily: 'Poppins', fontSize: '15px', fontWeight: 700, color: '#111827', margin: '0 0 4px' }}>{m.name}</h3>
-                  <span style={{ background: '#dbeafe', color: '#1e40af', padding: '2px 10px', borderRadius: '10px', fontSize: '11px', fontWeight: 600, fontFamily: 'Poppins' }}>{m.designation}</span>
-                  {m.profile && <p style={{ fontSize: '12px', color: '#6b7280', margin: '8px 0 0', lineHeight: 1.5 }}>{m.profile}</p>}
-                  {m.email && <div style={{ fontSize: '11px', color: '#9ca3af', marginTop: '4px' }}>{m.email}</div>}
-                </div>
-              </div>
-              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '12px', borderTop: '1px solid #f1f5f9', paddingTop: '12px' }}>
-                <span style={{ fontSize: '11px', color: '#9ca3af', marginRight: 'auto' }}>Order: {m.order}</span>
-                <button onClick={() => openEdit(m)} style={{ background: '#dbeafe', color: '#1e40af', border: 'none', padding: '5px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', fontFamily: 'Poppins' }}><Edit size={13} /> Edit</button>
-                <button onClick={() => handleDelete(m.id)} style={{ background: '#fee2e2', color: '#991b1b', border: 'none', padding: '5px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', fontFamily: 'Poppins' }}><Trash2 size={13} /> Delete</button>
-              </div>
-            </div>
-          ))}
+        <div style={{ overflowX: 'auto' }}>
+          <table className="admin-table" data-testid="executive-table">
+            <thead>
+              <tr>
+                <th style={{ width: '60px' }}>Order</th>
+                <th>Name</th>
+                <th>Designation</th>
+                <th>Affiliation</th>
+                <th>Linked Member</th>
+                <th style={{ width: '120px' }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.length === 0 ? (
+                <tr><td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: '#9ca3af' }}>No entries yet. Click "Add" to select from members.</td></tr>
+              ) : items.map(item => (
+                <tr key={item.id} data-testid="executive-row">
+                  <td style={{ fontWeight: 700, color: '#0c3c60', fontFamily: 'Poppins', fontSize: '13px', textAlign: 'center' }}>{item.order}</td>
+                  <td>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      {item.photo_url ? (
+                        <img src={item.photo_url} alt={item.name} style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover' }} />
+                      ) : (
+                        <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#0c3c60', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '14px', fontFamily: 'Poppins', flexShrink: 0 }}>
+                          {item.name?.charAt(0)}
+                        </div>
+                      )}
+                      <span style={{ fontWeight: 600, fontSize: '13px', color: '#111827' }}>{item.name}</span>
+                    </div>
+                  </td>
+                  <td><span className="badge badge-academic">{item.designation}</span></td>
+                  <td style={{ fontSize: '12px', color: '#4b5563', maxWidth: '280px', lineHeight: 1.5 }}>{item.affiliation || '-'}</td>
+                  <td style={{ fontSize: '12px', color: item.member_id ? '#1e7a4d' : '#9ca3af' }}>{item.member_id ? 'Linked' : 'Not linked'}</td>
+                  <td>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <button onClick={() => openEdit(item)} style={{ background: '#dbeafe', color: '#1e40af', border: 'none', padding: '5px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '3px', fontFamily: 'Poppins' }}><Edit size={12} /> Edit</button>
+                      <button onClick={() => handleDelete(item.id)} style={{ background: '#fee2e2', color: '#991b1b', border: 'none', padding: '5px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '3px', fontFamily: 'Poppins' }}><Trash2 size={12} /></button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 
+      {/* Add/Edit Modal */}
       {showModal && (
         <div className="modal-overlay">
-          <div className="modal-content">
+          <div className="modal-content" style={{ maxWidth: '560px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h2 style={{ fontFamily: 'Poppins', fontSize: '17px', fontWeight: 700, color: '#0c3c60', margin: 0 }}>{editItem ? 'Edit Member' : 'Add Committee Member'}</h2>
+              <h2 style={{ fontFamily: 'Poppins', fontSize: '17px', fontWeight: 700, color: '#0c3c60', margin: 0 }}>
+                {editItem ? 'Edit Entry' : `Add ${tab === 'founder' ? 'Patron / Founder' : 'Council Member'}`}
+              </h2>
               <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af' }}><X size={20} /></button>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-              <div className="form-group"><label className="form-label">Name *</label><input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="form-input" required /></div>
-              <div className="form-group"><label className="form-label">Designation *</label><input value={form.designation} onChange={e => setForm({ ...form, designation: e.target.value })} className="form-input" placeholder="e.g. President, Vice President" required /></div>
-              <div className="form-group"><label className="form-label">Email</label><input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="form-input" /></div>
-              <div className="form-group"><label className="form-label">Phone</label><input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} className="form-input" /></div>
-              <div className="form-group"><label className="form-label">Display Order</label><input type="number" value={form.order} onChange={e => setForm({ ...form, order: e.target.value })} className="form-input" /></div>
-              <div className="form-group"><label className="form-label">Photo URL</label><input type="url" value={form.photo_url} onChange={e => setForm({ ...form, photo_url: e.target.value })} className="form-input" /></div>
+
+            {/* Member Search */}
+            <div className="form-group">
+              <label className="form-label">Select from Members (search by name, email, or ID)</label>
+              <div style={{ position: 'relative' }}>
+                <Search size={15} style={{ position: 'absolute', left: '10px', top: '11px', color: '#9ca3af' }} />
+                <input
+                  value={searchMember}
+                  onChange={e => setSearchMember(e.target.value)}
+                  className="form-input"
+                  style={{ paddingLeft: '32px' }}
+                  placeholder="Type to search approved members..."
+                  data-testid="search-member-input"
+                />
+                {filteredMembers.length > 0 && (
+                  <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', maxHeight: '200px', overflowY: 'auto', zIndex: 10, boxShadow: '0 8px 20px rgba(0,0,0,0.12)' }}>
+                    {filteredMembers.slice(0, 10).map(m => (
+                      <div key={m.id} onClick={() => selectMember(m)} data-testid="member-option" style={{
+                        padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9',
+                        fontSize: '13px', display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                      }}
+                        onMouseEnter={e => e.currentTarget.style.background = '#f0f9ff'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'white'}
+                      >
+                        <div>
+                          <div style={{ fontWeight: 600, color: '#111827' }}>{m.name}</div>
+                          <div style={{ fontSize: '11px', color: '#6b7280' }}>{m.organization}</div>
+                        </div>
+                        <span style={{ fontSize: '11px', color: '#9ca3af' }}>{m.membership_id}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {form.member_id && (
+                <div style={{ marginTop: '6px', background: '#d1fae5', padding: '6px 12px', borderRadius: '6px', fontSize: '12px', color: '#065f46', fontWeight: 600 }}>
+                  Linked to member: {form.name}
+                </div>
+              )}
             </div>
-            <div className="form-group"><label className="form-label">Profile / Bio</label><textarea value={form.profile} onChange={e => setForm({ ...form, profile: e.target.value })} className="form-textarea" rows={3} /></div>
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div className="form-group">
+                <label className="form-label">Name *</label>
+                <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="form-input" data-testid="exec-name" required />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Designation *</label>
+                <select value={form.designation} onChange={e => setForm({ ...form, designation: e.target.value })} className="form-select" data-testid="exec-designation">
+                  <option value="">-- Select --</option>
+                  {DESIGNATION_OPTIONS.map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
+              </div>
+              <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                <label className="form-label">Affiliation / Organization</label>
+                <input value={form.affiliation} onChange={e => setForm({ ...form, affiliation: e.target.value })} className="form-input" data-testid="exec-affiliation" />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Display Order</label>
+                <input type="number" value={form.order} onChange={e => setForm({ ...form, order: e.target.value })} className="form-input" data-testid="exec-order" />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Photo URL</label>
+                <input type="url" value={form.photo_url} onChange={e => setForm({ ...form, photo_url: e.target.value })} className="form-input" />
+              </div>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Profile / Bio</label>
+              <textarea value={form.profile} onChange={e => setForm({ ...form, profile: e.target.value })} className="form-textarea" rows={2} />
+            </div>
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '8px' }}>
               <button onClick={() => setShowModal(false)} className="btn-secondary">Cancel</button>
               <button onClick={handleSave} className="btn-primary" data-testid="save-executive-btn">Save</button>
             </div>

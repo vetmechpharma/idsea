@@ -215,23 +215,29 @@ class PublicationCreate(BaseModel):
 
 class ExecutiveCommittee(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    member_id: Optional[str] = ""
     name: str
     designation: str
+    affiliation: Optional[str] = ""
     profile: Optional[str] = ""
     photo_url: Optional[str] = ""
     email: Optional[str] = ""
     phone: Optional[str] = ""
+    category: str = "council"
     order: int = 0
     created_at: str = Field(default_factory=now_iso)
 
 
 class ExecutiveCreate(BaseModel):
+    member_id: Optional[str] = ""
     name: str
     designation: str
+    affiliation: Optional[str] = ""
     profile: Optional[str] = ""
     photo_url: Optional[str] = ""
     email: Optional[str] = ""
     phone: Optional[str] = ""
+    category: str = "council"
     order: int = 0
 
 
@@ -460,7 +466,12 @@ async def get_public_publications(category: Optional[str] = None):
 
 @api_router.get("/public/executive")
 async def get_public_executive():
-    return await db.executive_committee.find({}, {"_id": 0}).sort("order", 1).to_list(50)
+    return await db.executive_committee.find({"category": "council"}, {"_id": 0}).sort("order", 1).to_list(100)
+
+
+@api_router.get("/public/founders")
+async def get_public_founders():
+    return await db.executive_committee.find({"category": "founder"}, {"_id": 0}).sort("order", 1).to_list(50)
 
 
 @api_router.get("/public/cms")
@@ -681,8 +692,11 @@ async def admin_delete_publication(pub_id: str, admin=Depends(get_current_admin)
 # =================== ADMIN EXECUTIVE ===================
 
 @api_router.get("/admin/executive")
-async def admin_get_executive(admin=Depends(get_current_admin)):
-    return await db.executive_committee.find({}, {"_id": 0}).sort("order", 1).to_list(50)
+async def admin_get_executive(category: Optional[str] = None, admin=Depends(get_current_admin)):
+    query = {}
+    if category:
+        query["category"] = category
+    return await db.executive_committee.find(query, {"_id": 0}).sort("order", 1).to_list(100)
 
 
 @api_router.post("/admin/executive")
@@ -973,16 +987,105 @@ async def startup_event():
         ).model_dump())
         logger.info("Default admin created: admin@idsea.org / Admin@123")
 
+    # Migrate: if old executive data exists without category field, clear and re-seed
+    old_exec = await db.executive_committee.find_one({"category": {"$exists": False}})
+    if old_exec:
+        await db.executive_committee.delete_many({})
+        logger.info("Cleared old executive data for migration")
+
+    # Seed all founders & EC members as approved members + executive entries
     if await db.executive_committee.count_documents({}) == 0:
-        execs = [
-            {"name": "Dr. A. Elango", "designation": "President", "profile": "Dean, Veterinary College and Research Institute, Salem", "order": 1, "email": "", "phone": "", "photo_url": ""},
-            {"name": "Dr. G. Kumaresan", "designation": "Vice President", "profile": "Professor and Head, Dept. of Livestock Products Technology, VCRI Namakkal", "order": 2, "email": "", "phone": "", "photo_url": ""},
-            {"name": "Dr. N. Karthikeyan", "designation": "General Secretary", "profile": "Professor, Dept. of Livestock Products Technology, VCRI Namakkal", "order": 3, "email": "", "phone": "", "photo_url": ""},
-            {"name": "Dr. C. Pandiyan", "designation": "Joint Secretary", "profile": "Professor, Dept. of Livestock Products Technology, VCRI Namakkal", "order": 4, "email": "", "phone": "", "photo_url": ""},
-            {"name": "Dr. L. Vijay", "designation": "Treasurer", "profile": "Veterinary Assistant Surgeon, Dept. of Animal Husbandry, Govt. of Tamil Nadu", "order": 5, "email": "", "phone": "", "photo_url": ""},
+        # All people who need to be members first
+        seed_people = [
+            # Founders / Officers
+            {"name": "Dr. A. Elango", "qualification": "Ph.D.", "membership_type": "academic", "organization": "Veterinary College and Research Institute, Salem - 636112", "state": "Tamil Nadu"},
+            {"name": "Dr. G. Kumaresan", "qualification": "Ph.D.", "membership_type": "academic", "organization": "Dept. of Livestock Products Technology (Dairy Science), VCRI, Namakkal - 637002", "state": "Tamil Nadu"},
+            {"name": "Dr. N. Karthikeyan", "qualification": "Ph.D.", "membership_type": "academic", "organization": "Dept. of Livestock Products Technology (Dairy Science), VCRI, Namakkal - 637002", "state": "Tamil Nadu"},
+            {"name": "Dr. C. Pandiyan", "qualification": "Ph.D.", "membership_type": "academic", "organization": "Dept. of Livestock Products Technology (Dairy Science), VCRI, Namakkal - 637002", "state": "Tamil Nadu"},
+            {"name": "Dr. C. R. Prasanna", "qualification": "IAS", "membership_type": "corporate", "organization": "Indian Administrative Service (IAS), Government of India", "state": "Tamil Nadu"},
+            {"name": "Dr. L. Vijay", "qualification": "M.V.Sc.", "membership_type": "academic", "organization": "Dept. of Animal Husbandry, Government of Tamil Nadu", "state": "Tamil Nadu"},
+            # EC Members
+            {"name": "Dr. R. Subash", "qualification": "Ph.D.", "membership_type": "academic", "organization": "Bargur Cattle Research Station, Anthiyur Taluk, Erode District - 638501", "state": "Tamil Nadu"},
+            {"name": "Dr. T. Lokesh", "qualification": "B.V.Sc. & A.H.", "membership_type": "academic", "organization": "Tirupur District Co-operative Milk Producers Union Ltd., Tirupur", "state": "Tamil Nadu"},
+            {"name": "Dr. K. Prabu", "qualification": "M.V.Sc.", "membership_type": "academic", "organization": "Dept. of Animal Husbandry, Government of Tamil Nadu", "state": "Tamil Nadu"},
+            {"name": "Dr. B. R. Kadam", "qualification": "Ph.D.", "membership_type": "academic", "organization": "Dept. of Livestock Products Technology, KNP College of Veterinary Science, MAFSU, Shirwal, Satara District, Maharashtra", "state": "Maharashtra"},
+            {"name": "Dr. Neha Thakur", "qualification": "Ph.D.", "membership_type": "academic", "organization": "Dept. of Livestock Products Technology, College of Veterinary Science, LUVASU, Hisar, Haryana - 125004", "state": "Haryana"},
+            {"name": "Dr. Anindita Mali", "qualification": "M.V.Sc.", "membership_type": "academic", "organization": "Assam Animal Husbandry and Veterinary Department, Government of Assam", "state": "Assam"},
+            {"name": "Dr. A. R. Praveen", "qualification": "Ph.D.", "membership_type": "academic", "organization": "Dept. of Dairy Technology, Dairy Science College, KVAFSU, Hebbal, Bengaluru - 560024", "state": "Karnataka"},
+            {"name": "Mr. D. Senthil Kumar", "qualification": "", "membership_type": "entrepreneur", "organization": "Refindia Enterprises Pvt. Ltd, Namakkal", "state": "Tamil Nadu"},
+            {"name": "Mr. C. Balakrishnan", "qualification": "", "membership_type": "entrepreneur", "organization": "Krishna Food Products, Rasipuram, Namakkal", "state": "Tamil Nadu"},
+            {"name": "Mrs. A. Archana Karthikeyan", "qualification": "", "membership_type": "entrepreneur", "organization": "Thaai Herbals, Karur", "state": "Tamil Nadu"},
+            {"name": "Mr. K. M. Sajeeshkumar", "qualification": "", "membership_type": "entrepreneur", "organization": "Elanadu Milk Pvt. Ltd., Elanadu - Vaniyampara MLA Rd, Kerala - 680586", "state": "Kerala"},
+            {"name": "Mr. M. Karthikeyan", "qualification": "", "membership_type": "entrepreneur", "organization": "Healthy Day Milk Products, Sulur, Coimbatore", "state": "Tamil Nadu"},
+            {"name": "Mr. Pradeep Ponnusamy", "qualification": "", "membership_type": "entrepreneur", "organization": "Anyra Foods, 1/40, Komara Gaundan Palayam, Sokkanur (Po), Kunnathur - 638103, Tirupur District", "state": "Tamil Nadu"},
+            {"name": "Mr. M. Saravanan", "qualification": "", "membership_type": "entrepreneur", "organization": "STM Control Tech, 156, Sangeeth Nagar, 3rd street, Koodal Nagar, Madurai", "state": "Tamil Nadu"},
         ]
-        for e in execs:
-            await db.executive_committee.insert_one(ExecutiveCommittee(**e).model_dump())
+
+        # Create all as approved members if they don't exist
+        member_ids = {}
+        for i, person in enumerate(seed_people):
+            existing = await db.members.find_one({"name": person["name"]})
+            if existing:
+                member_ids[person["name"]] = existing["id"]
+            else:
+                m = Member(
+                    name=person["name"],
+                    qualification=person.get("qualification", ""),
+                    organization=person["organization"],
+                    email="",
+                    membership_type=person["membership_type"],
+                    status="approved",
+                    state=person.get("state", ""),
+                    membership_id=f"IDSEA-{str(i+1).zfill(4)}",
+                )
+                await db.members.insert_one(m.model_dump())
+                member_ids[person["name"]] = m.id
+
+        # Seed Founders
+        founders = [
+            {"name": "Dr. A. Elango", "designation": "Patron / Founder", "affiliation": "Dean, Veterinary College and Research Institute, Salem - 636112", "order": 1},
+            {"name": "Dr. G. Kumaresan", "designation": "Patron / Founder", "affiliation": "Professor and Head, Department of Livestock Products Technology (Dairy Science), VCRI, Namakkal - 637002", "order": 2},
+            {"name": "Dr. N. Karthikeyan", "designation": "Patron / Founder", "affiliation": "Professor, Department of Livestock Products Technology (Dairy Science), VCRI, Namakkal - 637002", "order": 3},
+            {"name": "Dr. C. Pandiyan", "designation": "Patron / Founder", "affiliation": "Professor, Department of Livestock Products Technology (Dairy Science), VCRI, Namakkal - 637002", "order": 4},
+            {"name": "Dr. C. R. Prasanna", "designation": "Patron / Founder", "affiliation": "Indian Administrative Service (IAS), Government of India", "order": 5},
+            {"name": "Dr. L. Vijay", "designation": "Patron / Founder", "affiliation": "Veterinary Assistant Surgeon, Department of Animal Husbandry, Government of Tamil Nadu", "order": 6},
+        ]
+        for f in founders:
+            await db.executive_committee.insert_one(ExecutiveCommittee(
+                member_id=member_ids.get(f["name"], ""),
+                name=f["name"], designation=f["designation"], affiliation=f["affiliation"],
+                category="founder", order=f["order"]
+            ).model_dump())
+
+        # Seed Executive Council
+        council = [
+            {"name": "Dr. A. Elango", "designation": "President", "affiliation": "Dean, Veterinary College and Research Institute, Salem - 636112", "order": 1},
+            {"name": "Dr. G. Kumaresan", "designation": "Vice President", "affiliation": "Professor and Head, Department of Livestock Products Technology (Dairy Science), VCRI, Namakkal - 637002", "order": 2},
+            {"name": "Dr. N. Karthikeyan", "designation": "General Secretary", "affiliation": "Professor, Department of Livestock Products Technology (Dairy Science), VCRI, Namakkal - 637002", "order": 3},
+            {"name": "Dr. C. Pandiyan", "designation": "Joint Secretary", "affiliation": "Professor, Department of Livestock Products Technology (Dairy Science), VCRI, Namakkal - 637002", "order": 4},
+            {"name": "Dr. L. Vijay", "designation": "Treasurer", "affiliation": "Veterinary Assistant Surgeon, Department of Animal Husbandry, Government of Tamil Nadu", "order": 5},
+            {"name": "Dr. R. Subash", "designation": "EC Member", "affiliation": "Assistant Professor, Bargur Cattle Research Station, Anthiyur Taluk, Erode District - 638501", "order": 6},
+            {"name": "Dr. T. Lokesh", "designation": "EC Member", "affiliation": "Veterinary Consultant, Tirupur District Co-operative Milk Producers Union Ltd., Tirupur", "order": 7},
+            {"name": "Dr. K. Prabu", "designation": "EC Member", "affiliation": "Veterinary Assistant Surgeon, Department of Animal Husbandry, Government of Tamil Nadu", "order": 8},
+            {"name": "Dr. B. R. Kadam", "designation": "EC Member", "affiliation": "Professor and Head, Department of Livestock Products Technology, KNP College of Veterinary Science, MAFSU, Shirwal, Satara District, Maharashtra", "order": 9},
+            {"name": "Dr. Neha Thakur", "designation": "EC Member", "affiliation": "Assistant Professor, Department of Livestock Products Technology, College of Veterinary Science, LUVASU, Hisar, Haryana - 125004", "order": 10},
+            {"name": "Dr. Anindita Mali", "designation": "EC Member", "affiliation": "Veterinary Officer, Assam Animal Husbandry and Veterinary Department, Government of Assam", "order": 11},
+            {"name": "Dr. A. R. Praveen", "designation": "EC Member", "affiliation": "Assistant Professor, Department of Dairy Technology, Dairy Science College, KVAFSU, Hebbal, Bengaluru - 560024", "order": 12},
+            {"name": "Mr. D. Senthil Kumar", "designation": "EC Member", "affiliation": "Refindia Enterprises Pvt. Ltd, Namakkal", "order": 13},
+            {"name": "Mr. C. Balakrishnan", "designation": "EC Member", "affiliation": "Krishna Food Products, Rasipuram, Namakkal", "order": 14},
+            {"name": "Mrs. A. Archana Karthikeyan", "designation": "EC Member", "affiliation": "Thaai Herbals, Karur", "order": 15},
+            {"name": "Mr. K. M. Sajeeshkumar", "designation": "EC Member", "affiliation": "Managing Director, Elanadu Milk Pvt. Ltd., Elanadu - Vaniyampara MLA Rd, Kerala - 680586", "order": 16},
+            {"name": "Mr. M. Karthikeyan", "designation": "EC Member", "affiliation": "Healthy Day Milk Products, Sulur, Coimbatore", "order": 17},
+            {"name": "Mr. Pradeep Ponnusamy", "designation": "EC Member", "affiliation": "Anyra Foods, 1/40, Komara Gaundan Palayam, Sokkanur (Po), Kunnathur - 638103, Tirupur District", "order": 18},
+            {"name": "Mr. M. Saravanan", "designation": "EC Member", "affiliation": "STM Control Tech, 156, Sangeeth Nagar, 3rd street, Koodal Nagar, Madurai", "order": 19},
+        ]
+        for c in council:
+            await db.executive_committee.insert_one(ExecutiveCommittee(
+                member_id=member_ids.get(c["name"], ""),
+                name=c["name"], designation=c["designation"], affiliation=c["affiliation"],
+                category="council", order=c["order"]
+            ).model_dump())
+        logger.info("Seeded %d founders and %d council members", len(founders), len(council))
 
     if await db.cms_settings.count_documents({}) == 0:
         await db.cms_settings.insert_one({
