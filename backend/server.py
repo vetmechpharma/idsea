@@ -301,6 +301,26 @@ class CertificateRequest(BaseModel):
     issue_date: Optional[str] = ""
 
 
+class Slider(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    title: Optional[str] = ""
+    subtitle: Optional[str] = ""
+    image_url: str
+    link_url: Optional[str] = ""
+    order: int = 0
+    is_active: bool = True
+    created_at: str = Field(default_factory=now_iso)
+
+
+class SliderCreate(BaseModel):
+    title: Optional[str] = ""
+    subtitle: Optional[str] = ""
+    image_url: str
+    link_url: Optional[str] = ""
+    order: int = 0
+    is_active: bool = True
+
+
 class CMSSettings(BaseModel):
     about_content: Optional[str] = ""
     vision: Optional[str] = ""
@@ -1800,6 +1820,50 @@ async def admin_monthly_growth(admin=Depends(get_current_admin)):
         "status_distribution": [{"status": s["_id"], "count": s["count"]} for s in status_dist if s["_id"]],
         "state_distribution": [{"state": s["_id"], "count": s["count"]} for s in state_dist if s["_id"]],
     }
+
+
+# =================== SLIDER MANAGEMENT ===================
+
+@api_router.get("/public/sliders")
+async def get_public_sliders():
+    sliders = await db.sliders.find({"is_active": True}, {"_id": 0}).sort("order", 1).to_list(20)
+    return sliders
+
+
+@api_router.get("/admin/sliders")
+async def admin_get_sliders(admin=Depends(get_current_admin)):
+    return await db.sliders.find({}, {"_id": 0}).sort("order", 1).to_list(50)
+
+
+@api_router.post("/admin/sliders")
+async def admin_create_slider(data: SliderCreate, admin=Depends(get_current_admin)):
+    slider = Slider(**data.model_dump())
+    await db.sliders.insert_one(slider.model_dump())
+    result = slider.model_dump()
+    result.pop("_id", None)
+    return result
+
+
+@api_router.put("/admin/sliders/reorder")
+async def admin_reorder_sliders(data: dict, admin=Depends(get_current_admin)):
+    """Reorder sliders - must be before {slider_id} route"""
+    items = data.get("items", [])
+    for item in items:
+        await db.sliders.update_one({"id": item["id"]}, {"$set": {"order": item["order"]}})
+    return {"message": "Sliders reordered"}
+
+
+@api_router.put("/admin/sliders/{slider_id}")
+async def admin_update_slider(slider_id: str, data: SliderCreate, admin=Depends(get_current_admin)):
+    update_data = data.model_dump()
+    await db.sliders.update_one({"id": slider_id}, {"$set": update_data})
+    return {"message": "Slider updated"}
+
+
+@api_router.delete("/admin/sliders/{slider_id}")
+async def admin_delete_slider(slider_id: str, admin=Depends(get_current_admin)):
+    await db.sliders.delete_one({"id": slider_id})
+    return {"message": "Slider deleted"}
 
 
 # =================== APP SETUP ===================

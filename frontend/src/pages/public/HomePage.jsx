@@ -1,20 +1,156 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
+import Slider from 'react-slick';
+import 'slick-carousel/slick/slick.css';
+import 'slick-carousel/slick/slick-theme.css';
 import PublicNavbar from '../../components/public/PublicNavbar';
 import PublicFooter from '../../components/public/PublicFooter';
-import { Calendar, Users, BookOpen, ArrowRight, Award, FlaskConical } from 'lucide-react';
+import { Calendar, Users, BookOpen, ArrowRight, Award, FlaskConical, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
-const HERO_IMG = "https://images.unsplash.com/photo-1530836369250-ef72a3f5cda8?w=900&q=80";
 const ABOUT_IMG = "https://images.unsplash.com/photo-1532094349884-543559059a6d?w=600&q=80";
+const FALLBACK_HERO = "https://images.unsplash.com/photo-1530836369250-ef72a3f5cda8?w=900&q=80";
+
+function SlickArrow({ className, onClick, direction }) {
+  return (
+    <button
+      data-testid={`slider-arrow-${direction}`}
+      onClick={onClick}
+      style={{
+        position: 'absolute', top: '50%', transform: 'translateY(-50%)',
+        [direction === 'prev' ? 'left' : 'right']: '20px',
+        zIndex: 10, background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(4px)',
+        border: '1px solid rgba(255,255,255,0.3)', borderRadius: '50%',
+        width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        cursor: 'pointer', color: 'white', transition: 'background 0.2s ease'
+      }}
+      onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.3)'}
+      onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.15)'}
+    >
+      {direction === 'prev' ? <ChevronLeft size={22} /> : <ChevronRight size={22} />}
+    </button>
+  );
+}
 
 export default function HomePage() {
   const [stats, setStats] = useState({ total_members: 0, total_events: 0, total_publications: 0, upcoming_events: 0 });
   const [events, setEvents] = useState([]);
   const [news, setNews] = useState([]);
   const [executive, setExecutive] = useState([]);
+  const [sliders, setSliders] = useState([]);
+
+  useEffect(() => {
+    axios.get(`${API}/public/stats`).then(r => setStats(r.data)).catch(() => {});
+    axios.get(`${API}/public/events`).then(r => setEvents(r.data.slice(0, 3))).catch(() => {});
+    axios.get(`${API}/public/news`).then(r => setNews(r.data.slice(0, 3))).catch(() => {});
+    axios.get(`${API}/public/executive`).then(r => setExecutive(r.data.slice(0, 3))).catch(() => {});
+    axios.get(`${API}/public/sliders`).then(r => setSliders(r.data)).catch(() => {});
+  }, []);
+
+  const sliderSettings = {
+    dots: true,
+    infinite: sliders.length > 1,
+    speed: 600,
+    slidesToShow: 1,
+    slidesToScroll: 1,
+    autoplay: true,
+    autoplaySpeed: 5000,
+    pauseOnHover: true,
+    fade: true,
+    prevArrow: <SlickArrow direction="prev" />,
+    nextArrow: <SlickArrow direction="next" />,
+    appendDots: dots => (
+      <div style={{ position: 'absolute', bottom: '24px', width: '100%' }}>
+        <ul style={{ margin: 0, padding: 0, display: 'flex', justifyContent: 'center', gap: '8px', listStyle: 'none' }}>{dots}</ul>
+      </div>
+    ),
+    customPaging: () => (
+      <div style={{
+        width: '10px', height: '10px', borderRadius: '50%',
+        background: 'rgba(255,255,255,0.4)', border: '1px solid rgba(255,255,255,0.6)',
+        transition: 'all 0.3s ease', cursor: 'pointer'
+      }} />
+    ),
+  };
+
+  const resolveImg = (url) => {
+    if (!url) return FALLBACK_HERO;
+    return url.startsWith('/') ? `${process.env.REACT_APP_BACKEND_URL}${url}` : url;
+  };
+
+  const renderHero = () => {
+    if (sliders.length === 0) {
+      return (
+        <section data-testid="hero-fallback" style={{ position: 'relative', minHeight: '100vh', display: 'flex', alignItems: 'center', paddingTop: '170px', overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', inset: 0, background: '#0c3c60', zIndex: 0 }} />
+          <div style={{ position: 'absolute', inset: 0, zIndex: 1, backgroundImage: `url(${FALLBACK_HERO})`, backgroundSize: 'cover', backgroundPosition: 'center', opacity: 0.2 }} />
+          <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '60px 24px', position: 'relative', zIndex: 2, width: '100%' }}>
+            <div style={{ maxWidth: '680px' }}>
+              <h1 style={{ fontFamily: 'Poppins, sans-serif', fontSize: 'clamp(28px, 5vw, 52px)', fontWeight: 800, color: 'white', lineHeight: 1.2, marginBottom: '20px' }}>
+                Indian Dairy Scientists<br /><span style={{ color: '#4ade80' }}>& Entrepreneurs</span> Association
+              </h1>
+              <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '16px', lineHeight: 1.7, marginBottom: '36px', fontFamily: 'Inter, sans-serif', maxWidth: '560px' }}>
+                Bridging dairy science, innovation, and entrepreneurship for the sustainable growth of India's dairy sector.
+              </p>
+              <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
+                <Link to="/apply" data-testid="hero-join-btn" className="btn-primary" style={{ textDecoration: 'none', padding: '14px 28px', fontSize: '15px' }}>Become a Member <ArrowRight size={16} /></Link>
+                <Link to="/about" style={{ background: 'rgba(255,255,255,0.1)', color: 'white', textDecoration: 'none', padding: '14px 28px', borderRadius: '8px', fontWeight: 600, fontFamily: 'Poppins, sans-serif', fontSize: '15px', border: '1px solid rgba(255,255,255,0.3)' }}>Learn More</Link>
+              </div>
+            </div>
+          </div>
+        </section>
+      );
+    }
+
+    return (
+      <section data-testid="hero-slider" style={{ position: 'relative', paddingTop: '170px' }}>
+        <style>{`
+          .hero-slider .slick-dots li div { background: rgba(255,255,255,0.4); }
+          .hero-slider .slick-dots li.slick-active div { background: white !important; transform: scale(1.3); }
+          .hero-slider .slick-slide > div { line-height: 0; }
+        `}</style>
+        <Slider {...sliderSettings} className="hero-slider">
+          {sliders.map((slide, idx) => (
+            <div key={slide.id}>
+              <div style={{ position: 'relative', minHeight: 'calc(100vh - 170px)', display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
+                <div style={{ position: 'absolute', inset: 0, background: '#0c3c60', zIndex: 0 }} />
+                <div style={{ position: 'absolute', inset: 0, zIndex: 1, backgroundImage: `url(${resolveImg(slide.image_url)})`, backgroundSize: 'cover', backgroundPosition: 'center', opacity: 0.35 }} />
+                <div style={{ position: 'absolute', inset: 0, zIndex: 2, background: 'linear-gradient(to right, rgba(12,60,96,0.85) 0%, rgba(12,60,96,0.4) 100%)' }} />
+                <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '80px 24px', position: 'relative', zIndex: 3, width: '100%', display: 'flex', alignItems: 'center', minHeight: 'calc(100vh - 170px)' }}>
+                  <div style={{ maxWidth: '680px' }}>
+                    {(slide.title || slide.subtitle) && (
+                      <>
+                        {slide.title && (
+                          <h1 data-testid={`slider-title-${idx}`} style={{ fontFamily: 'Poppins, sans-serif', fontSize: 'clamp(28px, 5vw, 52px)', fontWeight: 800, color: 'white', lineHeight: 1.2, marginBottom: '20px' }}>
+                            {slide.title}
+                          </h1>
+                        )}
+                        {slide.subtitle && (
+                          <p data-testid={`slider-subtitle-${idx}`} style={{ color: 'rgba(255,255,255,0.85)', fontSize: '17px', lineHeight: 1.7, marginBottom: '36px', fontFamily: 'Inter, sans-serif', maxWidth: '560px' }}>
+                            {slide.subtitle}
+                          </p>
+                        )}
+                      </>
+                    )}
+                    <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
+                      <Link to={slide.link_url || '/apply'} data-testid="hero-join-btn" className="btn-primary" style={{ textDecoration: 'none', padding: '14px 28px', fontSize: '15px' }}>
+                        Become a Member <ArrowRight size={16} />
+                      </Link>
+                      <Link to="/about" style={{ background: 'rgba(255,255,255,0.1)', color: 'white', textDecoration: 'none', padding: '14px 28px', borderRadius: '8px', fontWeight: 600, fontFamily: 'Poppins, sans-serif', fontSize: '15px', border: '1px solid rgba(255,255,255,0.3)' }}>
+                        Learn More
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </Slider>
+      </section>
+    );
+  };
 
   useEffect(() => {
     axios.get(`${API}/public/stats`).then(r => setStats(r.data)).catch(() => {});
@@ -27,64 +163,8 @@ export default function HomePage() {
     <div style={{ background: 'white' }}>
       <PublicNavbar />
 
-      {/* Hero Section */}
-      <section style={{ position: 'relative', minHeight: '100vh', display: 'flex', alignItems: 'center', paddingTop: '170px', overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', inset: 0, background: '#0c3c60', zIndex: 0 }} />
-        <div style={{
-          position: 'absolute', inset: 0, zIndex: 1,
-          backgroundImage: `url(${HERO_IMG})`,
-          backgroundSize: 'cover', backgroundPosition: 'center',
-          opacity: 0.2
-        }} />
-        <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '60px 24px', position: 'relative', zIndex: 2, width: '100%' }}>
-          <div style={{ maxWidth: '680px' }}>
-            <div style={{
-              display: 'inline-flex', alignItems: 'center', gap: '8px',
-              background: 'rgba(30,122,77,0.2)', border: '1px solid rgba(30,122,77,0.4)',
-              padding: '6px 14px', borderRadius: '20px', marginBottom: '24px'
-            }}>
-              <div style={{ width: '8px', height: '8px', background: '#4ade80', borderRadius: '50%', animation: 'pulse 2s infinite' }} />
-              <span style={{ color: '#4ade80', fontSize: '13px', fontFamily: 'Poppins, sans-serif', fontWeight: 500 }}>National Professional Body</span>
-            </div>
-
-            <h1 style={{ fontFamily: 'Poppins, sans-serif', fontSize: 'clamp(28px, 5vw, 52px)', fontWeight: 800, color: 'white', lineHeight: 1.2, marginBottom: '20px' }}>
-              Indian Dairy Scientists<br />
-              <span style={{ color: '#4ade80' }}>& Entrepreneurs</span> Association
-            </h1>
-
-            <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '16px', lineHeight: 1.7, marginBottom: '36px', fontFamily: 'Inter, sans-serif', maxWidth: '560px' }}>
-              Bridging dairy science, innovation, and entrepreneurship for the sustainable growth of India's dairy sector. One platform for scientists, academicians, and entrepreneurs.
-            </p>
-
-            <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
-              <Link to="/apply" data-testid="hero-join-btn" style={{
-                background: '#1e7a4d', color: 'white', textDecoration: 'none',
-                padding: '14px 28px', borderRadius: '8px', fontWeight: 700,
-                fontFamily: 'Poppins, sans-serif', fontSize: '15px',
-                display: 'flex', alignItems: 'center', gap: '8px',
-                transition: 'background 0.2s ease, transform 0.1s ease'
-              }}
-                onMouseEnter={e => { e.currentTarget.style.background = '#166534'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
-                onMouseLeave={e => { e.currentTarget.style.background = '#1e7a4d'; e.currentTarget.style.transform = 'translateY(0)'; }}
-              >
-                Become a Member <ArrowRight size={16} />
-              </Link>
-              <Link to="/about" style={{
-                background: 'rgba(255,255,255,0.1)', color: 'white', textDecoration: 'none',
-                padding: '14px 28px', borderRadius: '8px', fontWeight: 600,
-                fontFamily: 'Poppins, sans-serif', fontSize: '15px',
-                border: '1px solid rgba(255,255,255,0.3)',
-                transition: 'background 0.2s ease'
-              }}
-                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
-              >
-                Learn More
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* Hero Slider */}
+      {renderHero()}
 
       {/* Stats Section */}
       <section style={{ background: '#f8fafc', padding: '60px 24px' }}>

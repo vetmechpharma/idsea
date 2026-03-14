@@ -28,6 +28,7 @@ import CertificatesAdmin from './pages/admin/CertificatesAdmin';
 import ReportsAdmin from './pages/admin/ReportsAdmin';
 import CMSAdmin from './pages/admin/CMSAdmin';
 import RolesAdmin from './pages/admin/RolesAdmin';
+import SliderAdmin from './pages/admin/SliderAdmin';
 
 const ProtectedRoute = ({ children }) => {
   const { admin } = useAuth();
@@ -64,6 +65,7 @@ function App() {
             <Route path="certificates" element={<CertificatesAdmin />} />
             <Route path="reports" element={<ReportsAdmin />} />
             <Route path="cms" element={<CMSAdmin />} />
+            <Route path="sliders" element={<SliderAdmin />} />
             <Route path="roles" element={<RolesAdmin />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
