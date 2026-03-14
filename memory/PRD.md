@@ -56,6 +56,7 @@ Build a full-stack website for IDSEA with a public-facing website and comprehens
 11. Reports & Analytics - Stats, distribution, state analysis
 12. CMS Settings - Hero, about, vision/mission, contact, social
 13. Admin Roles - User management (super admin only)
+14. Slider Management - Add/edit/delete/reorder homepage sliders with image upload
 
 ### Public Website Navigation
 - Association-style header: Large emblem logo (90px) + uppercase org name on white background
@@ -63,7 +64,7 @@ Build a full-stack website for IDSEA with a public-facing website and comprehens
 - Active page highlighted with subtle white overlay
 - Logo fetched dynamically from CMS settings (uploadable via admin)
 - Responsive: hamburger menu on mobile
-1. Home - Hero, stats, about, membership types, events, news, CTA
+1. Home - Dynamic slider carousel (react-slick), stats, about, membership types, events, news, CTA
 2. About - Vision/mission, objectives, executive committee, HQ
 3. Members Directory - Search, filter by state/type
 4. Events - Filter by status, full event details
@@ -77,8 +78,12 @@ Build a full-stack website for IDSEA with a public-facing website and comprehens
 - iteration_2: Backend 12/12, Frontend all pass (founders/EC)
 - iteration_3: Backend 24/24, Frontend all pass (cert PDF, exports, upload, SMTP, charts)
 - iteration_4: Backend 15/15, Frontend all pass (email template system)
+- iteration_5: Backend 15/15, Frontend all pass (homepage slider feature)
 
 ## Backlog / Future Tasks
 - **P1:** Razorpay live payment integration (user deferred - will do later)
+- **P1:** Full Member Directory with search/filter on public site
+- **P2:** Remaining public pages: News & Announcements, Contact
 - **P2:** Member subscription renewal/expiry reminders
+- **P3:** Admin Role Management (Super Admin vs. other roles)
 - **P3:** Mobile responsive design improvements
