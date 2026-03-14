@@ -57,7 +57,12 @@ Build a full-stack website for IDSEA with a public-facing website and comprehens
 12. CMS Settings - Hero, about, vision/mission, contact, social
 13. Admin Roles - User management (super admin only)
 
-### Public Website (8 pages)
+### Public Website Navigation
+- Association-style header: Large emblem logo (90px) + uppercase org name on white background
+- Dark navy (#0c3c60) menu bar below with white text links (Home, About Us, Membership, Events, Publications, Gallery, Contact Us, Join IDSEA, Admin)
+- Active page highlighted with subtle white overlay
+- Logo fetched dynamically from CMS settings (uploadable via admin)
+- Responsive: hamburger menu on mobile
 1. Home - Hero, stats, about, membership types, events, news, CTA
 2. About - Vision/mission, objectives, executive committee, HQ
 3. Members Directory - Search, filter by state/type

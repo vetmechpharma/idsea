@@ -28,7 +28,7 @@ export default function HomePage() {
       <PublicNavbar />
 
       {/* Hero Section */}
-      <section style={{ position: 'relative', minHeight: '100vh', display: 'flex', alignItems: 'center', paddingTop: '100px', overflow: 'hidden' }}>
+      <section style={{ position: 'relative', minHeight: '100vh', display: 'flex', alignItems: 'center', paddingTop: '170px', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', inset: 0, background: '#0c3c60', zIndex: 0 }} />
         <div style={{
           position: 'absolute', inset: 0, zIndex: 1,

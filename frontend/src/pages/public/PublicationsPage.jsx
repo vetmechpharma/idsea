@@ -18,7 +18,7 @@ export default function PublicationsPage() {
   return (
     <div style={{ background: '#f8fafc' }}>
       <PublicNavbar />
-      <div style={{ paddingTop: '100px' }}>
+      <div style={{ paddingTop: '170px' }}>
         <div style={{ background: '#0c3c60', padding: '60px 24px', textAlign: 'center', color: 'white' }}>
           <h1 style={{ fontFamily: 'Poppins, sans-serif', fontSize: 'clamp(24px,4vw,40px)', fontWeight: 800, marginBottom: '12px' }}>Publications & Research</h1>
           <p style={{ fontSize: '15px', opacity: 0.8, fontFamily: 'Inter, sans-serif' }}>Research papers, journals, and technical articles by our members</p>

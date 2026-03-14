@@ -407,23 +407,11 @@ h1, h2, h3, h4, h5, h6 {
 ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
 
-/* Public Navbar - Two Row Header Responsive */
+/* Public Navbar - Association Style Header */
 .desktop-nav { display: flex; }
 .mobile-menu-btn { display: none !important; }
-.topbar-phone { display: flex; }
 
 @media (max-width: 900px) {
   .desktop-nav { display: none !important; }
   .mobile-menu-btn { display: flex !important; }
-  .topbar-phone { display: none !important; }
-}
-
-@media (max-width: 640px) {
-  .pub-nav-link { font-size: 13px; }
-
-@media (max-width: 500px) {
-  [data-testid="nav-apply-btn"] { padding: 7px 12px !important; font-size: 12px !important; }
-  [data-testid="nav-admin-btn"] { display: none !important; }
-}
-
 }
