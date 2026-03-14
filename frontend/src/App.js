@@ -22,6 +22,7 @@ import NewsAdmin from './pages/admin/NewsAdmin';
 import GalleryAdmin from './pages/admin/GalleryAdmin';
 import PublicationsAdmin from './pages/admin/PublicationsAdmin';
 import EmailAdmin from './pages/admin/EmailAdmin';
+import EmailTemplatesAdmin from './pages/admin/EmailTemplatesAdmin';
 import ExecutiveAdmin from './pages/admin/ExecutiveAdmin';
 import CertificatesAdmin from './pages/admin/CertificatesAdmin';
 import ReportsAdmin from './pages/admin/ReportsAdmin';
@@ -58,6 +59,7 @@ function App() {
             <Route path="gallery" element={<GalleryAdmin />} />
             <Route path="publications" element={<PublicationsAdmin />} />
             <Route path="email" element={<EmailAdmin />} />
+            <Route path="email-templates" element={<EmailTemplatesAdmin />} />
             <Route path="executive" element={<ExecutiveAdmin />} />
             <Route path="certificates" element={<CertificatesAdmin />} />
             <Route path="reports" element={<ReportsAdmin />} />

@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import {
   LayoutDashboard, Users, CreditCard, Calendar, Newspaper,
   Image, BookOpen, Mail, UserCheck, Award, BarChart3,
-  Settings, Shield, LogOut, Menu, X
+  Settings, Shield, LogOut, Menu, X, FileText
 } from 'lucide-react';
 
 const navItems = [
@@ -16,6 +16,7 @@ const navItems = [
   { path: '/admin/gallery', icon: Image, label: 'Gallery' },
   { path: '/admin/publications', icon: BookOpen, label: 'Publications' },
   { path: '/admin/email', icon: Mail, label: 'Email System' },
+  { path: '/admin/email-templates', icon: FileText, label: 'Email Templates' },
   { path: '/admin/executive', icon: UserCheck, label: 'Executive Committee' },
   { path: '/admin/certificates', icon: Award, label: 'Certificates' },
   { path: '/admin/reports', icon: BarChart3, label: 'Reports' },

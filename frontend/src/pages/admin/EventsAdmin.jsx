@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Plus, Edit, Trash2, X } from 'lucide-react';
+import { Plus, Edit, Trash2, X, Bell, CheckCircle } from 'lucide-react';
 import { API } from '../../contexts/AuthContext';
 import { FileUpload } from '../../components/admin/FileUpload';
 
@@ -13,7 +13,8 @@ export default function EventsAdmin() {
   const [editEvent, setEditEvent] = useState(null);
   const [form, setForm] = useState(initForm);
   const [toast, setToast] = useState('');
-
+  const [showNotify, setShowNotify] = useState(null);
+  const [notifyType, setNotifyType] = useState('all');
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
   const load = () => { axios.get(`${API}/admin/events`).then(r => { setEvents(r.data); setLoading(false); }); };
   useEffect(() => { load(); }, []);
@@ -33,6 +34,23 @@ export default function EventsAdmin() {
     if (!window.confirm('Delete this event?')) return;
     await axios.delete(`${API}/admin/events/${id}`);
     showToast('Event deleted'); load();
+  };
+
+  const handleNotify = async (eventId) => {
+    try {
+      const r = await axios.post(`${API}/admin/events/${eventId}/notify?membership_type=${notifyType}`);
+      showToast(r.data.message || 'Notification queued!');
+      setShowNotify(null);
+    } catch (e) { showToast('Error: ' + (e.response?.data?.detail || 'Failed')); }
+  };
+
+  const handleCloseEvent = async (eventId) => {
+    if (!window.confirm('Close this event? This will send participation certificates to all approved members.')) return;
+    try {
+      const r = await axios.put(`${API}/admin/events/${eventId}/close`);
+      showToast(r.data.message || 'Event closed!');
+      load();
+    } catch (e) { showToast('Error: ' + (e.response?.data?.detail || 'Failed')); }
   };
 
   const STATUS_COLORS = { upcoming: '#1e7a4d', ongoing: '#d97706', completed: '#6b7280' };
@@ -63,7 +81,17 @@ export default function EventsAdmin() {
                     </div>
                     {event.description && <p style={{ fontSize: '13px', color: '#9ca3af', margin: '8px 0 0', lineHeight: 1.5, fontFamily: 'Inter' }}>{event.description?.substring(0, 150)}...</p>}
                   </div>
-                  <div style={{ display: 'flex', gap: '8px' }}>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    {event.status !== 'completed' && (
+                      <button onClick={() => setShowNotify(event)} style={{ background: '#d1fae5', color: '#065f46', border: 'none', padding: '7px 14px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '4px', fontFamily: 'Poppins', fontWeight: 500 }} data-testid="notify-event-btn">
+                        <Bell size={14} /> Notify
+                      </button>
+                    )}
+                    {event.status !== 'completed' && (
+                      <button onClick={() => handleCloseEvent(event.id)} style={{ background: '#ede9fe', color: '#5b21b6', border: 'none', padding: '7px 14px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '4px', fontFamily: 'Poppins', fontWeight: 500 }} data-testid="close-event-btn">
+                        <CheckCircle size={14} /> Close Event
+                      </button>
+                    )}
                     <button onClick={() => openEdit(event)} style={{ background: '#dbeafe', color: '#1e40af', border: 'none', padding: '7px 14px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '4px', fontFamily: 'Poppins', fontWeight: 500 }}>
                       <Edit size={14} /> Edit
                     </button>
@@ -124,6 +152,36 @@ export default function EventsAdmin() {
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>
               <button onClick={() => setShowModal(false)} className="btn-secondary">Cancel</button>
               <button onClick={handleSave} className="btn-primary" data-testid="save-event-btn">Save Event</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Notify Members Modal */}
+      {showNotify && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '440px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2 style={{ fontFamily: 'Poppins', fontSize: '17px', fontWeight: 700, color: '#0c3c60', margin: 0 }}>Notify Members</h2>
+              <button onClick={() => setShowNotify(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af' }}><X size={20} /></button>
+            </div>
+            <p style={{ fontSize: '13px', color: '#4b5563', marginBottom: '16px', fontFamily: 'Inter', lineHeight: 1.6 }}>
+              Send event notification for <strong>{showNotify.title}</strong> to approved members. Emails will be sent in batches of 50 every 30 minutes to avoid email blocking.
+            </p>
+            <div className="form-group">
+              <label className="form-label">Send to Membership Type</label>
+              <select value={notifyType} onChange={e => setNotifyType(e.target.value)} className="form-select" data-testid="notify-type-select">
+                <option value="all">All Approved Members</option>
+                <option value="academic">Academic Members Only</option>
+                <option value="entrepreneur">Entrepreneur Members Only</option>
+                <option value="corporate">Corporate Members Only</option>
+              </select>
+            </div>
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button onClick={() => setShowNotify(null)} className="btn-secondary">Cancel</button>
+              <button onClick={() => handleNotify(showNotify.id)} className="btn-primary" data-testid="confirm-notify-btn">
+                <Bell size={14} /> Send Notifications
+              </button>
             </div>
           </div>
         </div>

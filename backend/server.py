@@ -5,7 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
-import os, logging, uuid, hmac, hashlib, smtplib, io
+import os, logging, uuid, hmac, hashlib, smtplib, io, asyncio, base64
 from pathlib import Path
 from pydantic import BaseModel, Field
 from typing import List, Optional
@@ -14,6 +14,7 @@ from jose import jwt, JWTError
 from passlib.context import CryptContext
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.mime.application import MIMEApplication
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib import colors
 from reportlab.lib.units import inch, mm
@@ -352,7 +353,7 @@ def get_razorpay_client():
     return None
 
 
-def send_email_smtp(recipients: List[str], subject: str, body: str, smtp_settings: dict = None):
+def send_email_smtp(recipients: List[str], subject: str, body: str, smtp_settings: dict = None, attachments: list = None):
     host = smtp_settings.get("smtp_host", SMTP_HOST) if smtp_settings else SMTP_HOST
     port = int(smtp_settings.get("smtp_port", SMTP_PORT_VAL) if smtp_settings else SMTP_PORT_VAL)
     user = smtp_settings.get("smtp_user", SMTP_USER) if smtp_settings else SMTP_USER
@@ -362,11 +363,16 @@ def send_email_smtp(recipients: List[str], subject: str, body: str, smtp_setting
         logging.warning("SMTP not configured, email skipped")
         return False
     try:
-        msg = MIMEMultipart('alternative')
+        msg = MIMEMultipart('mixed')
         msg['Subject'] = subject
         msg['From'] = f"IDSEA <{from_email}>"
         msg['To'] = ', '.join(recipients[:50])
         msg.attach(MIMEText(body, 'html'))
+        if attachments:
+            for att in attachments:
+                part = MIMEApplication(att["data"], Name=att["filename"])
+                part['Content-Disposition'] = f'attachment; filename="{att["filename"]}"'
+                msg.attach(part)
         with smtplib.SMTP(host, port) as server:
             server.starttls()
             server.login(user, passwd)
@@ -375,6 +381,353 @@ def send_email_smtp(recipients: List[str], subject: str, body: str, smtp_setting
     except Exception as e:
         logging.error(f"Email error: {e}")
         return False
+
+
+# =================== EMAIL TEMPLATE ENGINE ===================
+
+DEFAULT_EMAIL_TEMPLATES = {
+    "registration_submitted": {
+        "name": "Registration Submitted",
+        "subject": "IDSEA - Membership Application Received",
+        "description": "Sent when a new member submits their application",
+        "variables": ["member_name", "email", "phone", "qualification", "organization", "membership_type", "state", "payment_status", "application_date"],
+        "body": """<div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
+  <div style="background: #0c3c60; padding: 32px 24px; text-align: center;">
+    <h1 style="color: white; margin: 0; font-size: 22px; font-weight: 700; letter-spacing: 0.5px;">IDSEA</h1>
+    <p style="color: rgba(255,255,255,0.8); margin: 6px 0 0; font-size: 12px;">Indian Dairy Scientists and Entrepreneurs Association</p>
+  </div>
+  <div style="padding: 36px 28px;">
+    <h2 style="color: #0c3c60; font-size: 20px; margin: 0 0 12px;">Application Received!</h2>
+    <p style="color: #4b5563; font-size: 14px; line-height: 1.7;">Dear <strong>{{member_name}}</strong>,</p>
+    <p style="color: #4b5563; font-size: 14px; line-height: 1.7;">Thank you for submitting your membership application to IDSEA. We have received your details and our team will review your application shortly.</p>
+    <div style="background: #f0f9ff; border-radius: 10px; padding: 20px; margin: 24px 0; border-left: 4px solid #0c3c60;">
+      <h3 style="color: #0c3c60; margin: 0 0 14px; font-size: 15px;">Application Summary</h3>
+      <table style="width: 100%; font-size: 13px; color: #374151;">
+        <tr><td style="padding: 6px 0; color: #6b7280; width: 40%;">Full Name</td><td style="padding: 6px 0; font-weight: 600;">{{member_name}}</td></tr>
+        <tr><td style="padding: 6px 0; color: #6b7280;">Email</td><td style="padding: 6px 0;">{{email}}</td></tr>
+        <tr><td style="padding: 6px 0; color: #6b7280;">Phone</td><td style="padding: 6px 0;">{{phone}}</td></tr>
+        <tr><td style="padding: 6px 0; color: #6b7280;">Qualification</td><td style="padding: 6px 0;">{{qualification}}</td></tr>
+        <tr><td style="padding: 6px 0; color: #6b7280;">Organization</td><td style="padding: 6px 0;">{{organization}}</td></tr>
+        <tr><td style="padding: 6px 0; color: #6b7280;">Membership Type</td><td style="padding: 6px 0;"><span style="background: #dbeafe; color: #1e40af; padding: 2px 10px; border-radius: 10px; font-size: 12px; font-weight: 600;">{{membership_type}}</span></td></tr>
+        <tr><td style="padding: 6px 0; color: #6b7280;">State</td><td style="padding: 6px 0;">{{state}}</td></tr>
+        <tr><td style="padding: 6px 0; color: #6b7280;">Payment Status</td><td style="padding: 6px 0;"><span style="background: #fef3c7; color: #92400e; padding: 2px 10px; border-radius: 10px; font-size: 12px; font-weight: 600;">{{payment_status}}</span></td></tr>
+        <tr><td style="padding: 6px 0; color: #6b7280;">Application Date</td><td style="padding: 6px 0;">{{application_date}}</td></tr>
+      </table>
+    </div>
+    <p style="color: #4b5563; font-size: 14px; line-height: 1.7;">Our membership committee will review your application and notify you once it is approved. If you have any questions, please contact us.</p>
+    <p style="color: #4b5563; font-size: 14px; line-height: 1.7;">Warm regards,<br><strong style="color: #0c3c60;">IDSEA Team</strong></p>
+  </div>
+  <div style="background: #f8fafc; padding: 20px 28px; text-align: center; border-top: 1px solid #e5e7eb;">
+    <p style="color: #9ca3af; font-size: 11px; margin: 0;">Indian Dairy Scientists and Entrepreneurs Association (IDSEA)</p>
+    <p style="color: #9ca3af; font-size: 11px; margin: 4px 0 0;">This is an automated email. Please do not reply directly.</p>
+  </div>
+</div>"""
+    },
+    "membership_approved": {
+        "name": "Membership Approved",
+        "subject": "Welcome to IDSEA! - Membership Approved",
+        "description": "Sent when membership is approved (with certificate attached)",
+        "variables": ["member_name", "email", "membership_id", "membership_type", "qualification", "organization", "state", "join_date"],
+        "body": """<div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
+  <div style="background: #0c3c60; padding: 32px 24px; text-align: center;">
+    <h1 style="color: white; margin: 0; font-size: 22px; font-weight: 700; letter-spacing: 0.5px;">IDSEA</h1>
+    <p style="color: rgba(255,255,255,0.8); margin: 6px 0 0; font-size: 12px;">Indian Dairy Scientists and Entrepreneurs Association</p>
+  </div>
+  <div style="padding: 36px 28px;">
+    <div style="text-align: center; margin-bottom: 24px;">
+      <div style="width: 64px; height: 64px; background: #d1fae5; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 28px;">&#10003;</div>
+    </div>
+    <h2 style="color: #1e7a4d; font-size: 22px; margin: 0 0 12px; text-align: center;">Welcome to IDSEA!</h2>
+    <p style="color: #4b5563; font-size: 14px; line-height: 1.7; text-align: center;">Dear <strong>{{member_name}}</strong>, your membership has been approved.</p>
+    <div style="background: #f0fdf4; border-radius: 10px; padding: 24px; margin: 24px 0; border: 1px solid #bbf7d0; text-align: center;">
+      <p style="color: #6b7280; font-size: 12px; margin: 0 0 6px;">Your Membership ID</p>
+      <p style="color: #0c3c60; font-size: 28px; font-weight: 800; margin: 0; letter-spacing: 2px;">{{membership_id}}</p>
+    </div>
+    <div style="background: #f0f9ff; border-radius: 10px; padding: 20px; margin: 24px 0;">
+      <h3 style="color: #0c3c60; margin: 0 0 14px; font-size: 15px;">Membership Details</h3>
+      <table style="width: 100%; font-size: 13px; color: #374151;">
+        <tr><td style="padding: 6px 0; color: #6b7280; width: 40%;">Full Name</td><td style="padding: 6px 0; font-weight: 600;">{{member_name}}</td></tr>
+        <tr><td style="padding: 6px 0; color: #6b7280;">Email</td><td style="padding: 6px 0;">{{email}}</td></tr>
+        <tr><td style="padding: 6px 0; color: #6b7280;">Membership Type</td><td style="padding: 6px 0;"><span style="background: #d1fae5; color: #065f46; padding: 2px 10px; border-radius: 10px; font-size: 12px; font-weight: 600;">{{membership_type}}</span></td></tr>
+        <tr><td style="padding: 6px 0; color: #6b7280;">Qualification</td><td style="padding: 6px 0;">{{qualification}}</td></tr>
+        <tr><td style="padding: 6px 0; color: #6b7280;">Organization</td><td style="padding: 6px 0;">{{organization}}</td></tr>
+        <tr><td style="padding: 6px 0; color: #6b7280;">State</td><td style="padding: 6px 0;">{{state}}</td></tr>
+        <tr><td style="padding: 6px 0; color: #6b7280;">Member Since</td><td style="padding: 6px 0;">{{join_date}}</td></tr>
+      </table>
+    </div>
+    <p style="color: #4b5563; font-size: 14px; line-height: 1.7;">Your membership certificate is attached to this email. Please keep it for your records.</p>
+    <p style="color: #4b5563; font-size: 14px; line-height: 1.7;">We look forward to your active participation in IDSEA activities.</p>
+    <p style="color: #4b5563; font-size: 14px; line-height: 1.7;">Warm regards,<br><strong style="color: #0c3c60;">IDSEA Team</strong></p>
+  </div>
+  <div style="background: #f8fafc; padding: 20px 28px; text-align: center; border-top: 1px solid #e5e7eb;">
+    <p style="color: #9ca3af; font-size: 11px; margin: 0;">Indian Dairy Scientists and Entrepreneurs Association (IDSEA)</p>
+    <p style="color: #9ca3af; font-size: 11px; margin: 4px 0 0;">This is an automated email. Please do not reply directly.</p>
+  </div>
+</div>"""
+    },
+    "event_notification": {
+        "name": "New Event Notification",
+        "subject": "IDSEA - New Event: {{event_title}}",
+        "description": "Sent to approved members when a new event is created (batch: 50 per 30 mins)",
+        "variables": ["member_name", "event_title", "event_date", "event_end_date", "event_venue", "event_description", "registration_fee", "speaker_details"],
+        "body": """<div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
+  <div style="background: #0c3c60; padding: 32px 24px; text-align: center;">
+    <h1 style="color: white; margin: 0; font-size: 22px; font-weight: 700; letter-spacing: 0.5px;">IDSEA</h1>
+    <p style="color: rgba(255,255,255,0.8); margin: 6px 0 0; font-size: 12px;">Indian Dairy Scientists and Entrepreneurs Association</p>
+  </div>
+  <div style="padding: 36px 28px;">
+    <h2 style="color: #0c3c60; font-size: 20px; margin: 0 0 8px;">New Event Announcement</h2>
+    <p style="color: #4b5563; font-size: 14px; line-height: 1.7;">Dear <strong>{{member_name}}</strong>,</p>
+    <p style="color: #4b5563; font-size: 14px; line-height: 1.7;">We are excited to announce a new event:</p>
+    <div style="background: #f0f9ff; border-radius: 10px; padding: 24px; margin: 20px 0; border-left: 4px solid #0c3c60;">
+      <h3 style="color: #0c3c60; margin: 0 0 16px; font-size: 18px;">{{event_title}}</h3>
+      <table style="width: 100%; font-size: 13px; color: #374151;">
+        <tr><td style="padding: 6px 0; color: #6b7280; width: 35%;">Date</td><td style="padding: 6px 0; font-weight: 600;">{{event_date}} - {{event_end_date}}</td></tr>
+        <tr><td style="padding: 6px 0; color: #6b7280;">Venue</td><td style="padding: 6px 0;">{{event_venue}}</td></tr>
+        <tr><td style="padding: 6px 0; color: #6b7280;">Registration Fee</td><td style="padding: 6px 0; font-weight: 600;">₹{{registration_fee}}</td></tr>
+        <tr><td style="padding: 6px 0; color: #6b7280;">Speakers</td><td style="padding: 6px 0;">{{speaker_details}}</td></tr>
+      </table>
+    </div>
+    <p style="color: #4b5563; font-size: 14px; line-height: 1.7;">{{event_description}}</p>
+    <p style="color: #4b5563; font-size: 14px; line-height: 1.7;">We encourage all members to participate. For registration and queries, please contact us.</p>
+    <p style="color: #4b5563; font-size: 14px; line-height: 1.7;">Warm regards,<br><strong style="color: #0c3c60;">IDSEA Team</strong></p>
+  </div>
+  <div style="background: #f8fafc; padding: 20px 28px; text-align: center; border-top: 1px solid #e5e7eb;">
+    <p style="color: #9ca3af; font-size: 11px; margin: 0;">Indian Dairy Scientists and Entrepreneurs Association (IDSEA)</p>
+    <p style="color: #9ca3af; font-size: 11px; margin: 4px 0 0;">This is an automated email. Please do not reply directly.</p>
+  </div>
+</div>"""
+    },
+    "event_participation": {
+        "name": "Event Participation Certificate",
+        "subject": "IDSEA - Thank You for Participating in {{event_title}}",
+        "description": "Sent to participants when event is closed (with certificate attached)",
+        "variables": ["member_name", "membership_id", "event_title", "event_date", "event_venue"],
+        "body": """<div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
+  <div style="background: #0c3c60; padding: 32px 24px; text-align: center;">
+    <h1 style="color: white; margin: 0; font-size: 22px; font-weight: 700; letter-spacing: 0.5px;">IDSEA</h1>
+    <p style="color: rgba(255,255,255,0.8); margin: 6px 0 0; font-size: 12px;">Indian Dairy Scientists and Entrepreneurs Association</p>
+  </div>
+  <div style="padding: 36px 28px;">
+    <h2 style="color: #0c3c60; font-size: 20px; margin: 0 0 12px;">Thank You for Your Participation!</h2>
+    <p style="color: #4b5563; font-size: 14px; line-height: 1.7;">Dear <strong>{{member_name}}</strong>,</p>
+    <p style="color: #4b5563; font-size: 14px; line-height: 1.7;">Thank you for participating in <strong>{{event_title}}</strong> held at {{event_venue}} on {{event_date}}.</p>
+    <div style="background: #f0fdf4; border-radius: 10px; padding: 24px; margin: 24px 0; text-align: center; border: 1px solid #bbf7d0;">
+      <p style="color: #1e7a4d; font-size: 16px; font-weight: 700; margin: 0;">Your participation certificate is attached!</p>
+      <p style="color: #6b7280; font-size: 12px; margin: 8px 0 0;">Member ID: {{membership_id}}</p>
+    </div>
+    <p style="color: #4b5563; font-size: 14px; line-height: 1.7;">We hope you found the event valuable. Please keep the attached certificate for your records.</p>
+    <p style="color: #4b5563; font-size: 14px; line-height: 1.7;">We look forward to seeing you at future IDSEA events!</p>
+    <p style="color: #4b5563; font-size: 14px; line-height: 1.7;">Warm regards,<br><strong style="color: #0c3c60;">IDSEA Team</strong></p>
+  </div>
+  <div style="background: #f8fafc; padding: 20px 28px; text-align: center; border-top: 1px solid #e5e7eb;">
+    <p style="color: #9ca3af; font-size: 11px; margin: 0;">Indian Dairy Scientists and Entrepreneurs Association (IDSEA)</p>
+    <p style="color: #9ca3af; font-size: 11px; margin: 4px 0 0;">This is an automated email. Please do not reply directly.</p>
+  </div>
+</div>"""
+    },
+}
+
+
+def render_template(template_body: str, variables: dict) -> str:
+    """Replace {{variable_name}} placeholders with actual values"""
+    rendered = template_body
+    for key, value in variables.items():
+        rendered = rendered.replace("{{" + key + "}}", str(value or ""))
+    return rendered
+
+
+def generate_certificate_pdf_bytes(member_name: str, membership_id: str, cert_type: str = "membership", event_name: str = "", issue_date: str = "") -> bytes:
+    """Generate certificate PDF in memory and return bytes (NOT stored in DB)"""
+    buf = io.BytesIO()
+    c = canvas.Canvas(buf, pagesize=landscape(A4))
+    w, h = landscape(A4)
+    if not issue_date:
+        issue_date = datetime.now().strftime("%d %B %Y")
+
+    c.setStrokeColor(colors.HexColor('#0c3c60'))
+    c.setLineWidth(4)
+    c.rect(30, 30, w - 60, h - 60)
+    c.setStrokeColor(colors.HexColor('#1e7a4d'))
+    c.setLineWidth(2)
+    c.rect(40, 40, w - 80, h - 80)
+
+    c.setFillColor(colors.HexColor('#0c3c60'))
+    c.setFont("Helvetica-Bold", 28)
+    c.drawCentredString(w / 2, h - 100, "Indian Dairy Scientists and")
+    c.drawCentredString(w / 2, h - 135, "Entrepreneurs Association")
+    c.setFont("Helvetica", 12)
+    c.setFillColor(colors.HexColor('#6b7280'))
+    c.drawCentredString(w / 2, h - 158, "IDSEA")
+
+    cert_type_label = {"membership": "Certificate of Membership", "event": "Certificate of Participation", "appreciation": "Certificate of Appreciation"}.get(cert_type, "Certificate")
+    c.setFillColor(colors.HexColor('#1e7a4d'))
+    c.setFont("Helvetica-Bold", 22)
+    c.drawCentredString(w / 2, h - 210, cert_type_label)
+
+    c.setFillColor(colors.HexColor('#374151'))
+    c.setFont("Helvetica", 14)
+    c.drawCentredString(w / 2, h - 260, "This is to certify that")
+
+    c.setFillColor(colors.HexColor('#0c3c60'))
+    c.setFont("Helvetica-Bold", 26)
+    c.drawCentredString(w / 2, h - 300, member_name)
+
+    c.setFillColor(colors.HexColor('#6b7280'))
+    c.setFont("Helvetica", 12)
+    if membership_id:
+        c.drawCentredString(w / 2, h - 325, f"Member ID: {membership_id}")
+
+    c.setFillColor(colors.HexColor('#374151'))
+    c.setFont("Helvetica", 13)
+    if cert_type == "event" and event_name:
+        c.drawCentredString(w / 2, h - 358, "has successfully participated in")
+        c.setFont("Helvetica-Bold", 15)
+        c.setFillColor(colors.HexColor('#1e7a4d'))
+        c.drawCentredString(w / 2, h - 380, event_name)
+    elif cert_type == "membership":
+        c.drawCentredString(w / 2, h - 358, "is a registered member of IDSEA")
+    else:
+        c.drawCentredString(w / 2, h - 358, "is recognized by IDSEA for their contributions")
+
+    c.setFillColor(colors.HexColor('#6b7280'))
+    c.setFont("Helvetica", 11)
+    c.drawString(80, 90, f"Date: {issue_date}")
+    c.line(w - 280, 100, w - 80, 100)
+    c.setFont("Helvetica", 11)
+    c.drawCentredString(w - 180, 82, "Authorized Signatory")
+    c.setFont("Helvetica-Bold", 11)
+    c.drawCentredString(w - 180, 110, "IDSEA")
+
+    c.save()
+    buf.seek(0)
+    return buf.getvalue()
+
+
+async def send_templated_email(template_key: str, recipients: list, variables: dict, attachments: list = None):
+    """Send email using template from DB (or default), with optional attachments"""
+    template = await db.email_templates.find_one({"key": template_key}, {"_id": 0})
+    if not template:
+        template = DEFAULT_EMAIL_TEMPLATES.get(template_key)
+    if not template:
+        logging.error(f"Email template not found: {template_key}")
+        return
+
+    subject = render_template(template.get("subject", ""), variables)
+    body = render_template(template.get("body", ""), variables)
+    smtp_settings = await db.smtp_settings.find_one({}, {"_id": 0})
+
+    log = {
+        "id": str(uuid.uuid4()),
+        "subject": subject,
+        "body": body[:300],
+        "recipients_count": len(recipients),
+        "recipient_group": template_key,
+        "sent_by": "system",
+        "sent_at": now_iso(),
+        "status": "queued"
+    }
+    await db.email_logs.insert_one(log)
+    send_email_smtp(recipients, subject, body, smtp_settings, attachments)
+    logging.info(f"Templated email [{template_key}] sent to {len(recipients)} recipients")
+
+
+async def batch_event_notification(event: dict, membership_type_filter: str = "all"):
+    """Send event notification in batches of 50 every 30 mins"""
+    query = {"status": "approved"}
+    if membership_type_filter and membership_type_filter not in ("all", ""):
+        query["membership_type"] = membership_type_filter
+
+    members = await db.members.find(query, {"_id": 0}).to_list(10000)
+    members_with_email = [m for m in members if m.get("email")]
+    batch_size = 50
+    smtp_settings = await db.smtp_settings.find_one({}, {"_id": 0})
+
+    template = await db.email_templates.find_one({"key": "event_notification"}, {"_id": 0})
+    if not template:
+        template = DEFAULT_EMAIL_TEMPLATES["event_notification"]
+
+    for i in range(0, len(members_with_email), batch_size):
+        batch = members_with_email[i:i + batch_size]
+        for member in batch:
+            variables = {
+                "member_name": member.get("name", "Member"),
+                "event_title": event.get("title", ""),
+                "event_date": event.get("date", ""),
+                "event_end_date": event.get("end_date", ""),
+                "event_venue": event.get("venue", ""),
+                "event_description": event.get("description", ""),
+                "registration_fee": str(event.get("registration_fee", 0)),
+                "speaker_details": event.get("speaker_details", ""),
+            }
+            subject = render_template(template.get("subject", ""), variables)
+            body = render_template(template.get("body", ""), variables)
+            send_email_smtp([member["email"]], subject, body, smtp_settings)
+
+        sent_count = min(i + batch_size, len(members_with_email))
+        await db.email_logs.insert_one({
+            "id": str(uuid.uuid4()),
+            "subject": f"Event: {event.get('title', '')} (batch {i // batch_size + 1})",
+            "body": f"Batch notification for event",
+            "recipients_count": len(batch),
+            "recipient_group": f"event_batch_{membership_type_filter}",
+            "sent_by": "system",
+            "sent_at": now_iso(),
+            "status": "sent"
+        })
+        logging.info(f"Event notification batch {i // batch_size + 1}: sent to {len(batch)} members ({sent_count}/{len(members_with_email)})")
+
+        if i + batch_size < len(members_with_email):
+            await asyncio.sleep(1800)  # 30 minutes between batches
+
+
+async def send_event_participation_certificates(event: dict):
+    """Send participation certificates to all approved members when event closes"""
+    members = await db.members.find({"status": "approved"}, {"_id": 0}).to_list(10000)
+    members_with_email = [m for m in members if m.get("email")]
+    smtp_settings = await db.smtp_settings.find_one({}, {"_id": 0})
+
+    template = await db.email_templates.find_one({"key": "event_participation"}, {"_id": 0})
+    if not template:
+        template = DEFAULT_EMAIL_TEMPLATES["event_participation"]
+
+    batch_size = 50
+    for i in range(0, len(members_with_email), batch_size):
+        batch = members_with_email[i:i + batch_size]
+        for member in batch:
+            variables = {
+                "member_name": member.get("name", ""),
+                "membership_id": member.get("membership_id", ""),
+                "event_title": event.get("title", ""),
+                "event_date": event.get("date", ""),
+                "event_venue": event.get("venue", ""),
+            }
+            subject = render_template(template.get("subject", ""), variables)
+            body = render_template(template.get("body", ""), variables)
+
+            # Generate certificate on-the-fly (NOT stored in DB)
+            cert_pdf = generate_certificate_pdf_bytes(
+                member_name=member.get("name", ""),
+                membership_id=member.get("membership_id", ""),
+                cert_type="event",
+                event_name=event.get("title", ""),
+                issue_date=datetime.now().strftime("%d %B %Y")
+            )
+            attachments = [{"filename": f"IDSEA_Certificate_{event.get('title', 'Event').replace(' ', '_')}.pdf", "data": cert_pdf}]
+            send_email_smtp([member["email"]], subject, body, smtp_settings, attachments)
+
+        await db.email_logs.insert_one({
+            "id": str(uuid.uuid4()),
+            "subject": f"Participation Cert: {event.get('title', '')} (batch {i // batch_size + 1})",
+            "body": "Auto-generated participation certificates",
+            "recipients_count": len(batch),
+            "recipient_group": "event_participation",
+            "sent_by": "system",
+            "sent_at": now_iso(),
+            "status": "sent"
+        })
+        if i + batch_size < len(members_with_email):
+            await asyncio.sleep(1800)
 
 
 # =================== AUTH ROUTES ===================
@@ -434,13 +787,29 @@ async def get_public_members(
 
 
 @api_router.post("/public/members/apply")
-async def apply_membership(data: MemberCreate):
+async def apply_membership(data: MemberCreate, background_tasks: BackgroundTasks):
     existing = await db.members.find_one({"email": data.email})
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
     member = Member(**data.model_dump())
     member.join_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     await db.members.insert_one(member.model_dump())
+
+    # Send registration email
+    if member.email:
+        variables = {
+            "member_name": member.name,
+            "email": member.email,
+            "phone": member.phone or "",
+            "qualification": member.qualification or "",
+            "organization": member.organization or "",
+            "membership_type": member.membership_type,
+            "state": member.state or "",
+            "payment_status": member.payment_status,
+            "application_date": member.join_date,
+        }
+        background_tasks.add_task(send_templated_email, "registration_submitted", [member.email], variables)
+
     return {"message": "Application submitted successfully", "id": member.id}
 
 
@@ -558,13 +927,38 @@ async def admin_delete_member(member_id: str, admin=Depends(get_current_admin)):
 
 
 @api_router.put("/admin/members/{member_id}/approve")
-async def approve_member(member_id: str, admin=Depends(get_current_admin)):
+async def approve_member(member_id: str, background_tasks: BackgroundTasks, admin=Depends(get_current_admin)):
+    member = await db.members.find_one({"id": member_id}, {"_id": 0})
+    if not member:
+        raise HTTPException(status_code=404, detail="Member not found")
     count = await db.members.count_documents({"status": "approved"})
     membership_id = f"IDSEA{datetime.now().year}{str(count+1).zfill(4)}"
     await db.members.update_one(
         {"id": member_id},
         {"$set": {"status": "approved", "membership_id": membership_id, "updated_at": now_iso()}}
     )
+
+    # Send welcome email with membership certificate attached
+    if member.get("email"):
+        variables = {
+            "member_name": member.get("name", ""),
+            "email": member.get("email", ""),
+            "membership_id": membership_id,
+            "membership_type": member.get("membership_type", ""),
+            "qualification": member.get("qualification", ""),
+            "organization": member.get("organization", ""),
+            "state": member.get("state", ""),
+            "join_date": datetime.now().strftime("%d %B %Y"),
+        }
+        # Generate certificate on-the-fly (NOT stored in DB)
+        cert_pdf = generate_certificate_pdf_bytes(
+            member_name=member.get("name", ""),
+            membership_id=membership_id,
+            cert_type="membership",
+        )
+        attachments = [{"filename": f"IDSEA_Membership_Certificate_{membership_id}.pdf", "data": cert_pdf}]
+        background_tasks.add_task(send_templated_email, "membership_approved", [member["email"]], variables, attachments)
+
     return {"message": "Member approved", "membership_id": membership_id}
 
 
@@ -585,10 +979,31 @@ async def admin_get_events(admin=Depends(get_current_admin)):
 
 
 @api_router.post("/admin/events")
-async def admin_create_event(data: EventCreate, admin=Depends(get_current_admin)):
+async def admin_create_event(data: EventCreate, background_tasks: BackgroundTasks, admin=Depends(get_current_admin)):
     event = Event(**data.model_dump())
     await db.events.insert_one(event.model_dump())
     return event.model_dump()
+
+
+@api_router.post("/admin/events/{event_id}/notify")
+async def notify_event(event_id: str, background_tasks: BackgroundTasks, membership_type: str = "all", admin=Depends(get_current_admin)):
+    """Send event notification to approved members in batches (50 per 30 mins)"""
+    event = await db.events.find_one({"id": event_id}, {"_id": 0})
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    background_tasks.add_task(batch_event_notification, event, membership_type)
+    return {"message": f"Event notification queued for '{membership_type}' members (batch: 50 per 30 mins)"}
+
+
+@api_router.put("/admin/events/{event_id}/close")
+async def close_event(event_id: str, background_tasks: BackgroundTasks, admin=Depends(get_current_admin)):
+    """Close event and auto-send participation certificates to all approved members"""
+    event = await db.events.find_one({"id": event_id}, {"_id": 0})
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    await db.events.update_one({"id": event_id}, {"$set": {"status": "completed", "updated_at": now_iso()}})
+    background_tasks.add_task(send_event_participation_certificates, event)
+    return {"message": "Event closed. Participation certificates are being sent to all approved members."}
 
 
 @api_router.put("/admin/events/{event_id}")
@@ -1247,6 +1662,94 @@ async def test_smtp_settings(admin=Depends(get_current_admin)):
         return {"success": False, "message": "SMTP not configured. Please save settings first."}
     success = send_email_smtp([admin["email"]], "IDSEA - SMTP Test Email", "<h2>SMTP Configuration Test</h2><p>This is a test email from IDSEA admin panel. If you received this, your SMTP settings are working correctly!</p>", settings)
     return {"success": success, "message": "Test email sent to " + admin["email"] if success else "Failed to send. Check SMTP credentials."}
+
+
+# =================== EMAIL TEMPLATES ===================
+
+@api_router.get("/admin/email-templates")
+async def admin_get_email_templates(admin=Depends(get_current_admin)):
+    templates = await db.email_templates.find({}, {"_id": 0}).to_list(20)
+    # Merge with defaults for any missing templates
+    existing_keys = {t["key"] for t in templates}
+    for key, default in DEFAULT_EMAIL_TEMPLATES.items():
+        if key not in existing_keys:
+            templates.append({"key": key, **default, "is_default": True})
+        else:
+            for t in templates:
+                if t["key"] == key:
+                    t["is_default"] = False
+    return sorted(templates, key=lambda t: list(DEFAULT_EMAIL_TEMPLATES.keys()).index(t["key"]) if t["key"] in DEFAULT_EMAIL_TEMPLATES else 99)
+
+
+@api_router.get("/admin/email-templates/{template_key}")
+async def admin_get_email_template(template_key: str, admin=Depends(get_current_admin)):
+    template = await db.email_templates.find_one({"key": template_key}, {"_id": 0})
+    if not template:
+        default = DEFAULT_EMAIL_TEMPLATES.get(template_key)
+        if default:
+            return {"key": template_key, **default, "is_default": True}
+        raise HTTPException(status_code=404, detail="Template not found")
+    template["is_default"] = False
+    return template
+
+
+@api_router.put("/admin/email-templates/{template_key}")
+async def admin_update_email_template(template_key: str, data: dict, admin=Depends(get_current_admin)):
+    if template_key not in DEFAULT_EMAIL_TEMPLATES:
+        raise HTTPException(status_code=400, detail="Unknown template key")
+    update = {
+        "key": template_key,
+        "name": data.get("name", DEFAULT_EMAIL_TEMPLATES[template_key]["name"]),
+        "subject": data.get("subject", ""),
+        "body": data.get("body", ""),
+        "description": data.get("description", ""),
+        "variables": DEFAULT_EMAIL_TEMPLATES[template_key]["variables"],
+        "updated_at": now_iso(),
+        "updated_by": admin["email"]
+    }
+    await db.email_templates.update_one({"key": template_key}, {"$set": update}, upsert=True)
+    return {"message": f"Template '{template_key}' updated"}
+
+
+@api_router.post("/admin/email-templates/{template_key}/reset")
+async def admin_reset_email_template(template_key: str, admin=Depends(get_current_admin)):
+    if template_key not in DEFAULT_EMAIL_TEMPLATES:
+        raise HTTPException(status_code=400, detail="Unknown template key")
+    await db.email_templates.delete_one({"key": template_key})
+    return {"message": f"Template '{template_key}' reset to default"}
+
+
+@api_router.post("/admin/email-templates/{template_key}/preview")
+async def admin_preview_email_template(template_key: str, admin=Depends(get_current_admin)):
+    template = await db.email_templates.find_one({"key": template_key}, {"_id": 0})
+    if not template:
+        template = DEFAULT_EMAIL_TEMPLATES.get(template_key)
+    if not template:
+        raise HTTPException(status_code=404, detail="Template not found")
+
+    sample_vars = {
+        "member_name": "Dr. John Doe",
+        "email": "john.doe@example.com",
+        "phone": "+91 98765 43210",
+        "qualification": "Ph.D. (Dairy Science)",
+        "organization": "National Dairy Research Institute",
+        "membership_type": "Academic",
+        "membership_id": "IDSEA20260001",
+        "state": "Tamil Nadu",
+        "payment_status": "Pending",
+        "application_date": datetime.now().strftime("%d %B %Y"),
+        "join_date": datetime.now().strftime("%d %B %Y"),
+        "event_title": "International Dairy Conference 2026",
+        "event_date": "15 March 2026",
+        "event_end_date": "17 March 2026",
+        "event_venue": "VCRI Namakkal, Tamil Nadu",
+        "event_description": "A premier conference bringing together dairy scientists and entrepreneurs.",
+        "registration_fee": "2,500",
+        "speaker_details": "Dr. A. Elango, Dr. G. Kumaresan",
+    }
+    rendered_subject = render_template(template.get("subject", ""), sample_vars)
+    rendered_body = render_template(template.get("body", ""), sample_vars)
+    return {"subject": rendered_subject, "body": rendered_body, "variables": template.get("variables", [])}
 
 
 # =================== ADVANCED REPORTS ===================
