@@ -70,8 +70,8 @@ Build a full-stack website for IDSEA with a public-facing website and comprehens
 ## Testing Status
 - iteration_1: Backend 30/30, Frontend all pass (core features)
 - iteration_2: Backend 12/12, Frontend all pass (founders/EC)
-- iteration_3: Backend 24/24, Frontend all pass (5 new features)
-- Test files: /app/backend/tests/test_idsea_api.py, /app/backend/tests/test_new_features.py
+- iteration_3: Backend 24/24, Frontend all pass (cert PDF, exports, upload, SMTP, charts)
+- iteration_4: Backend 15/15, Frontend all pass (email template system)
 
 ## Backlog / Future Tasks
 - **P1:** Razorpay live payment integration (user deferred - will do later)
