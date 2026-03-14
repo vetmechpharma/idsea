@@ -43,7 +43,7 @@ export default function MembershipApplyPage() {
     return (
       <div style={{ background: '#f8fafc', minHeight: '100vh' }}>
         <PublicNavbar />
-        <div style={{ paddingTop: '68px', maxWidth: '600px', margin: '0 auto', padding: '80px 24px', textAlign: 'center' }}>
+        <div style={{ paddingTop: '100px', maxWidth: '600px', margin: '0 auto', padding: '80px 24px', textAlign: 'center' }}>
           <div style={{ background: 'white', borderRadius: '20px', padding: '48px', boxShadow: '0 8px 32px rgba(0,0,0,0.1)' }}>
             <div style={{ width: '72px', height: '72px', background: '#d1fae5', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
               <CheckCircle size={36} style={{ color: '#1e7a4d' }} />
@@ -67,7 +67,7 @@ export default function MembershipApplyPage() {
   return (
     <div style={{ background: '#f8fafc', minHeight: '100vh' }}>
       <PublicNavbar />
-      <div style={{ paddingTop: '68px' }}>
+      <div style={{ paddingTop: '100px' }}>
         <div style={{ background: '#0c3c60', padding: '60px 24px', textAlign: 'center', color: 'white' }}>
           <h1 style={{ fontFamily: 'Poppins, sans-serif', fontSize: 'clamp(22px,3vw,36px)', fontWeight: 800, marginBottom: '12px' }}>Apply for Membership</h1>
           <p style={{ fontSize: '15px', opacity: 0.8, fontFamily: 'Inter, sans-serif' }}>Join the Indian Dairy Scientists and Entrepreneurs Association</p>

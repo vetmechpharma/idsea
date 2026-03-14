@@ -1,16 +1,34 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Mail, Phone, MapPin, Facebook, Twitter, Linkedin } from 'lucide-react';
+import { API } from '../../contexts/AuthContext';
+import axios from 'axios';
 
 export default function PublicFooter() {
+  const [cms, setCms] = useState({});
+  useEffect(() => { axios.get(`${API}/public/cms`).then(r => setCms(r.data)).catch(() => {}); }, []);
+
+  const logoUrl = cms.logo_url
+    ? (cms.logo_url.startsWith('http') ? cms.logo_url : `${API.replace('/api', '')}${cms.logo_url}`)
+    : null;
+
   return (
     <footer style={{ background: '#0c3c60', color: 'white', fontFamily: 'Inter, sans-serif' }}>
       <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '48px 24px 24px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '40px', marginBottom: '40px' }}>
           {/* Brand */}
           <div>
-            <div style={{ fontFamily: 'Poppins, sans-serif', fontSize: '22px', fontWeight: 800, marginBottom: '8px', color: 'white' }}>IDSEA</div>
-            <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.65)', marginBottom: '16px', lineHeight: 1.6 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
+              {logoUrl ? (
+                <img src={logoUrl} alt="IDSEA" style={{ height: '44px', width: '44px', objectFit: 'contain', borderRadius: '4px' }} />
+              ) : (
+                <div style={{ width: '44px', height: '44px', borderRadius: '8px', background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <span style={{ color: 'white', fontWeight: 800, fontSize: '14px', fontFamily: 'Poppins' }}>ID</span>
+                </div>
+              )}
+              <div style={{ fontFamily: 'Poppins, sans-serif', fontSize: '20px', fontWeight: 800, color: 'white' }}>IDSEA</div>
+            </div>
+            <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.65)', marginBottom: '12px', lineHeight: 1.6 }}>
               Indian Dairy Scientists and Entrepreneurs Association
             </div>
             <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)', lineHeight: 1.7, margin: 0 }}>

@@ -18,7 +18,7 @@ export default function GalleryPage() {
   return (
     <div style={{ background: '#f8fafc' }}>
       <PublicNavbar />
-      <div style={{ paddingTop: '68px' }}>
+      <div style={{ paddingTop: '100px' }}>
         <div style={{ background: '#0c3c60', padding: '60px 24px', textAlign: 'center', color: 'white' }}>
           <h1 style={{ fontFamily: 'Poppins, sans-serif', fontSize: 'clamp(24px,4vw,40px)', fontWeight: 800, marginBottom: '12px' }}>Photo Gallery</h1>
           <p style={{ fontSize: '15px', opacity: 0.8, fontFamily: 'Inter, sans-serif' }}>Conferences, field visits, workshops, and research events</p>

@@ -312,6 +312,7 @@ class CMSSettings(BaseModel):
     twitter_url: Optional[str] = ""
     linkedin_url: Optional[str] = ""
     website_name: Optional[str] = "IDSEA"
+    logo_url: Optional[str] = ""
     hero_title: Optional[str] = ""
     hero_subtitle: Optional[str] = ""
 
@@ -1931,6 +1932,7 @@ async def startup_event():
     if await db.cms_settings.count_documents({}) == 0:
         await db.cms_settings.insert_one({
             "website_name": "IDSEA",
+            "logo_url": "/api/uploads/idsea_logo.png",
             "hero_title": "Indian Dairy Scientists and Entrepreneurs Association",
             "hero_subtitle": "Bridging Dairy Science, Innovation & Entrepreneurship for Sustainable Growth",
             "about_content": "IDSEA is a national professional and scientific body established to bridge the gap between dairy scientists and dairy entrepreneurs. We bring together dairy scientists, academicians, technologists, entrepreneurs, industry experts, startups, cooperatives, corporate bodies, and students under one umbrella.",

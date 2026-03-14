@@ -21,7 +21,7 @@ export default function AboutPage() {
   return (
     <div style={{ background: 'white' }}>
       <PublicNavbar />
-      <div style={{ paddingTop: '68px' }}>
+      <div style={{ paddingTop: '100px' }}>
         {/* Hero */}
         <div style={{ background: '#0c3c60', padding: '80px 24px', textAlign: 'center', color: 'white' }}>
           <h1 style={{ fontFamily: 'Poppins, sans-serif', fontSize: 'clamp(28px,4vw,42px)', fontWeight: 800, marginBottom: '16px' }}>About IDSEA</h1>

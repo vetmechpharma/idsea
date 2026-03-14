@@ -2,10 +2,11 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Save, Globe } from 'lucide-react';
 import { API } from '../../contexts/AuthContext';
+import { FileUpload } from '../../components/admin/FileUpload';
 
 export default function CMSAdmin() {
   const [form, setForm] = useState({
-    website_name: '', hero_title: '', hero_subtitle: '',
+    website_name: '', logo_url: '', hero_title: '', hero_subtitle: '',
     about_content: '', vision: '', mission: '',
     contact_email: '', contact_phone: '', contact_address: '',
     facebook_url: '', twitter_url: '', linkedin_url: ''
@@ -53,8 +54,22 @@ export default function CMSAdmin() {
         </button>
       </div>
 
-      <Section title="Hero Section">
-        <div className="form-group"><label className="form-label">Website Name</label><input value={form.website_name} onChange={e => updateField('website_name', e.target.value)} className="form-input" data-testid="cms-website-name" /></div>
+      <Section title="Branding & Hero">
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          <div className="form-group"><label className="form-label">Website Name</label><input value={form.website_name} onChange={e => updateField('website_name', e.target.value)} className="form-input" data-testid="cms-website-name" /></div>
+          <div className="form-group">
+            <label className="form-label">Website Logo</label>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+              {form.logo_url && (
+                <img src={form.logo_url.startsWith('http') ? form.logo_url : `${window.location.origin}${form.logo_url}`} alt="Logo" style={{ width: '56px', height: '56px', objectFit: 'contain', borderRadius: '8px', border: '1px solid #e5e7eb', padding: '2px' }} />
+              )}
+              <div style={{ flex: 1 }}>
+                <FileUpload accept="image/*" label="Upload New Logo" onUpload={(url) => updateField('logo_url', url)} />
+                <input type="url" value={form.logo_url} onChange={e => updateField('logo_url', e.target.value)} className="form-input" placeholder="Or paste logo URL" style={{ marginTop: '6px' }} data-testid="cms-logo-url" />
+              </div>
+            </div>
+          </div>
+        </div>
         <div className="form-group"><label className="form-label">Hero Title</label><input value={form.hero_title} onChange={e => updateField('hero_title', e.target.value)} className="form-input" data-testid="cms-hero-title" /></div>
         <div className="form-group"><label className="form-label">Hero Subtitle</label><textarea value={form.hero_subtitle} onChange={e => updateField('hero_subtitle', e.target.value)} className="form-textarea" rows={2} /></div>
       </Section>
