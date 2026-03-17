@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import PublicNavbar from '../../components/public/PublicNavbar';
 import PublicFooter from '../../components/public/PublicFooter';
-import { CheckCircle, ArrowRight, ArrowLeft, User, Phone, Search, Hotel, CreditCard } from 'lucide-react';
+import { CheckCircle, ArrowRight, ArrowLeft, User, Phone, Search, Hotel, CreditCard, CalendarClock, Info } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -14,7 +14,7 @@ export default function EventRegistrationPage() {
   const [info, setInfo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(0);
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [regResult, setRegResult] = useState(null);
@@ -113,6 +113,25 @@ export default function EventRegistrationPage() {
 
   const totalAmount = regFee + accomFee + memFee;
 
+  const accom = info?.accommodation || {};
+  const sortedTiers = useMemo(() => {
+    if (!info?.fee_tiers?.length) return [];
+    return [...info.fee_tiers].sort((a, b) => a.deadline.localeCompare(b.deadline));
+  }, [info]);
+
+  const CATEGORIES = [
+    { key: 'academic', label: 'Academic' },
+    { key: 'entrepreneur', label: 'Entrepreneur' },
+    { key: 'corporate', label: 'Corporate' },
+    { key: 'non_member', label: 'Non-Member' },
+  ];
+
+  const formatDate = (d) => {
+    if (!d) return '';
+    try { return new Date(d + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }); }
+    catch { return d; }
+  };
+
   const handleSubmit = async () => {
     if (!form.name || !form.email || !form.phone) return;
     setSubmitting(true);
@@ -181,11 +200,38 @@ export default function EventRegistrationPage() {
     </div>
   );
 
-  const accom = info?.accommodation || {};
+  const stepLabels = step === 0
+    ? []
+    : ['Participant', 'Details', ...(accom.enabled ? ['Accommodation'] : []), 'Review'];
 
   return (
     <div style={{ background: '#f8fafc', minHeight: '100vh' }}>
       <PublicNavbar />
+      <style>{`
+        .fee-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .fee-table { width: 100%; border-collapse: collapse; font-family: 'Inter', sans-serif; font-size: 14px; min-width: 540px; }
+        .fee-table th { background: #0c3c60; color: white; padding: 12px 16px; text-align: left; font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 13px; white-space: nowrap; }
+        .fee-table td { padding: 11px 16px; border-bottom: 1px solid #e5e7eb; }
+        .fee-table tr:last-child td { border-bottom: none; }
+        .fee-table .tier-active { background: #f0fdf4; }
+        .fee-table .tier-active td { font-weight: 600; }
+        .fee-table .amount { font-family: 'Poppins', sans-serif; font-weight: 700; color: #0c3c60; }
+        .fee-table .free-badge { background: #d1fae5; color: #065f46; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; }
+        .fee-table .active-badge { background: #1e7a4d; color: white; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 700; margin-left: 6px; }
+        @media (max-width: 640px) {
+          .fee-cards-mobile { display: flex; flex-direction: column; gap: 16px; }
+          .fee-card { background: white; border-radius: 12px; border: 1px solid #e5e7eb; overflow: hidden; }
+          .fee-card.active { border: 2px solid #1e7a4d; box-shadow: 0 4px 12px rgba(30,122,77,0.12); }
+          .fee-card-header { padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; }
+          .fee-card-body { padding: 0 16px 16px; }
+          .fee-card-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f1f5f9; font-size: 14px; }
+          .fee-card-row:last-child { border-bottom: none; }
+          .fee-desktop { display: none !important; }
+        }
+        @media (min-width: 641px) {
+          .fee-cards-mobile { display: none !important; }
+        }
+      `}</style>
       <div style={{ paddingTop: '170px' }}>
         {/* Event Header */}
         <div style={{ background: '#0c3c60', padding: '40px 24px', color: 'white', textAlign: 'center' }}>
@@ -194,25 +240,233 @@ export default function EventRegistrationPage() {
           <p style={{ fontSize: '14px', opacity: 0.7 }}>{info?.date}{info?.end_date ? ` - ${info.end_date}` : ''} | {info?.venue}</p>
         </div>
 
-        {/* Step Indicator */}
-        <div style={{ maxWidth: '800px', margin: '0 auto', padding: '24px 24px 0' }}>
-          <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '8px' }}>
-            {['Participant', 'Details', 'Accommodation', 'Review'].map((label, idx) => (
-              <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <div style={{
-                  width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '13px', fontWeight: 700, fontFamily: 'Poppins',
-                  background: step > idx + 1 ? '#1e7a4d' : step === idx + 1 ? '#0c3c60' : '#e5e7eb',
-                  color: step >= idx + 1 ? 'white' : '#9ca3af'
-                }}>{step > idx + 1 ? '✓' : idx + 1}</div>
-                <span style={{ fontSize: '13px', fontFamily: 'Poppins', fontWeight: step === idx + 1 ? 600 : 400, color: step === idx + 1 ? '#0c3c60' : '#9ca3af', display: idx < 3 ? 'inline' : 'inline' }}>{label}</span>
-                {idx < 3 && <div style={{ width: '32px', height: '2px', background: step > idx + 1 ? '#1e7a4d' : '#e5e7eb' }} />}
-              </div>
-            ))}
+        {/* Step Indicator (hidden on step 0) */}
+        {step > 0 && (
+          <div style={{ maxWidth: '800px', margin: '0 auto', padding: '24px 24px 0' }}>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '8px' }}>
+              {stepLabels.map((label, idx) => (
+                <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{
+                    width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '13px', fontWeight: 700, fontFamily: 'Poppins',
+                    background: step > idx + 1 ? '#1e7a4d' : step === idx + 1 ? '#0c3c60' : '#e5e7eb',
+                    color: step >= idx + 1 ? 'white' : '#9ca3af'
+                  }}>{step > idx + 1 ? '✓' : idx + 1}</div>
+                  <span style={{ fontSize: '13px', fontFamily: 'Poppins', fontWeight: step === idx + 1 ? 600 : 400, color: step === idx + 1 ? '#0c3c60' : '#9ca3af' }}>{label}</span>
+                  {idx < stepLabels.length - 1 && <div style={{ width: '32px', height: '2px', background: step > idx + 1 ? '#1e7a4d' : '#e5e7eb' }} />}
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
-        <div style={{ maxWidth: '700px', margin: '0 auto', padding: '24px' }}>
+        <div style={{ maxWidth: step === 0 ? '960px' : '700px', margin: '0 auto', padding: '24px', transition: 'max-width 0.3s ease' }}>
+
+          {/* STEP 0: Fee Overview */}
+          {step === 0 && (
+            <div data-testid="step-fee-overview">
+              {/* Registration Fees Table */}
+              {sortedTiers.length > 0 && (
+                <div style={{ background: 'white', borderRadius: '16px', padding: '28px', boxShadow: '0 4px 12px rgba(0,0,0,0.06)', marginBottom: '20px' }}>
+                  <h3 style={{ fontFamily: 'Poppins', fontSize: '18px', fontWeight: 700, color: '#0c3c60', marginBottom: '6px' }}>Registration Fees</h3>
+                  <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '20px', fontFamily: 'Inter, sans-serif' }}>Fees vary based on registration deadline and participant category.</p>
+
+                  {/* Desktop Table */}
+                  <div className="fee-table-wrap fee-desktop">
+                    <table className="fee-table" data-testid="fee-table-registration">
+                      <thead>
+                        <tr>
+                          <th>Fee Tier</th>
+                          <th>Deadline</th>
+                          {CATEGORIES.map(c => <th key={c.key}>{c.label}</th>)}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sortedTiers.map((tier, idx) => {
+                          const isActive = currentTier?.name === tier.name;
+                          return (
+                            <tr key={idx} className={isActive ? 'tier-active' : ''}>
+                              <td>
+                                <span style={{ fontFamily: 'Poppins', fontWeight: 600, color: '#111827' }}>{tier.name}</span>
+                                {isActive && <span className="active-badge">CURRENT</span>}
+                              </td>
+                              <td style={{ whiteSpace: 'nowrap' }}>
+                                <CalendarClock size={13} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px', color: '#6b7280' }} />
+                                {formatDate(tier.deadline)}
+                              </td>
+                              {CATEGORIES.map(c => (
+                                <td key={c.key} className="amount">₹{(tier.fees?.[c.key] || 0).toLocaleString('en-IN')}</td>
+                              ))}
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Mobile Cards */}
+                  <div className="fee-cards-mobile">
+                    {sortedTiers.map((tier, idx) => {
+                      const isActive = currentTier?.name === tier.name;
+                      return (
+                        <div key={idx} className={`fee-card ${isActive ? 'active' : ''}`} data-testid={`fee-card-${idx}`}>
+                          <div className="fee-card-header" style={{ background: isActive ? '#f0fdf4' : '#f8fafc' }}>
+                            <div>
+                              <span style={{ fontFamily: 'Poppins', fontWeight: 700, fontSize: '15px', color: '#0c3c60' }}>{tier.name}</span>
+                              {isActive && <span className="active-badge" style={{ background: '#1e7a4d', color: 'white', padding: '2px 8px', borderRadius: '10px', fontSize: '10px', fontWeight: 700, marginLeft: '8px' }}>CURRENT</span>}
+                            </div>
+                            <span style={{ fontSize: '12px', color: '#6b7280' }}>By {formatDate(tier.deadline)}</span>
+                          </div>
+                          <div className="fee-card-body">
+                            {CATEGORIES.map(c => (
+                              <div key={c.key} className="fee-card-row">
+                                <span style={{ color: '#374151' }}>{c.label}</span>
+                                <span style={{ fontFamily: 'Poppins', fontWeight: 700, color: '#0c3c60' }}>₹{(tier.fees?.[c.key] || 0).toLocaleString('en-IN')}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Accommodation Fees */}
+              {accom.enabled && sortedTiers.some(t => t.accommodation_fees) && (
+                <div style={{ background: 'white', borderRadius: '16px', padding: '28px', boxShadow: '0 4px 12px rgba(0,0,0,0.06)', marginBottom: '20px' }}>
+                  <h3 style={{ fontFamily: 'Poppins', fontSize: '18px', fontWeight: 700, color: '#0c3c60', marginBottom: '6px' }}>Default Accommodation Fees</h3>
+                  <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '16px', fontFamily: 'Inter, sans-serif' }}>
+                    Included with registration. Premium hotel upgrades available during registration.
+                    {(accom.free_categories || []).length > 0 && (
+                      <span style={{ display: 'block', marginTop: '4px', color: '#1e7a4d', fontWeight: 600 }}>
+                        Free accommodation for: {accom.free_categories.map(c => c.charAt(0).toUpperCase() + c.slice(1)).join(', ')} members
+                      </span>
+                    )}
+                  </p>
+
+                  {/* Desktop Table */}
+                  <div className="fee-table-wrap fee-desktop">
+                    <table className="fee-table" data-testid="fee-table-accommodation">
+                      <thead>
+                        <tr>
+                          <th>Fee Tier</th>
+                          <th>Deadline</th>
+                          {CATEGORIES.map(c => <th key={c.key}>{c.label}</th>)}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sortedTiers.map((tier, idx) => {
+                          const isActive = currentTier?.name === tier.name;
+                          const freeCats = accom.free_categories || [];
+                          return (
+                            <tr key={idx} className={isActive ? 'tier-active' : ''}>
+                              <td>
+                                <span style={{ fontFamily: 'Poppins', fontWeight: 600, color: '#111827' }}>{tier.name}</span>
+                                {isActive && <span className="active-badge">CURRENT</span>}
+                              </td>
+                              <td style={{ whiteSpace: 'nowrap' }}>
+                                <CalendarClock size={13} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px', color: '#6b7280' }} />
+                                {formatDate(tier.deadline)}
+                              </td>
+                              {CATEGORIES.map(c => (
+                                <td key={c.key} className="amount">
+                                  {freeCats.includes(c.key)
+                                    ? <span className="free-badge">FREE</span>
+                                    : `₹${(tier.accommodation_fees?.[c.key] || 0).toLocaleString('en-IN')}`}
+                                </td>
+                              ))}
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Mobile Cards */}
+                  <div className="fee-cards-mobile">
+                    {sortedTiers.map((tier, idx) => {
+                      const isActive = currentTier?.name === tier.name;
+                      const freeCats = accom.free_categories || [];
+                      return (
+                        <div key={idx} className={`fee-card ${isActive ? 'active' : ''}`}>
+                          <div className="fee-card-header" style={{ background: isActive ? '#f0fdf4' : '#f8fafc' }}>
+                            <div>
+                              <span style={{ fontFamily: 'Poppins', fontWeight: 700, fontSize: '15px', color: '#0c3c60' }}>{tier.name}</span>
+                              {isActive && <span style={{ background: '#1e7a4d', color: 'white', padding: '2px 8px', borderRadius: '10px', fontSize: '10px', fontWeight: 700, marginLeft: '8px' }}>CURRENT</span>}
+                            </div>
+                            <span style={{ fontSize: '12px', color: '#6b7280' }}>By {formatDate(tier.deadline)}</span>
+                          </div>
+                          <div className="fee-card-body">
+                            {CATEGORIES.map(c => (
+                              <div key={c.key} className="fee-card-row">
+                                <span style={{ color: '#374151' }}>{c.label}</span>
+                                <span style={{ fontFamily: 'Poppins', fontWeight: 700, color: '#0c3c60' }}>
+                                  {freeCats.includes(c.key)
+                                    ? <span className="free-badge" style={{ background: '#d1fae5', color: '#065f46', padding: '2px 8px', borderRadius: '10px', fontSize: '11px' }}>FREE</span>
+                                    : `₹${(tier.accommodation_fees?.[c.key] || 0).toLocaleString('en-IN')}`}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Premium Hotels & Additional Info */}
+              <div style={{ display: 'grid', gridTemplateColumns: (accom.hotels?.length > 0 && info?.allow_membership_registration) ? '1fr 1fr' : '1fr', gap: '20px', marginBottom: '20px' }}>
+                {accom.enabled && (accom.hotels || []).length > 0 && (
+                  <div style={{ background: 'white', borderRadius: '16px', padding: '24px', boxShadow: '0 4px 12px rgba(0,0,0,0.06)' }}>
+                    <h4 style={{ fontFamily: 'Poppins', fontSize: '15px', fontWeight: 700, color: '#0c3c60', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Hotel size={16} /> Premium Hotel Options
+                    </h4>
+                    <p style={{ fontSize: '12px', color: '#6b7280', marginBottom: '12px' }}>Upgrade from default accommodation (replaces default fee)</p>
+                    {(accom.hotels || []).map((hotel, idx) => (
+                      <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: '#f8fafc', borderRadius: '8px', marginBottom: '8px' }}>
+                        <div>
+                          <div style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '14px', color: '#111827' }}>{hotel.name}</div>
+                          {hotel.description && <div style={{ fontSize: '12px', color: '#6b7280' }}>{hotel.description}</div>}
+                        </div>
+                        <div style={{ fontFamily: 'Poppins', fontWeight: 800, fontSize: '15px', color: '#0c3c60', whiteSpace: 'nowrap' }}>₹{hotel.fee?.toLocaleString('en-IN')}</div>
+                      </div>
+                    ))}
+                    {accom.self_option && (
+                      <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Info size={12} /> Self-accommodation option also available (no charge)
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {info?.allow_membership_registration && (
+                  <div style={{ background: 'white', borderRadius: '16px', padding: '24px', boxShadow: '0 4px 12px rgba(0,0,0,0.06)' }}>
+                    <h4 style={{ fontFamily: 'Poppins', fontSize: '15px', fontWeight: 700, color: '#0c3c60', marginBottom: '14px' }}>IDSEA Membership</h4>
+                    <p style={{ fontSize: '12px', color: '#6b7280', marginBottom: '12px' }}>Non-members can also apply for IDSEA membership during registration</p>
+                    {Object.entries(MEMBERSHIP_LABELS).map(([key, label]) => (
+                      <div key={key} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: '#f8fafc', borderRadius: '8px', marginBottom: '8px' }}>
+                        <span style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '14px', color: '#111827' }}>{label}</span>
+                        <span style={{ fontFamily: 'Poppins', fontWeight: 800, fontSize: '15px', color: '#1e7a4d' }}>₹{(info?.membership_fees?.[key] || 0).toLocaleString('en-IN')}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Proceed Button */}
+              <div style={{ textAlign: 'center', padding: '8px 0 16px' }}>
+                <button onClick={() => setStep(1)} className="btn-primary" data-testid="proceed-to-register"
+                  style={{ padding: '16px 40px', fontSize: '16px', fontFamily: 'Poppins', fontWeight: 700 }}>
+                  Proceed to Register <ArrowRight size={18} />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Registration Form Steps (1-4) */}
+          {step >= 1 && (
           <div style={{ background: 'white', borderRadius: '16px', padding: '32px', boxShadow: '0 4px 12px rgba(0,0,0,0.06)' }}>
 
             {/* STEP 1: Member or Non-member */}
@@ -530,6 +784,7 @@ export default function EventRegistrationPage() {
               </div>
             )}
           </div>
+          )}
         </div>
       </div>
       <PublicFooter />
