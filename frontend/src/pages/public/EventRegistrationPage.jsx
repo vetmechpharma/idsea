@@ -76,24 +76,42 @@ export default function EventRegistrationPage() {
     return currentTier.fees?.[cat] || 0;
   }, [currentTier, isMember, memberCategory]);
 
-  const accomFee = useMemo(() => {
-    if (!info?.accommodation?.enabled || accomChoice !== 'hotel') return 0;
-    const hotel = (info.accommodation.hotels || []).find(h => h.name === hotelName);
-    return hotel?.fee || 0;
-  }, [info, accomChoice, hotelName]);
+  // Default accommodation fee from tier (category-based)
+  const defaultAccomFee = useMemo(() => {
+    if (!info?.accommodation?.enabled || !currentTier) return 0;
+    const cat = isMember ? memberCategory : 'non_member';
+    return currentTier.accommodation_fees?.[cat] || 0;
+  }, [info, currentTier, isMember, memberCategory]);
 
+  // Is this category eligible for free accommodation?
   const isFreeAccom = useMemo(() => {
     if (!info?.accommodation?.enabled) return false;
     const cat = isMember ? memberCategory : '';
     return (info.accommodation.free_categories || []).includes(cat);
   }, [info, isMember, memberCategory]);
 
+  // Calculated accommodation fee based on user's choice
+  const accomFee = useMemo(() => {
+    if (!info?.accommodation?.enabled) return 0;
+    if (accomChoice === 'self') return 0;
+    if (accomChoice === 'free') return 0;
+    if (accomChoice === 'hotel') {
+      const hotel = (info.accommodation.hotels || []).find(h => h.name === hotelName);
+      return hotel?.fee || 0;
+    }
+    if (accomChoice === 'default') {
+      if (isFreeAccom) return 0;
+      return defaultAccomFee;
+    }
+    return 0;
+  }, [info, accomChoice, hotelName, isFreeAccom, defaultAccomFee]);
+
   const memFee = useMemo(() => {
     if (!wantsMembership || !membershipType || isMember) return 0;
     return info?.membership_fees?.[membershipType] || 0;
   }, [wantsMembership, membershipType, isMember, info]);
 
-  const totalAmount = regFee + (isFreeAccom ? 0 : accomFee) + memFee;
+  const totalAmount = regFee + accomFee + memFee;
 
   const handleSubmit = async () => {
     if (!form.name || !form.email || !form.phone) return;
@@ -110,7 +128,7 @@ export default function EventRegistrationPage() {
         wants_membership: wantsMembership,
         membership_type: wantsMembership ? membershipType : '',
         registration_fee: regFee,
-        accommodation_fee: isFreeAccom ? 0 : accomFee,
+        accommodation_fee: accomFee,
         membership_fee: memFee,
         total_amount: totalAmount,
         payment_mode: 'offline',
@@ -338,46 +356,85 @@ export default function EventRegistrationPage() {
 
                 {isFreeAccom && (
                   <div style={{ background: '#d1fae5', borderRadius: '8px', padding: '12px', marginBottom: '16px', fontSize: '14px', color: '#065f46', fontWeight: 600 }}>
-                    Free accommodation available for {memberCategory} members!
+                    Free accommodation available for {memberCategory} members! Default accommodation fee is waived.
                   </div>
                 )}
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {accom.self_option && (
-                    <button onClick={() => { setAccomChoice('self'); setHotelName(''); }} data-testid="accom-self"
-                      style={{ padding: '16px', borderRadius: '10px', cursor: 'pointer', textAlign: 'left',
-                        border: accomChoice === 'self' ? '2px solid #0c3c60' : '1px solid #e5e7eb',
-                        background: accomChoice === 'self' ? '#f0f9ff' : 'white' }}>
-                      <div style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '14px', color: '#111827' }}>Self-Accommodation</div>
-                      <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '2px' }}>I will arrange my own accommodation</div>
-                    </button>
-                  )}
-
-                  {isFreeAccom && (
-                    <button onClick={() => { setAccomChoice('free'); setHotelName(''); }} data-testid="accom-free"
-                      style={{ padding: '16px', borderRadius: '10px', cursor: 'pointer', textAlign: 'left',
-                        border: accomChoice === 'free' ? '2px solid #1e7a4d' : '1px solid #e5e7eb',
-                        background: accomChoice === 'free' ? '#f0fdf4' : 'white' }}>
-                      <div style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '14px', color: '#1e7a4d' }}>Free Accommodation</div>
-                      <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '2px' }}>Complimentary for {memberCategory} members</div>
-                    </button>
-                  )}
-
-                  {(accom.hotels || []).map((hotel, idx) => (
-                    <button key={idx} onClick={() => { setAccomChoice('hotel'); setHotelName(hotel.name); }} data-testid={`accom-hotel-${idx}`}
-                      style={{ padding: '16px', borderRadius: '10px', cursor: 'pointer', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                        border: (accomChoice === 'hotel' && hotelName === hotel.name) ? '2px solid #0c3c60' : '1px solid #e5e7eb',
-                        background: (accomChoice === 'hotel' && hotelName === hotel.name) ? '#f0f9ff' : 'white' }}>
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <Hotel size={16} style={{ color: '#0c3c60' }} />
-                          <span style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '14px', color: '#111827' }}>{hotel.name}</span>
-                        </div>
-                        {hotel.description && <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '2px', marginLeft: '24px' }}>{hotel.description}</div>}
+                  {/* Default Accommodation (tier-based fee) */}
+                  <button onClick={() => { setAccomChoice(isFreeAccom ? 'free' : 'default'); setHotelName(''); }} data-testid="accom-default"
+                    style={{ padding: '18px', borderRadius: '10px', cursor: 'pointer', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                      border: (accomChoice === 'default' || accomChoice === 'free') ? '2px solid #1e7a4d' : '1px solid #e5e7eb',
+                      background: (accomChoice === 'default' || accomChoice === 'free') ? '#f0fdf4' : 'white' }}>
+                    <div>
+                      <div style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '14px', color: '#111827' }}>
+                        {isFreeAccom ? 'Free Accommodation (Default)' : 'Default Accommodation'}
                       </div>
-                      <div style={{ fontFamily: 'Poppins', fontWeight: 800, fontSize: '16px', color: '#0c3c60' }}>₹{hotel.fee}</div>
-                    </button>
-                  ))}
+                      <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '2px' }}>
+                        {isFreeAccom ? `Complimentary for ${memberCategory} members` : 'Standard accommodation included with registration'}
+                      </div>
+                    </div>
+                    <div style={{ fontFamily: 'Poppins', fontWeight: 800, fontSize: '16px', color: isFreeAccom ? '#1e7a4d' : '#0c3c60', whiteSpace: 'nowrap' }}>
+                      {isFreeAccom ? 'FREE' : `₹${defaultAccomFee}`}
+                    </div>
+                  </button>
+
+                  {/* Premium Hotel options (replace default) */}
+                  {(accom.hotels || []).length > 0 && (
+                    <div style={{ marginTop: '4px' }}>
+                      <div style={{ fontSize: '13px', fontWeight: 600, color: '#0c3c60', fontFamily: 'Poppins', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <Hotel size={14} /> Premium Hotel Options
+                        <span style={{ fontSize: '11px', color: '#6b7280', fontWeight: 400 }}>(instead of default accommodation)</span>
+                      </div>
+                      {(accom.hotels || []).map((hotel, idx) => (
+                        <button key={idx} onClick={() => { setAccomChoice('hotel'); setHotelName(hotel.name); }} data-testid={`accom-hotel-${idx}`}
+                          style={{ width: '100%', padding: '16px', borderRadius: '10px', cursor: 'pointer', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px',
+                            border: (accomChoice === 'hotel' && hotelName === hotel.name) ? '2px solid #0c3c60' : '1px solid #e5e7eb',
+                            background: (accomChoice === 'hotel' && hotelName === hotel.name) ? '#f0f9ff' : 'white' }}>
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <Hotel size={16} style={{ color: '#0c3c60' }} />
+                              <span style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '14px', color: '#111827' }}>{hotel.name}</span>
+                            </div>
+                            {hotel.description && <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '2px', marginLeft: '24px' }}>{hotel.description}</div>}
+                          </div>
+                          <div style={{ fontFamily: 'Poppins', fontWeight: 800, fontSize: '16px', color: '#0c3c60' }}>₹{hotel.fee}</div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Self-Accommodation (no fee) */}
+                  {accom.self_option && (
+                    <div>
+                      <button onClick={() => { setAccomChoice('self'); setHotelName(''); }} data-testid="accom-self"
+                        style={{ width: '100%', padding: '16px', borderRadius: '10px', cursor: 'pointer', textAlign: 'left',
+                          border: accomChoice === 'self' ? '2px solid #6b7280' : '1px solid #e5e7eb',
+                          background: accomChoice === 'self' ? '#f8fafc' : 'white' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div>
+                            <div style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '14px', color: '#111827' }}>Self-Accommodation</div>
+                            <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '2px' }}>I will arrange my own accommodation (no fee)</div>
+                          </div>
+                          <div style={{ fontFamily: 'Poppins', fontWeight: 800, fontSize: '16px', color: '#6b7280' }}>₹0</div>
+                        </div>
+                      </button>
+
+                      {/* Show suggested hotels as info when self is selected */}
+                      {accomChoice === 'self' && (accom.hotels || []).length > 0 && (
+                        <div style={{ background: '#fffbeb', borderRadius: '8px', padding: '14px', marginTop: '10px', border: '1px solid #fde68a' }}>
+                          <div style={{ fontSize: '13px', fontWeight: 600, color: '#92400e', fontFamily: 'Poppins', marginBottom: '8px' }}>Suggested Hotels Nearby</div>
+                          {(accom.hotels || []).map((hotel, idx) => (
+                            <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', color: '#78350f', padding: '4px 0' }}>
+                              <span>{hotel.name} {hotel.description ? `(${hotel.description})` : ''}</span>
+                              <span style={{ fontWeight: 600 }}>₹{hotel.fee}</span>
+                            </div>
+                          ))}
+                          <div style={{ fontSize: '11px', color: '#b45309', marginTop: '6px', fontStyle: 'italic' }}>These are for your reference. You can book directly with the hotel.</div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '24px' }}>
@@ -413,8 +470,10 @@ export default function EventRegistrationPage() {
                     <div style={{ background: '#f8fafc', borderRadius: '10px', padding: '20px' }}>
                       <h4 style={{ fontFamily: 'Poppins', fontSize: '14px', fontWeight: 600, color: '#0c3c60', marginBottom: '8px' }}>Accommodation</h4>
                       <p style={{ fontSize: '14px', margin: 0 }}>
-                        {accomChoice === 'self' ? 'Self-Accommodation' : accomChoice === 'free' ? 'Free Accommodation' : hotelName}
-                        {accomChoice === 'hotel' && <span style={{ fontWeight: 700, marginLeft: '8px' }}>₹{accomFee}</span>}
+                        {accomChoice === 'self' && 'Self-Accommodation (No fee)'}
+                        {accomChoice === 'free' && `Free Accommodation (${memberCategory} member)`}
+                        {accomChoice === 'default' && `Default Accommodation — ₹${defaultAccomFee}`}
+                        {accomChoice === 'hotel' && <>{hotelName} (Premium) — <strong>₹{accomFee}</strong></>}
                       </p>
                     </div>
                   )}
@@ -429,8 +488,19 @@ export default function EventRegistrationPage() {
                       </div>
                       {accom.enabled && accomChoice && accomChoice !== 'self' && (
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span>Accommodation {isFreeAccom ? '(Free)' : ''}</span>
-                          <strong>{isFreeAccom ? 'FREE' : `₹${accomFee}`}</strong>
+                          <span>
+                            Accommodation
+                            {accomChoice === 'free' && ' (Free)'}
+                            {accomChoice === 'default' && ' (Default)'}
+                            {accomChoice === 'hotel' && ` (${hotelName})`}
+                          </span>
+                          <strong>{accomFee === 0 ? 'FREE' : `₹${accomFee}`}</strong>
+                        </div>
+                      )}
+                      {accom.enabled && accomChoice === 'self' && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6b7280' }}>
+                          <span>Accommodation (Self)</span>
+                          <strong>₹0</strong>
                         </div>
                       )}
                       {wantsMembership && memFee > 0 && (

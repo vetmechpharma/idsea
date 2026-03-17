@@ -1,0 +1,90 @@
+{
+  "summary": "Comprehensive testing of updated accommodation system: Backend 15/15 tests passed (100%). Frontend all accommodation features verified - tier-based default fees, premium hotels, self-accommodation with suggested hotels, and FREE accommodation for eligible categories (academic). All features working correctly.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_accommodation_fees.py",
+    "/app/test_reports/pytest/pytest_accommodation_fees.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_accommodation_fees.py"
+  ],
+  "success_rate": {
+    "backend": "100% (15/15 tests passed)",
+    "frontend": "100% - All accommodation features working"
+  },
+  "test_credentials": {
+    "admin_email": "admin@idsea.org",
+    "admin_password": "Admin@123",
+    "test_event_id": "435435f4-774f-4a0f-95e1-1e423493c196"
+  },
+  "seed_data_creation": "TEST_Academic_Member created and deleted for free accommodation testing",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Accommodation system fully tested. Backend: fee_tiers with accommodation_fees per category persists correctly. Frontend: Step 3 shows Default (tier fee), Premium Hotels, Self (₹0 with suggested hotels info). Academic members in free_categories see 'Free Accommodation (Default)' with FREE label. Step 4 fee breakdown correctly shows Registration Fee + Accommodation Fee = Total.",
+  "features_verified": {
+    "backend_accommodation_fees": {
+      "GET registration-info returns fee_tiers with accommodation_fees": "PASSED - Each tier has academic, entrepreneur, corporate, non_member accommodation fees",
+      "POST/PUT events with accommodation_fees persists correctly": "PASSED - Created event with 2 tiers, verified accommodation_fees saved",
+      "accommodation config structure": "PASSED - enabled, self_option, free_categories, hotels all present",
+      "membership_fees returned": "PASSED - academic=3100, entrepreneur=5100, corporate=25100"
+    },
+    "backend_registration": {
+      "register non-member with default accommodation": "PASSED - ₹3000 reg + ₹1000 accom = ₹4000",
+      "register with premium hotel": "PASSED - ₹3000 reg + ₹2500 hotel = ₹5500",
+      "register with self-accommodation": "PASSED - ₹3000 reg + ₹0 accom = ₹3000",
+      "register academic with free accommodation": "PASSED - ₹1500 reg + ₹0 free accom = ₹1500",
+      "register with membership addition": "PASSED - ₹3000 reg + ₹1000 accom + ₹3100 mem = ₹7100"
+    },
+    "frontend_step3_accommodation": {
+      "default_accommodation_tier_fee": "PASSED - Shows ₹1000 for non-member Early Bird",
+      "premium_hotel_options": "PASSED - Shows 'Hotel Taj Namakkal ₹2500' and 'Hotel Royal Inn ₹1500'",
+      "self_accommodation": "PASSED - Shows ₹0 with 'Suggested Hotels Nearby' info box when selected",
+      "free_accommodation_academic": "PASSED - Shows 'Free Accommodation (Default)' with FREE label for academic members",
+      "free_accommodation_notice": "PASSED - Shows 'Free accommodation available for academic members! Default accommodation fee is waived.'"
+    },
+    "frontend_step4_fee_breakdown": {
+      "registration_fee_shown": "PASSED - Shows 'Registration Fee (Early Bird) ₹3000'",
+      "default_accommodation_in_breakdown": "PASSED - Shows 'Accommodation (Default) ₹1000'",
+      "premium_hotel_in_breakdown": "PASSED - Shows 'Accommodation (Hotel Taj Namakkal) ₹2500'",
+      "self_accommodation_in_breakdown": "PASSED - Shows 'Accommodation (Self) ₹0'",
+      "free_accommodation_in_breakdown": "PASSED - Shows 'Accommodation (Free) FREE'",
+      "total_calculation": "PASSED - Reg Fee + Accom Fee = Total"
+    },
+    "admin_events_form": {
+      "default_accommodation_fees_fields": "PASSED - Shows 'Default Accommodation Fees (₹)' with 4 inputs per tier when accommodation enabled",
+      "accommodation_options_section": "PASSED - Shows Enable Accommodation, Self-Accommodation Option, Free Accommodation Categories checkboxes",
+      "premium_hotels_section": "PASSED - Shows 'Premium Hotels (optional upgrade from default accommodation)' with Add Hotel button"
+    }
+  },
+  "tests_executed": {
+    "backend_tests": [
+      "TestEventRegistrationInfo - 6 tests PASSED",
+      "TestEventRegistrationSubmission - 5 tests PASSED",
+      "TestAdminEventCRUD - 2 tests PASSED",
+      "TestAdminRegistrationManagement - 1 test PASSED",
+      "TestCleanup - 1 test PASSED"
+    ],
+    "frontend_tests": [
+      "Non-member registration flow Step 1-4 - PASSED",
+      "Default accommodation selection and fee calculation - PASSED",
+      "Premium hotel selection replaces default fee - PASSED",
+      "Self-accommodation with suggested hotels info box - PASSED",
+      "Academic member free accommodation flow - PASSED",
+      "Admin event form with accommodation_fees fields - PASSED"
+    ]
+  },
+  "mocked_apis": {
+    "has_mocked_apis": false,
+    "mocked_apis_list": []
+  }
+}

@@ -4,7 +4,7 @@ import { Plus, Edit, Trash2, X, Bell, CheckCircle, Users, Download, ChevronDown,
 import { API } from '../../contexts/AuthContext';
 import { FileUpload } from '../../components/admin/FileUpload';
 
-const emptyTier = { name: '', deadline: '', fees: { academic: 0, entrepreneur: 0, corporate: 0, non_member: 0 } };
+const emptyTier = { name: '', deadline: '', fees: { academic: 0, entrepreneur: 0, corporate: 0, non_member: 0 }, accommodation_fees: { academic: 0, entrepreneur: 0, corporate: 0, non_member: 0 } };
 const emptyHotel = { name: '', fee: 0, description: '' };
 const emptyAccom = { enabled: false, self_option: true, free_categories: [], hotels: [] };
 
@@ -114,6 +114,9 @@ export default function EventsAdmin() {
       if (key.startsWith('fees.')) {
         const feeKey = key.split('.')[1];
         tiers[idx] = { ...tiers[idx], fees: { ...tiers[idx].fees, [feeKey]: parseFloat(val) || 0 } };
+      } else if (key.startsWith('accommodation_fees.')) {
+        const feeKey = key.split('.')[1];
+        tiers[idx] = { ...tiers[idx], accommodation_fees: { ...(tiers[idx].accommodation_fees || {}), [feeKey]: parseFloat(val) || 0 } };
       } else {
         tiers[idx] = { ...tiers[idx], [key]: val };
       }
@@ -257,11 +260,27 @@ export default function EventsAdmin() {
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                           <div className="form-group" style={{ margin: 0 }}><label className="form-label">Tier Name</label><input value={tier.name} onChange={e => updateTier(idx, 'name', e.target.value)} className="form-input" placeholder="e.g. Early Bird" data-testid={`tier-name-${idx}`} /></div>
                           <div className="form-group" style={{ margin: 0 }}><label className="form-label">Deadline Date</label><input type="date" value={tier.deadline} onChange={e => updateTier(idx, 'deadline', e.target.value)} className="form-input" data-testid={`tier-deadline-${idx}`} /></div>
-                          <div className="form-group" style={{ margin: 0 }}><label className="form-label">Academic (₹)</label><input type="number" value={tier.fees?.academic || 0} onChange={e => updateTier(idx, 'fees.academic', e.target.value)} className="form-input" /></div>
-                          <div className="form-group" style={{ margin: 0 }}><label className="form-label">Entrepreneur (₹)</label><input type="number" value={tier.fees?.entrepreneur || 0} onChange={e => updateTier(idx, 'fees.entrepreneur', e.target.value)} className="form-input" /></div>
-                          <div className="form-group" style={{ margin: 0 }}><label className="form-label">Corporate (₹)</label><input type="number" value={tier.fees?.corporate || 0} onChange={e => updateTier(idx, 'fees.corporate', e.target.value)} className="form-input" /></div>
-                          <div className="form-group" style={{ margin: 0 }}><label className="form-label">Non-Member (₹)</label><input type="number" value={tier.fees?.non_member || 0} onChange={e => updateTier(idx, 'fees.non_member', e.target.value)} className="form-input" /></div>
                         </div>
+                        <div style={{ marginTop: '12px' }}>
+                          <label style={{ fontSize: '12px', fontWeight: 600, color: '#1e7a4d', fontFamily: 'Poppins', display: 'block', marginBottom: '8px' }}>Registration Fees (₹)</label>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '8px' }}>
+                            <div className="form-group" style={{ margin: 0 }}><label className="form-label" style={{ fontSize: '11px' }}>Academic</label><input type="number" value={tier.fees?.academic || 0} onChange={e => updateTier(idx, 'fees.academic', e.target.value)} className="form-input" /></div>
+                            <div className="form-group" style={{ margin: 0 }}><label className="form-label" style={{ fontSize: '11px' }}>Entrepreneur</label><input type="number" value={tier.fees?.entrepreneur || 0} onChange={e => updateTier(idx, 'fees.entrepreneur', e.target.value)} className="form-input" /></div>
+                            <div className="form-group" style={{ margin: 0 }}><label className="form-label" style={{ fontSize: '11px' }}>Corporate</label><input type="number" value={tier.fees?.corporate || 0} onChange={e => updateTier(idx, 'fees.corporate', e.target.value)} className="form-input" /></div>
+                            <div className="form-group" style={{ margin: 0 }}><label className="form-label" style={{ fontSize: '11px' }}>Non-Member</label><input type="number" value={tier.fees?.non_member || 0} onChange={e => updateTier(idx, 'fees.non_member', e.target.value)} className="form-input" /></div>
+                          </div>
+                        </div>
+                        {form.accommodation?.enabled && (
+                          <div style={{ marginTop: '12px' }}>
+                            <label style={{ fontSize: '12px', fontWeight: 600, color: '#0c3c60', fontFamily: 'Poppins', display: 'block', marginBottom: '8px' }}>Default Accommodation Fees (₹)</label>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '8px' }}>
+                              <div className="form-group" style={{ margin: 0 }}><label className="form-label" style={{ fontSize: '11px' }}>Academic</label><input type="number" value={tier.accommodation_fees?.academic || 0} onChange={e => updateTier(idx, 'accommodation_fees.academic', e.target.value)} className="form-input" data-testid={`tier-accom-academic-${idx}`} /></div>
+                              <div className="form-group" style={{ margin: 0 }}><label className="form-label" style={{ fontSize: '11px' }}>Entrepreneur</label><input type="number" value={tier.accommodation_fees?.entrepreneur || 0} onChange={e => updateTier(idx, 'accommodation_fees.entrepreneur', e.target.value)} className="form-input" /></div>
+                              <div className="form-group" style={{ margin: 0 }}><label className="form-label" style={{ fontSize: '11px' }}>Corporate</label><input type="number" value={tier.accommodation_fees?.corporate || 0} onChange={e => updateTier(idx, 'accommodation_fees.corporate', e.target.value)} className="form-input" /></div>
+                              <div className="form-group" style={{ margin: 0 }}><label className="form-label" style={{ fontSize: '11px' }}>Non-Member</label><input type="number" value={tier.accommodation_fees?.non_member || 0} onChange={e => updateTier(idx, 'accommodation_fees.non_member', e.target.value)} className="form-input" /></div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -295,7 +314,7 @@ export default function EventsAdmin() {
                         </div>
 
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                          <label className="form-label" style={{ margin: 0 }}>Hotels</label>
+                          <label className="form-label" style={{ margin: 0 }}>Premium Hotels (optional upgrade from default accommodation)</label>
                           <button onClick={addHotel} data-testid="add-hotel-btn" style={{ background: '#1e7a4d', color: 'white', border: 'none', padding: '4px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontFamily: 'Poppins', fontWeight: 600 }}><Plus size={12} /> Add Hotel</button>
                         </div>
                         {(form.accommodation.hotels || []).map((hotel, idx) => (
