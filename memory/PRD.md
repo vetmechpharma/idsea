@@ -81,6 +81,7 @@ Build a full-stack website for IDSEA with a public-facing website and comprehens
 - iteration_4: Backend 15/15, Frontend all pass (email template system)
 - iteration_5: Backend 15/15, Frontend all pass (homepage slider feature)
 - iteration_6: Backend 20/20, Frontend all pass (event registration system)
+- iteration_7: Backend 15/15, Frontend all pass (updated accommodation system with tier-based default fees, premium hotels, self-accommodation with suggestions, free category waiver)
 
 ## Backlog / Future Tasks
 - **P1:** Razorpay/PayUMoney payment integration (user deferred - will do later)
