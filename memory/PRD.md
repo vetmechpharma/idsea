@@ -46,7 +46,7 @@ Build a full-stack website for IDSEA with a public-facing website and comprehens
 1. Dashboard - Stats, recent activity, quick actions
 2. Members Management - CRUD, approve/reject, search/filter
 3. Payments - View payments, record manual payments
-4. Events Management - CRUD with full event details
+4. Events Management - CRUD with full event details, fee tiers, accommodation config, registration management
 5. News & Announcements - CRUD with categories
 6. Gallery Management - Albums + photos CRUD
 7. Publications Management - CRUD with categories
@@ -67,8 +67,9 @@ Build a full-stack website for IDSEA with a public-facing website and comprehens
 1. Home - Dynamic slider carousel (react-slick), stats, about, membership types, events, news, CTA
 2. About - Vision/mission, objectives, executive committee, HQ
 3. Members Directory - Search, filter by state/type
-4. Events - Filter by status, full event details
-5. Publications - Category filters, paper details
+4. Events - Filter by status, full event details, Register Now button for open events
+5. Event Registration - Multi-step form: Member/Non-member selection, phone lookup, details, accommodation, fee review
+6. Publications - Category filters, paper details
 6. Gallery - Albums, photo lightbox
 7. Contact - Info + contact form
 8. Membership Application - Type selection, full form, success flow
@@ -79,9 +80,10 @@ Build a full-stack website for IDSEA with a public-facing website and comprehens
 - iteration_3: Backend 24/24, Frontend all pass (cert PDF, exports, upload, SMTP, charts)
 - iteration_4: Backend 15/15, Frontend all pass (email template system)
 - iteration_5: Backend 15/15, Frontend all pass (homepage slider feature)
+- iteration_6: Backend 20/20, Frontend all pass (event registration system)
 
 ## Backlog / Future Tasks
-- **P1:** Razorpay live payment integration (user deferred - will do later)
+- **P1:** Razorpay/PayUMoney payment integration (user deferred - will do later)
 - **P1:** Full Member Directory with search/filter on public site
 - **P2:** Remaining public pages: News & Announcements, Contact
 - **P2:** Member subscription renewal/expiry reminders
