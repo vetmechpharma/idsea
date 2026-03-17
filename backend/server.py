@@ -130,6 +130,25 @@ class MemberUpdate(BaseModel):
     status: Optional[str] = None
 
 
+class FeeTier(BaseModel):
+    name: str = ""
+    deadline: str = ""
+    fees: dict = {}  # {academic: 0, entrepreneur: 0, corporate: 0, non_member: 0}
+
+
+class HotelOption(BaseModel):
+    name: str = ""
+    fee: float = 0
+    description: Optional[str] = ""
+
+
+class AccommodationConfig(BaseModel):
+    enabled: bool = False
+    self_option: bool = True
+    free_categories: List[str] = []
+    hotels: List[dict] = []
+
+
 class Event(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     title: str
@@ -142,6 +161,10 @@ class Event(BaseModel):
     speaker_details: Optional[str] = ""
     status: str = "upcoming"
     image_url: Optional[str] = ""
+    registration_enabled: bool = False
+    allow_membership_registration: bool = False
+    fee_tiers: List[dict] = []
+    accommodation: dict = {}
     created_at: str = Field(default_factory=now_iso)
 
 
@@ -156,6 +179,35 @@ class EventCreate(BaseModel):
     speaker_details: Optional[str] = ""
     status: str = "upcoming"
     image_url: Optional[str] = ""
+    registration_enabled: bool = False
+    allow_membership_registration: bool = False
+    fee_tiers: List[dict] = []
+    accommodation: dict = {}
+
+
+class EventRegistration(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    event_id: str
+    is_member: bool = False
+    member_id: Optional[str] = ""
+    member_category: Optional[str] = ""
+    name: str
+    email: str
+    phone: str
+    qualification: Optional[str] = ""
+    organization: Optional[str] = ""
+    state: Optional[str] = ""
+    accommodation_choice: Optional[str] = ""
+    hotel_name: Optional[str] = ""
+    wants_membership: bool = False
+    membership_type: Optional[str] = ""
+    registration_fee: float = 0
+    accommodation_fee: float = 0
+    membership_fee: float = 0
+    total_amount: float = 0
+    payment_status: str = "pending"
+    payment_mode: str = "offline"
+    created_at: str = Field(default_factory=now_iso)
 
 
 class News(BaseModel):
@@ -1037,6 +1089,161 @@ async def admin_update_event(event_id: str, data: EventCreate, admin=Depends(get
 async def admin_delete_event(event_id: str, admin=Depends(get_current_admin)):
     await db.events.delete_one({"id": event_id})
     return {"message": "Event deleted"}
+
+
+# =================== EVENT REGISTRATION ===================
+
+MEMBERSHIP_FEES = {"academic": 3100, "entrepreneur": 5100, "corporate": 25100}
+
+
+@api_router.get("/public/events/{event_id}/registration-info")
+async def get_event_registration_info(event_id: str):
+    event = await db.events.find_one({"id": event_id}, {"_id": 0})
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    if not event.get("registration_enabled"):
+        raise HTTPException(status_code=400, detail="Registration not enabled for this event")
+    return {
+        "id": event["id"],
+        "title": event["title"],
+        "date": event.get("date", ""),
+        "end_date": event.get("end_date", ""),
+        "venue": event.get("venue", ""),
+        "fee_tiers": event.get("fee_tiers", []),
+        "accommodation": event.get("accommodation", {}),
+        "allow_membership_registration": event.get("allow_membership_registration", False),
+        "membership_fees": MEMBERSHIP_FEES,
+    }
+
+
+@api_router.get("/public/members/lookup")
+async def lookup_member_by_phone(phone: str):
+    if not phone or len(phone) < 5:
+        raise HTTPException(status_code=400, detail="Invalid phone number")
+    member = await db.members.find_one(
+        {"phone": {"$regex": phone.strip().replace("+", "\\+"), "$options": "i"}, "status": "approved"},
+        {"_id": 0, "name": 1, "email": 1, "phone": 1, "membership_type": 1, "membership_id": 1, "organization": 1, "qualification": 1, "state": 1, "id": 1}
+    )
+    if not member:
+        return {"found": False}
+    return {"found": True, "member": member}
+
+
+@api_router.post("/public/events/{event_id}/register")
+async def register_for_event(event_id: str, data: dict):
+    event = await db.events.find_one({"id": event_id}, {"_id": 0})
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    if not event.get("registration_enabled"):
+        raise HTTPException(status_code=400, detail="Registration not enabled")
+
+    reg = EventRegistration(
+        event_id=event_id,
+        is_member=data.get("is_member", False),
+        member_id=data.get("member_id", ""),
+        member_category=data.get("member_category", ""),
+        name=data.get("name", ""),
+        email=data.get("email", ""),
+        phone=data.get("phone", ""),
+        qualification=data.get("qualification", ""),
+        organization=data.get("organization", ""),
+        state=data.get("state", ""),
+        accommodation_choice=data.get("accommodation_choice", ""),
+        hotel_name=data.get("hotel_name", ""),
+        wants_membership=data.get("wants_membership", False),
+        membership_type=data.get("membership_type", ""),
+        registration_fee=float(data.get("registration_fee", 0)),
+        accommodation_fee=float(data.get("accommodation_fee", 0)),
+        membership_fee=float(data.get("membership_fee", 0)),
+        total_amount=float(data.get("total_amount", 0)),
+        payment_status="pending",
+        payment_mode=data.get("payment_mode", "offline"),
+    )
+    await db.event_registrations.insert_one(reg.model_dump())
+
+    # If wants membership, create a pending member application
+    if reg.wants_membership and reg.membership_type:
+        existing = await db.members.find_one({"email": reg.email})
+        if not existing:
+            from pydantic import BaseModel as _BM
+            new_member = Member(
+                name=reg.name,
+                email=reg.email,
+                phone=reg.phone,
+                qualification=reg.qualification or "",
+                organization=reg.organization or "",
+                state=reg.state or "",
+                membership_type=reg.membership_type,
+                status="pending",
+                payment_status="pending",
+            )
+            new_member.join_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+            await db.members.insert_one(new_member.model_dump())
+
+    result = reg.model_dump()
+    result.pop("_id", None)
+    return {"message": "Registration successful", "registration": result}
+
+
+@api_router.get("/admin/events/{event_id}/registrations")
+async def admin_get_event_registrations(event_id: str, admin=Depends(get_current_admin)):
+    regs = await db.event_registrations.find({"event_id": event_id}, {"_id": 0}).sort("created_at", -1).to_list(5000)
+    return regs
+
+
+@api_router.get("/admin/events/{event_id}/registrations/export")
+async def admin_export_event_registrations(event_id: str, admin=Depends(get_current_admin)):
+    event = await db.events.find_one({"id": event_id}, {"_id": 0})
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    regs = await db.event_registrations.find({"event_id": event_id}, {"_id": 0}).sort("created_at", -1).to_list(5000)
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Registrations"
+    headers = ["S.No", "Name", "Email", "Phone", "Organization", "State", "Member", "Member ID", "Category", "Accommodation", "Hotel", "Reg Fee", "Accom Fee", "Membership Fee", "Total", "Payment Status"]
+    header_fill = openpyxl.styles.PatternFill(start_color="0C3C60", end_color="0C3C60", fill_type="solid")
+    header_font = openpyxl.styles.Font(bold=True, color="FFFFFF", size=11)
+    for col, h in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=h)
+        cell.fill = header_fill
+        cell.font = header_font
+
+    for i, r in enumerate(regs, 1):
+        ws.cell(row=i + 1, column=1, value=i)
+        ws.cell(row=i + 1, column=2, value=r.get("name", ""))
+        ws.cell(row=i + 1, column=3, value=r.get("email", ""))
+        ws.cell(row=i + 1, column=4, value=r.get("phone", ""))
+        ws.cell(row=i + 1, column=5, value=r.get("organization", ""))
+        ws.cell(row=i + 1, column=6, value=r.get("state", ""))
+        ws.cell(row=i + 1, column=7, value="Yes" if r.get("is_member") else "No")
+        ws.cell(row=i + 1, column=8, value=r.get("member_id", ""))
+        ws.cell(row=i + 1, column=9, value=r.get("member_category", ""))
+        ws.cell(row=i + 1, column=10, value=r.get("accommodation_choice", ""))
+        ws.cell(row=i + 1, column=11, value=r.get("hotel_name", ""))
+        ws.cell(row=i + 1, column=12, value=r.get("registration_fee", 0))
+        ws.cell(row=i + 1, column=13, value=r.get("accommodation_fee", 0))
+        ws.cell(row=i + 1, column=14, value=r.get("membership_fee", 0))
+        ws.cell(row=i + 1, column=15, value=r.get("total_amount", 0))
+        ws.cell(row=i + 1, column=16, value=r.get("payment_status", ""))
+
+    for col in ws.columns:
+        max_len = max(len(str(cell.value or "")) for cell in col)
+        ws.column_dimensions[col[0].column_letter].width = min(max_len + 3, 40)
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    title_clean = event.get("title", "Event").replace(" ", "_")[:30]
+    return StreamingResponse(buf, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                           headers={"Content-Disposition": f"attachment; filename=IDSEA_{title_clean}_Registrations.xlsx"})
+
+
+@api_router.put("/admin/event-registrations/{reg_id}/payment")
+async def admin_update_registration_payment(reg_id: str, data: dict, admin=Depends(get_current_admin)):
+    status = data.get("payment_status", "paid")
+    await db.event_registrations.update_one({"id": reg_id}, {"$set": {"payment_status": status}})
+    return {"message": "Payment status updated"}
 
 
 # =================== ADMIN NEWS ROUTES ===================

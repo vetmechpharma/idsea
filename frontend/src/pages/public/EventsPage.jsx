@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import { Link } from 'react-router-dom';
 import PublicNavbar from '../../components/public/PublicNavbar';
 import PublicFooter from '../../components/public/PublicFooter';
-import { Calendar, MapPin, IndianRupee } from 'lucide-react';
+import { Calendar, MapPin, IndianRupee, ArrowRight } from 'lucide-react';
 import { API } from '../../contexts/AuthContext';
 
 const STATUS_COLORS = { upcoming: '#1e7a4d', ongoing: '#d97706', completed: '#6b7280' };
@@ -94,6 +95,13 @@ export default function EventsPage() {
                       <a href={event.brochure_url} target="_blank" rel="noreferrer" style={{ display: 'inline-block', marginTop: '12px', color: '#1e7a4d', fontSize: '13px', fontWeight: 600, textDecoration: 'none', fontFamily: 'Poppins, sans-serif' }}>
                         Download Brochure →
                       </a>
+                    )}
+                    {event.registration_enabled && event.status !== 'completed' && (
+                      <div style={{ marginTop: '16px' }}>
+                        <Link to={`/events/${event.id}/register`} data-testid="event-register-btn" className="btn-primary" style={{ textDecoration: 'none', display: 'inline-flex' }}>
+                          Register Now <ArrowRight size={14} />
+                        </Link>
+                      </div>
                     )}
                   </div>
                 </div>
