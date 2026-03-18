@@ -47,7 +47,8 @@ Build a full-stack website for IDSEA with a public-facing website and comprehens
 2. Members Management - CRUD, approve/reject, search/filter
 3. Payments - View payments, record manual payments
 4. Events Management - CRUD with full event details, fee tiers, accommodation config, registration management
-5. News & Announcements - CRUD with categories
+5. Event Registrations - Full detail view, filters, search, accommodation assignment, room/location/map management
+6. News & Announcements - CRUD with categories
 6. Gallery Management - Albums + photos CRUD
 7. Publications Management - CRUD with categories
 8. Email System - Compose, group targeting, logs
@@ -82,9 +83,11 @@ Build a full-stack website for IDSEA with a public-facing website and comprehens
 - iteration_5: Backend 15/15, Frontend all pass (homepage slider feature)
 - iteration_6: Backend 20/20, Frontend all pass (event registration system)
 - iteration_7: Backend 15/15, Frontend all pass (updated accommodation system with tier-based default fees, premium hotels, self-accommodation with suggestions, free category waiver)
+- iteration_8: Backend 12/12, Frontend all pass (event registration management - filters, exports, accommodation assignment, email/WhatsApp)
 
 ## Backlog / Future Tasks
-- **P1:** Razorpay/PayUMoney payment integration (user deferred - will do later)
+- **P1:** Razorpay/PayUMoney payment integration (user deferred)
+- **P1:** WhatsApp API configuration for automated messages
 - **P1:** Full Member Directory with search/filter on public site
 - **P2:** Remaining public pages: News & Announcements, Contact
 - **P2:** Member subscription renewal/expiry reminders
