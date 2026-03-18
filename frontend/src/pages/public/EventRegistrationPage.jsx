@@ -136,6 +136,8 @@ export default function EventRegistrationPage() {
   const handleSubmit = async () => {
     if (!form.name || !form.email || !form.phone) return;
     setSubmitting(true); setError('');
+    // Compute total directly to avoid any stale closure issues
+    const computedTotal = regFee + accomFee + memFee;
     try {
       const payload = {
         is_member: isMember || false,
@@ -150,12 +152,15 @@ export default function EventRegistrationPage() {
         registration_fee: regFee,
         accommodation_fee: accomFee,
         membership_fee: memFee,
-        total_amount: totalAmount,
+        total_amount: computedTotal,
         payment_mode: 'offline',
       };
       const r = await axios.post(`${API}/public/events/${eventId}/register`, payload);
-      setRegResult(r.data.registration);
-      if (totalAmount > 0) {
+      const reg = r.data.registration;
+      setRegResult(reg);
+      // Use the actual total_amount from the server response for the most reliable check
+      const serverTotal = reg?.total_amount ?? computedTotal;
+      if (serverTotal > 0) {
         setStep(5); // Go to payment step
       } else {
         setSubmitted(true); // Free registration, go to success
