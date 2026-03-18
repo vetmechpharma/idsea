@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import PublicNavbar from '../../components/public/PublicNavbar';
 import PublicFooter from '../../components/public/PublicFooter';
+import PaymentPage from '../../components/PaymentPage';
 import { CheckCircle, ArrowRight, ArrowLeft, User, Phone, Search, Hotel, CreditCard, CalendarClock, Info } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -134,7 +135,7 @@ export default function EventRegistrationPage() {
 
   const handleSubmit = async () => {
     if (!form.name || !form.email || !form.phone) return;
-    setSubmitting(true);
+    setSubmitting(true); setError('');
     try {
       const payload = {
         is_member: isMember || false,
@@ -154,9 +155,24 @@ export default function EventRegistrationPage() {
       };
       const r = await axios.post(`${API}/public/events/${eventId}/register`, payload);
       setRegResult(r.data.registration);
-      setSubmitted(true);
+      if (totalAmount > 0) {
+        setStep(5); // Go to payment step
+      } else {
+        setSubmitted(true); // Free registration, go to success
+      }
     } catch (e) { setError(e.response?.data?.detail || 'Registration failed'); }
     setSubmitting(false);
+  };
+
+  const handlePaymentSuccess = (method) => {
+    if (regResult) {
+      setRegResult({ ...regResult, payment_status: method === 'razorpay' ? 'paid' : 'verification_pending', payment_mode: method });
+    }
+    setSubmitted(true);
+  };
+
+  const handlePaymentSkip = () => {
+    setSubmitted(true);
   };
 
   if (loading) return (<div style={{ background: '#f8fafc' }}><PublicNavbar /><div style={{ paddingTop: '200px', textAlign: 'center' }}><div className="loading-spinner">Loading...</div></div></div>);
@@ -189,10 +205,25 @@ export default function EventRegistrationPage() {
               {regResult?.accommodation_fee > 0 && <div><span style={{ color: '#6b7280' }}>Accommodation:</span> <strong>₹{regResult?.accommodation_fee}</strong></div>}
               {regResult?.membership_fee > 0 && <div><span style={{ color: '#6b7280' }}>Membership Fee:</span> <strong>₹{regResult?.membership_fee}</strong></div>}
               <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: '8px', marginTop: '4px' }}><span style={{ color: '#0c3c60', fontWeight: 700, fontSize: '16px' }}>Total: ₹{regResult?.total_amount}</span></div>
-              <div><span style={{ color: '#6b7280' }}>Payment Status:</span> <span style={{ color: '#d97706', fontWeight: 600 }}>Pending (Offline)</span></div>
+              <div><span style={{ color: '#6b7280' }}>Payment Status:</span>{' '}
+                {regResult?.payment_status === 'paid'
+                  ? <span style={{ color: '#1e7a4d', fontWeight: 600 }}>Paid (Razorpay)</span>
+                  : regResult?.payment_status === 'verification_pending'
+                    ? <span style={{ color: '#d97706', fontWeight: 600 }}>Verification Pending</span>
+                    : <span style={{ color: '#d97706', fontWeight: 600 }}>Pending</span>
+                }
+              </div>
             </div>
           </div>
-          <p style={{ color: '#6b7280', fontSize: '13px', marginBottom: '20px' }}>Payment details will be shared by the organizers. Please contact IDSEA for payment instructions.</p>
+          {regResult?.payment_status === 'verification_pending' && (
+            <p style={{ color: '#6b7280', fontSize: '13px', marginBottom: '20px' }}>Your payment reference has been submitted. IDSEA team will verify it shortly.</p>
+          )}
+          {regResult?.payment_status === 'pending' && (
+            <p style={{ color: '#6b7280', fontSize: '13px', marginBottom: '20px' }}>You can complete the payment later. Contact IDSEA for payment instructions.</p>
+          )}
+          {regResult?.payment_status === 'paid' && (
+            <p style={{ color: '#1e7a4d', fontSize: '13px', marginBottom: '20px' }}>Payment confirmed! You will receive a confirmation email shortly.</p>
+          )}
           <Link to="/events" className="btn-primary" style={{ textDecoration: 'none', display: 'inline-flex' }}>Back to Events</Link>
         </div>
       </div>
@@ -202,7 +233,7 @@ export default function EventRegistrationPage() {
 
   const stepLabels = step === 0
     ? []
-    : ['Participant', 'Details', ...(accom.enabled ? ['Accommodation'] : []), 'Review'];
+    : ['Participant', 'Details', ...(accom.enabled ? ['Accommodation'] : []), 'Review', 'Payment'];
 
   return (
     <div style={{ background: '#f8fafc', minHeight: '100vh' }}>
@@ -768,7 +799,7 @@ export default function EventRegistrationPage() {
                         <span style={{ fontFamily: 'Poppins', fontWeight: 800, fontSize: '20px', color: '#0c3c60' }}>₹{totalAmount}</span>
                       </div>
                     </div>
-                    <p style={{ fontSize: '12px', color: '#6b7280', marginTop: '12px' }}>Payment Mode: Offline (Pay at venue or via bank transfer)</p>
+                    <p style={{ fontSize: '12px', color: '#6b7280', marginTop: '12px' }}>You will be able to choose your payment method in the next step.</p>
                   </div>
 
                   {error && <p style={{ color: '#ef4444', fontSize: '13px' }}>{error}</p>}
@@ -778,9 +809,28 @@ export default function EventRegistrationPage() {
                   <button onClick={() => setStep(accom.enabled ? 3 : 2)} className="btn-secondary"><ArrowLeft size={14} /> Back</button>
                   <button onClick={handleSubmit} disabled={submitting} className="btn-primary" data-testid="submit-registration"
                     style={{ padding: '12px 32px', fontSize: '15px' }}>
-                    {submitting ? 'Submitting...' : 'Confirm Registration'}
+                    {submitting ? 'Processing...' : totalAmount > 0 ? 'Proceed to Payment' : 'Confirm Registration'}
                   </button>
                 </div>
+              </div>
+            )}
+
+            {/* STEP 5: Payment */}
+            {step === 5 && regResult && (
+              <div data-testid="step-5-payment">
+                <h3 style={{ fontFamily: 'Poppins', fontSize: '18px', fontWeight: 700, color: '#0c3c60', marginBottom: '24px' }}>Complete Payment</h3>
+                <PaymentPage
+                  amount={regResult.total_amount}
+                  name={regResult.name}
+                  email={form.email}
+                  phone={form.phone}
+                  purpose="event_registration"
+                  memberId={memberData?.membership_id || ''}
+                  eventRegistrationId={regResult.id}
+                  membershipType={membershipType || memberCategory || ''}
+                  onSuccess={handlePaymentSuccess}
+                  onCancel={handlePaymentSkip}
+                />
               </div>
             )}
           </div>

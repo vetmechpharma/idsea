@@ -22,6 +22,7 @@ const navItems = [
   { path: '/admin/reports', icon: BarChart3, label: 'Reports' },
   { path: '/admin/cms', icon: Settings, label: 'CMS Settings' },
   { path: '/admin/sliders', icon: SlidersHorizontal, label: 'Slider Management' },
+  { path: '/admin/payment-settings', icon: CreditCard, label: 'Payment Settings' },
   { path: '/admin/roles', icon: Shield, label: 'Admin Roles' },
 ];
 
