@@ -23,6 +23,8 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 import openpyxl
+import razorpay
+import qrcode
 import aiofiles
 
 try:
@@ -319,11 +321,14 @@ class Payment(BaseModel):
     member_name: Optional[str] = ""
     member_email: Optional[str] = ""
     membership_type: Optional[str] = ""
+    event_registration_id: Optional[str] = ""
+    purpose: str = "membership"  # membership, event_registration
     amount: float
     currency: str = "INR"
-    payment_method: str = "razorpay"
+    payment_method: str = "razorpay"  # razorpay, upi, bank_transfer
     razorpay_order_id: Optional[str] = ""
     razorpay_payment_id: Optional[str] = ""
+    utr_number: Optional[str] = ""
     status: str = "pending"
     created_at: str = Field(default_factory=now_iso)
 
@@ -335,6 +340,8 @@ class PaymentOrder(BaseModel):
     member_name: Optional[str] = ""
     member_email: Optional[str] = ""
     membership_type: Optional[str] = ""
+    event_registration_id: Optional[str] = ""
+    purpose: str = "membership"
 
 
 class PaymentVerify(BaseModel):
@@ -1681,6 +1688,8 @@ async def create_payment_order(data: PaymentOrder):
         member_name=data.member_name,
         member_email=data.member_email,
         membership_type=data.membership_type,
+        event_registration_id=data.event_registration_id,
+        purpose=data.purpose,
         amount=data.amount,
         currency=data.currency
     )
@@ -1699,6 +1708,8 @@ async def create_payment_order(data: PaymentOrder):
         except Exception as e:
             logging.error(f"Razorpay error: {e}")
     await db.payments.insert_one(payment.model_dump())
+    result = payment.model_dump()
+    result.pop("_id", None)
     return {
         "payment_id": payment.id,
         "razorpay_order_id": razorpay_order_id,
@@ -1724,12 +1735,133 @@ async def verify_payment(data: PaymentVerify):
         {"$set": {"razorpay_payment_id": data.razorpay_payment_id, "status": "paid"}}
     )
     payment = await db.payments.find_one({"id": data.payment_id}, {"_id": 0})
-    if payment and payment.get("member_id"):
-        await db.members.update_one(
-            {"id": payment["member_id"]},
-            {"$set": {"payment_status": "paid", "amount_paid": payment["amount"]}}
-        )
+    if payment:
+        if payment.get("member_id"):
+            await db.members.update_one(
+                {"id": payment["member_id"]},
+                {"$set": {"payment_status": "paid", "amount_paid": payment["amount"]}}
+            )
+        if payment.get("event_registration_id"):
+            await db.event_registrations.update_one(
+                {"id": payment["event_registration_id"]},
+                {"$set": {"payment_status": "paid", "payment_mode": "razorpay"}}
+            )
     return {"message": "Payment verified", "status": "paid"}
+
+
+@api_router.post("/payments/submit-utr")
+async def submit_utr_payment(data: dict):
+    utr = data.get("utr_number", "").strip()
+    payment_method = data.get("payment_method", "upi")
+    amount = float(data.get("amount", 0))
+    purpose = data.get("purpose", "membership")
+    if not utr:
+        raise HTTPException(status_code=400, detail="UTR number is required")
+
+    payment = Payment(
+        member_id=data.get("member_id", ""),
+        member_name=data.get("name", ""),
+        member_email=data.get("email", ""),
+        membership_type=data.get("membership_type", ""),
+        event_registration_id=data.get("event_registration_id", ""),
+        purpose=purpose,
+        amount=amount,
+        payment_method=payment_method,
+        utr_number=utr,
+        status="verification_pending"
+    )
+    await db.payments.insert_one(payment.model_dump())
+
+    if data.get("event_registration_id"):
+        await db.event_registrations.update_one(
+            {"id": data["event_registration_id"]},
+            {"$set": {"payment_status": "verification_pending", "payment_mode": payment_method}}
+        )
+    if data.get("member_id"):
+        await db.members.update_one(
+            {"id": data["member_id"]},
+            {"$set": {"payment_status": "verification_pending"}}
+        )
+
+    result = payment.model_dump()
+    result.pop("_id", None)
+    return {"message": "Payment submitted for verification", "payment": result}
+
+
+@api_router.get("/payments/upi-qr")
+async def generate_upi_qr(amount: float, name: str = "IDSEA"):
+    settings = await db.payment_settings.find_one({}, {"_id": 0})
+    if not settings or not settings.get("upi_ids"):
+        raise HTTPException(status_code=400, detail="UPI not configured")
+    upi_id = settings["upi_ids"][0].get("upi_id", "")
+    if not upi_id:
+        raise HTTPException(status_code=400, detail="UPI ID not set")
+
+    upi_url = f"upi://pay?pa={upi_id}&pn={name}&am={amount}&cu=INR"
+    qr = qrcode.QRCode(version=1, error_correction=qrcode.constants.ERROR_CORRECT_H, box_size=8, border=2)
+    qr.add_data(upi_url)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="#0c3c60", back_color="white")
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    img_b64 = base64.b64encode(buf.getvalue()).decode()
+    return {"qr_image": f"data:image/png;base64,{img_b64}", "upi_url": upi_url, "upi_id": upi_id, "amount": amount}
+
+
+@api_router.get("/public/payment-settings")
+async def get_public_payment_settings():
+    settings = await db.payment_settings.find_one({}, {"_id": 0})
+    if not settings:
+        return {"bank_accounts": [], "upi_ids": [], "razorpay_enabled": bool(RAZORPAY_KEY_ID)}
+    return {
+        "bank_accounts": settings.get("bank_accounts", []),
+        "upi_ids": [{"upi_id": u.get("upi_id", ""), "name": u.get("name", "")} for u in settings.get("upi_ids", [])],
+        "razorpay_enabled": bool(RAZORPAY_KEY_ID)
+    }
+
+
+# =================== ADMIN PAYMENT SETTINGS ===================
+
+@api_router.get("/admin/payment-settings")
+async def admin_get_payment_settings(admin=Depends(get_current_admin)):
+    settings = await db.payment_settings.find_one({}, {"_id": 0})
+    if not settings:
+        settings = {"bank_accounts": [], "upi_ids": [], "razorpay_key_id": RAZORPAY_KEY_ID}
+    settings["razorpay_key_id"] = RAZORPAY_KEY_ID
+    settings["razorpay_configured"] = bool(RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET)
+    return settings
+
+
+@api_router.put("/admin/payment-settings")
+async def admin_update_payment_settings(data: dict, admin=Depends(get_current_admin)):
+    update = {
+        "bank_accounts": data.get("bank_accounts", []),
+        "upi_ids": data.get("upi_ids", []),
+    }
+    await db.payment_settings.update_one({}, {"$set": update}, upsert=True)
+    return {"message": "Payment settings updated"}
+
+
+@api_router.put("/admin/payments/{payment_id}/verify-utr")
+async def admin_verify_utr(payment_id: str, data: dict, admin=Depends(get_current_admin)):
+    action = data.get("action", "approve")
+    payment = await db.payments.find_one({"id": payment_id}, {"_id": 0})
+    if not payment:
+        raise HTTPException(status_code=404, detail="Payment not found")
+
+    if action == "approve":
+        await db.payments.update_one({"id": payment_id}, {"$set": {"status": "paid"}})
+        if payment.get("member_id"):
+            await db.members.update_one({"id": payment["member_id"]}, {"$set": {"payment_status": "paid", "amount_paid": payment["amount"]}})
+        if payment.get("event_registration_id"):
+            await db.event_registrations.update_one({"id": payment["event_registration_id"]}, {"$set": {"payment_status": "paid"}})
+        return {"message": "Payment approved"}
+    else:
+        await db.payments.update_one({"id": payment_id}, {"$set": {"status": "rejected"}})
+        if payment.get("event_registration_id"):
+            await db.event_registrations.update_one({"id": payment["event_registration_id"]}, {"$set": {"payment_status": "rejected"}})
+        return {"message": "Payment rejected"}
 
 
 @api_router.get("/admin/payments")
@@ -1749,7 +1881,9 @@ async def admin_add_manual_payment(data: dict, admin=Depends(get_current_admin))
         status="paid"
     )
     await db.payments.insert_one(payment.model_dump())
-    return payment.model_dump()
+    result = payment.model_dump()
+    result.pop("_id", None)
+    return result
 
 
 # =================== REPORTS & DASHBOARD ===================
