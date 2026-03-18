@@ -30,6 +30,7 @@ import ReportsAdmin from './pages/admin/ReportsAdmin';
 import CMSAdmin from './pages/admin/CMSAdmin';
 import RolesAdmin from './pages/admin/RolesAdmin';
 import SliderAdmin from './pages/admin/SliderAdmin';
+import EventRegistrations from './pages/admin/EventRegistrations';
 
 const ProtectedRoute = ({ children }) => {
   const { admin } = useAuth();
@@ -58,6 +59,7 @@ function App() {
             <Route path="members" element={<MembersAdmin />} />
             <Route path="payments" element={<PaymentsAdmin />} />
             <Route path="events" element={<EventsAdmin />} />
+            <Route path="events/:eventId/registrations" element={<EventRegistrations />} />
             <Route path="news" element={<NewsAdmin />} />
             <Route path="gallery" element={<GalleryAdmin />} />
             <Route path="publications" element={<PublicationsAdmin />} />

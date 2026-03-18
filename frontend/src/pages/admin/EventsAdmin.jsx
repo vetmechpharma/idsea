@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Plus, Edit, Trash2, X, Bell, CheckCircle, Users, Download, ChevronDown, ChevronUp } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Plus, Edit, Trash2, X, Bell, CheckCircle, Users } from 'lucide-react';
 import { API } from '../../contexts/AuthContext';
 import { FileUpload } from '../../components/admin/FileUpload';
 
@@ -24,10 +25,6 @@ export default function EventsAdmin() {
   const [toast, setToast] = useState('');
   const [showNotify, setShowNotify] = useState(null);
   const [notifyType, setNotifyType] = useState('all');
-  const [showRegs, setShowRegs] = useState(null);
-  const [regs, setRegs] = useState([]);
-  const [regsLoading, setRegsLoading] = useState(false);
-  const [expandedEvent, setExpandedEvent] = useState(null);
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
   const load = () => { axios.get(`${API}/admin/events`).then(r => { setEvents(r.data); setLoading(false); }); };
@@ -78,31 +75,6 @@ export default function EventsAdmin() {
       const r = await axios.put(`${API}/admin/events/${eventId}/close`);
       showToast(r.data.message || 'Event closed!'); load();
     } catch (e) { showToast('Error: ' + (e.response?.data?.detail || 'Failed')); }
-  };
-
-  const viewRegistrations = async (event) => {
-    setShowRegs(event); setRegsLoading(true);
-    try {
-      const r = await axios.get(`${API}/admin/events/${event.id}/registrations`);
-      setRegs(r.data);
-    } catch { showToast('Failed to load registrations'); }
-    setRegsLoading(false);
-  };
-
-  const exportRegistrations = async (eventId) => {
-    try {
-      const r = await axios.get(`${API}/admin/events/${eventId}/registrations/export`, { responseType: 'blob' });
-      const url = window.URL.createObjectURL(new Blob([r.data]));
-      const a = document.createElement('a'); a.href = url; a.download = 'registrations.xlsx'; a.click();
-    } catch { showToast('Export failed'); }
-  };
-
-  const updatePayment = async (regId, status) => {
-    try {
-      await axios.put(`${API}/admin/event-registrations/${regId}/payment`, { payment_status: status });
-      showToast('Payment updated');
-      if (showRegs) viewRegistrations(showRegs);
-    } catch { showToast('Update failed'); }
   };
 
   // Fee tier helpers
@@ -168,10 +140,10 @@ export default function EventsAdmin() {
                   </div>
                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                     {event.registration_enabled && (
-                      <button onClick={() => viewRegistrations(event)} data-testid="view-regs-btn"
-                        style={{ background: '#dbeafe', color: '#1e40af', border: 'none', padding: '7px 14px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '4px', fontFamily: 'Poppins', fontWeight: 500 }}>
+                      <Link to={`/admin/events/${event.id}/registrations`} data-testid="view-regs-btn"
+                        style={{ background: '#dbeafe', color: '#1e40af', border: 'none', padding: '7px 14px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '4px', fontFamily: 'Poppins', fontWeight: 500, textDecoration: 'none' }}>
                         <Users size={14} /> Registrations
-                      </button>
+                      </Link>
                     )}
                     {event.status !== 'completed' && (
                       <>
@@ -336,57 +308,6 @@ export default function EventsAdmin() {
               <button onClick={() => setShowModal(false)} className="btn-secondary">Cancel</button>
               <button onClick={handleSave} className="btn-primary" data-testid="save-event-btn">Save Event</button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Registrations Modal */}
-      {showRegs && (
-        <div className="modal-overlay" onClick={() => setShowRegs(null)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '960px', maxHeight: '90vh', overflowY: 'auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h2 style={{ fontFamily: 'Poppins', fontSize: '17px', fontWeight: 700, color: '#0c3c60', margin: 0 }}>Registrations - {showRegs.title}</h2>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button onClick={() => exportRegistrations(showRegs.id)} className="btn-secondary" style={{ fontSize: '12px', padding: '6px 12px' }}><Download size={14} /> Export Excel</button>
-                <button onClick={() => setShowRegs(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af' }}><X size={20} /></button>
-              </div>
-            </div>
-
-            {regsLoading ? <div className="loading-spinner">Loading...</div> : regs.length === 0 ? (
-              <p style={{ color: '#9ca3af', textAlign: 'center', padding: '40px' }}>No registrations yet.</p>
-            ) : (
-              <>
-                <div style={{ marginBottom: '12px', fontSize: '13px', color: '#6b7280' }}>Total: {regs.length} registrations | Paid: {regs.filter(r => r.payment_status === 'paid').length}</div>
-                <div style={{ overflowX: 'auto' }}>
-                  <table className="admin-table">
-                    <thead>
-                      <tr>
-                        <th>#</th><th>Name</th><th>Phone</th><th>Category</th><th>Member</th><th>Accommodation</th><th>Total (₹)</th><th>Payment</th><th>Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {regs.map((reg, i) => (
-                        <tr key={reg.id}>
-                          <td>{i + 1}</td>
-                          <td><div style={{ fontWeight: 600 }}>{reg.name}</div><div style={{ fontSize: '11px', color: '#9ca3af' }}>{reg.email}</div></td>
-                          <td>{reg.phone}</td>
-                          <td><span className={`badge badge-${reg.member_category || 'pending'}`}>{reg.member_category || reg.membership_type || '-'}</span></td>
-                          <td>{reg.is_member ? <span style={{ color: '#1e7a4d', fontWeight: 600 }}>{reg.member_id}</span> : 'No'}</td>
-                          <td>{reg.accommodation_choice === 'hotel' ? reg.hotel_name : reg.accommodation_choice || '-'}</td>
-                          <td style={{ fontWeight: 700 }}>₹{reg.total_amount}</td>
-                          <td><span className={`badge badge-${reg.payment_status}`}>{reg.payment_status}</span></td>
-                          <td>
-                            {reg.payment_status !== 'paid' && (
-                              <button onClick={() => updatePayment(reg.id, 'paid')} style={{ background: '#d1fae5', color: '#065f46', border: 'none', padding: '4px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>Mark Paid</button>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </>
-            )}
           </div>
         </div>
       )}

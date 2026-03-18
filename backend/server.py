@@ -207,6 +207,11 @@ class EventRegistration(BaseModel):
     total_amount: float = 0
     payment_status: str = "pending"
     payment_mode: str = "offline"
+    assigned_room_no: Optional[str] = ""
+    assigned_location: Optional[str] = ""
+    assigned_location_type: Optional[str] = ""
+    assigned_map_link: Optional[str] = ""
+    accommodation_notified: bool = False
     created_at: str = Field(default_factory=now_iso)
 
 
@@ -1244,6 +1249,260 @@ async def admin_update_registration_payment(reg_id: str, data: dict, admin=Depen
     status = data.get("payment_status", "paid")
     await db.event_registrations.update_one({"id": reg_id}, {"$set": {"payment_status": status}})
     return {"message": "Payment status updated"}
+
+
+@api_router.put("/admin/event-registrations/{reg_id}/accommodation")
+async def admin_update_registration_accommodation(reg_id: str, data: dict, admin=Depends(get_current_admin)):
+    update = {
+        "assigned_room_no": data.get("assigned_room_no", ""),
+        "assigned_location": data.get("assigned_location", ""),
+        "assigned_location_type": data.get("assigned_location_type", ""),
+        "assigned_map_link": data.get("assigned_map_link", ""),
+    }
+    await db.event_registrations.update_one({"id": reg_id}, {"$set": update})
+    return {"message": "Accommodation details updated"}
+
+
+@api_router.get("/admin/events/{event_id}/registrations/export/pdf")
+async def admin_export_registrations_pdf(event_id: str, admin=Depends(get_current_admin)):
+    event = await db.events.find_one({"id": event_id}, {"_id": 0})
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    regs = await db.event_registrations.find({"event_id": event_id}, {"_id": 0}).sort("created_at", -1).to_list(5000)
+
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=landscape(A4), topMargin=20, bottomMargin=20, leftMargin=20, rightMargin=20)
+    styles = getSampleStyleSheet()
+    elements = []
+
+    title_style = ParagraphStyle("Title", parent=styles["Title"], fontSize=16, textColor=colors.HexColor("#0c3c60"), spaceAfter=6)
+    sub_style = ParagraphStyle("Sub", parent=styles["Normal"], fontSize=10, textColor=colors.grey, alignment=TA_CENTER, spaceAfter=12)
+    cell_style = ParagraphStyle("Cell", parent=styles["Normal"], fontSize=7, leading=9)
+
+    elements.append(Paragraph(f"IDSEA - {event.get('title', 'Event')}", title_style))
+    elements.append(Paragraph(f"Date: {event.get('date', '')} | Venue: {event.get('venue', '')} | Total: {len(regs)} registrations", sub_style))
+
+    headers = ["#", "Name", "Phone", "Organization", "Category", "Accom", "Room", "Location", "Total", "Payment"]
+    data = [headers]
+    for idx, r in enumerate(regs, 1):
+        accom = r.get("accommodation_choice", "-")
+        if accom == "hotel":
+            accom = r.get("hotel_name", "Hotel")[:18]
+        data.append([
+            str(idx),
+            Paragraph(r.get("name", "")[:28], cell_style),
+            r.get("phone", "")[:16],
+            Paragraph(r.get("organization", "")[:24], cell_style),
+            r.get("member_category", r.get("membership_type", "-"))[:12],
+            accom[:14],
+            r.get("assigned_room_no", "") or "-",
+            Paragraph(r.get("assigned_location", "")[:20], cell_style),
+            f"{r.get('total_amount', 0)}",
+            r.get("payment_status", "")[:10],
+        ])
+
+    col_widths = [25, 90, 70, 85, 55, 60, 40, 75, 45, 50]
+    table = Table(data, colWidths=col_widths, repeatRows=1)
+    table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0c3c60")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, 0), 8),
+        ("FONTSIZE", (0, 1), (-1, -1), 7),
+        ("ALIGN", (0, 0), (-1, 0), "CENTER"),
+        ("ALIGN", (0, 1), (0, -1), "CENTER"),
+        ("ALIGN", (-2, 1), (-1, -1), "CENTER"),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f8fafc")]),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#d1d5db")),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("TOPPADDING", (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+    ]))
+    elements.append(table)
+    doc.build(elements)
+    buf.seek(0)
+
+    title_clean = event.get("title", "Event").replace(" ", "_")[:30]
+    return StreamingResponse(buf, media_type="application/pdf",
+                           headers={"Content-Disposition": f"attachment; filename=IDSEA_{title_clean}_Registrations.pdf"})
+
+
+@api_router.get("/admin/events/{event_id}/registrations/accommodation-report")
+async def admin_export_accommodation_report(event_id: str, admin=Depends(get_current_admin)):
+    event = await db.events.find_one({"id": event_id}, {"_id": 0})
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    regs = await db.event_registrations.find(
+        {"event_id": event_id, "accommodation_choice": {"$ne": "self"}},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(5000)
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Accommodation"
+    headers = ["#", "Name", "Phone", "Email", "Category", "Accom Choice", "Hotel/Location", "Room No", "Assigned Location", "Location Type", "Map Link", "Accom Fee", "Notified"]
+    header_fill = openpyxl.styles.PatternFill(start_color="0C3C60", end_color="0C3C60", fill_type="solid")
+    header_font = openpyxl.styles.Font(bold=True, color="FFFFFF", size=11)
+    for col, h in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=h)
+        cell.fill = header_fill
+        cell.font = header_font
+
+    for i, r in enumerate(regs, 1):
+        ws.cell(row=i + 1, column=1, value=i)
+        ws.cell(row=i + 1, column=2, value=r.get("name", ""))
+        ws.cell(row=i + 1, column=3, value=r.get("phone", ""))
+        ws.cell(row=i + 1, column=4, value=r.get("email", ""))
+        ws.cell(row=i + 1, column=5, value=r.get("member_category", ""))
+        ws.cell(row=i + 1, column=6, value=r.get("accommodation_choice", ""))
+        ws.cell(row=i + 1, column=7, value=r.get("hotel_name", ""))
+        ws.cell(row=i + 1, column=8, value=r.get("assigned_room_no", ""))
+        ws.cell(row=i + 1, column=9, value=r.get("assigned_location", ""))
+        ws.cell(row=i + 1, column=10, value=r.get("assigned_location_type", ""))
+        ws.cell(row=i + 1, column=11, value=r.get("assigned_map_link", ""))
+        ws.cell(row=i + 1, column=12, value=r.get("accommodation_fee", 0))
+        ws.cell(row=i + 1, column=13, value="Yes" if r.get("accommodation_notified") else "No")
+
+    for col in ws.columns:
+        max_len = max(len(str(cell.value or "")) for cell in col)
+        ws.column_dimensions[col[0].column_letter].width = min(max_len + 3, 40)
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    title_clean = event.get("title", "Event").replace(" ", "_")[:30]
+    return StreamingResponse(buf, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                           headers={"Content-Disposition": f"attachment; filename=IDSEA_{title_clean}_Accommodation.xlsx"})
+
+
+@api_router.post("/admin/event-registrations/{reg_id}/send-accommodation")
+async def admin_send_accommodation_details(reg_id: str, data: dict, admin=Depends(get_current_admin)):
+    reg = await db.event_registrations.find_one({"id": reg_id}, {"_id": 0})
+    if not reg:
+        raise HTTPException(status_code=404, detail="Registration not found")
+    event = await db.events.find_one({"id": reg["event_id"]}, {"_id": 0})
+    channel = data.get("channel", "email")
+
+    if channel == "email":
+        smtp = await db.smtp_settings.find_one({}, {"_id": 0})
+        if smtp and smtp.get("smtp_host") and smtp.get("smtp_user"):
+            try:
+                import smtplib
+                from email.mime.multipart import MIMEMultipart
+                from email.mime.text import MIMEText
+
+                room = reg.get("assigned_room_no", "TBD")
+                location = reg.get("assigned_location", reg.get("hotel_name", "TBD"))
+                loc_type = reg.get("assigned_location_type", "")
+                map_link = reg.get("assigned_map_link", "")
+
+                body = f"""<html><body style="font-family: Arial, sans-serif;">
+                <h2 style="color:#0c3c60;">Accommodation Details - {event.get('title','Event')}</h2>
+                <p>Dear {reg.get('name','')},</p>
+                <p>Your accommodation details for <strong>{event.get('title','')}</strong> are confirmed:</p>
+                <table style="border-collapse:collapse;margin:16px 0;">
+                <tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold;">Location Type</td><td style="padding:8px;border:1px solid #ddd;">{loc_type}</td></tr>
+                <tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold;">Location</td><td style="padding:8px;border:1px solid #ddd;">{location}</td></tr>
+                <tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold;">Room No</td><td style="padding:8px;border:1px solid #ddd;">{room}</td></tr>
+                <tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold;">Event Dates</td><td style="padding:8px;border:1px solid #ddd;">{event.get('date','')} - {event.get('end_date','')}</td></tr>
+                <tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold;">Venue</td><td style="padding:8px;border:1px solid #ddd;">{event.get('venue','')}</td></tr>
+                </table>
+                {"<p><strong>Map Link:</strong> <a href='" + map_link + "'>" + map_link + "</a></p>" if map_link else ""}
+                <p>For any queries, please contact IDSEA.</p>
+                <p>Regards,<br/>IDSEA Team</p></body></html>"""
+
+                msg = MIMEMultipart("alternative")
+                msg["Subject"] = f"Accommodation Details - {event.get('title','')}"
+                msg["From"] = smtp.get("from_email", smtp["smtp_user"])
+                msg["To"] = reg.get("email", "")
+                msg.attach(MIMEText(body, "html"))
+
+                server = smtplib.SMTP(smtp["smtp_host"], int(smtp.get("smtp_port", 587)))
+                server.starttls()
+                server.login(smtp["smtp_user"], smtp["smtp_pass"])
+                server.send_message(msg)
+                server.quit()
+                await db.event_registrations.update_one({"id": reg_id}, {"$set": {"accommodation_notified": True}})
+                return {"message": f"Email sent to {reg.get('email', '')}"}
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Email failed: {str(e)}")
+        else:
+            return {"message": "SMTP not configured. Please configure SMTP settings first.", "warning": True}
+
+    elif channel == "whatsapp":
+        await db.event_registrations.update_one({"id": reg_id}, {"$set": {"accommodation_notified": True}})
+        room = reg.get("assigned_room_no", "TBD")
+        location = reg.get("assigned_location", reg.get("hotel_name", "TBD"))
+        loc_type = reg.get("assigned_location_type", "")
+        map_link = reg.get("assigned_map_link", "")
+        text = f"*IDSEA - Accommodation Details*\n\n*Event:* {event.get('title','')}\n*Location:* {loc_type} - {location}\n*Room No:* {room}\n*Dates:* {event.get('date','')} - {event.get('end_date','')}\n*Venue:* {event.get('venue','')}"
+        if map_link:
+            text += f"\n*Map:* {map_link}"
+        phone = reg.get("phone", "").replace(" ", "").replace("+", "")
+        if not phone.startswith("91"):
+            phone = "91" + phone
+        wa_url = f"https://wa.me/{phone}?text={text}"
+        return {"message": "WhatsApp link generated", "whatsapp_url": wa_url}
+
+    return {"message": "Invalid channel"}
+
+
+@api_router.post("/admin/events/{event_id}/registrations/send-all-accommodation")
+async def admin_send_all_accommodation(event_id: str, data: dict, admin=Depends(get_current_admin)):
+    channel = data.get("channel", "email")
+    regs = await db.event_registrations.find(
+        {"event_id": event_id, "accommodation_choice": {"$ne": "self"},
+         "assigned_room_no": {"$ne": ""}, "assigned_location": {"$ne": ""}},
+        {"_id": 0}
+    ).to_list(5000)
+
+    if not regs:
+        return {"message": "No registrations with assigned accommodation found", "sent": 0}
+
+    event = await db.events.find_one({"id": event_id}, {"_id": 0})
+    sent = 0
+    errors = 0
+
+    if channel == "email":
+        smtp = await db.smtp_settings.find_one({}, {"_id": 0})
+        if not smtp or not smtp.get("smtp_host"):
+            return {"message": "SMTP not configured", "sent": 0, "warning": True}
+        try:
+            import smtplib
+            from email.mime.multipart import MIMEMultipart
+            from email.mime.text import MIMEText
+            server = smtplib.SMTP(smtp["smtp_host"], int(smtp.get("smtp_port", 587)))
+            server.starttls()
+            server.login(smtp["smtp_user"], smtp["smtp_pass"])
+
+            for reg in regs:
+                try:
+                    room = reg.get("assigned_room_no", "TBD")
+                    location = reg.get("assigned_location", "TBD")
+                    loc_type = reg.get("assigned_location_type", "")
+                    map_link = reg.get("assigned_map_link", "")
+                    body = f"""<html><body style="font-family:Arial,sans-serif;">
+                    <h2 style="color:#0c3c60;">Accommodation Details - {event.get('title','')}</h2>
+                    <p>Dear {reg.get('name','')},</p>
+                    <p>Your accommodation: <strong>{loc_type} - {location}, Room {room}</strong></p>
+                    {"<p>Map: <a href='" + map_link + "'>" + map_link + "</a></p>" if map_link else ""}
+                    <p>Event: {event.get('date','')} - {event.get('end_date','')} at {event.get('venue','')}</p>
+                    <p>Regards, IDSEA Team</p></body></html>"""
+                    msg = MIMEMultipart("alternative")
+                    msg["Subject"] = f"Accommodation Details - {event.get('title','')}"
+                    msg["From"] = smtp.get("from_email", smtp["smtp_user"])
+                    msg["To"] = reg.get("email", "")
+                    msg.attach(MIMEText(body, "html"))
+                    server.send_message(msg)
+                    await db.event_registrations.update_one({"id": reg["id"]}, {"$set": {"accommodation_notified": True}})
+                    sent += 1
+                except:
+                    errors += 1
+            server.quit()
+        except Exception as e:
+            return {"message": f"SMTP error: {str(e)}", "sent": sent}
+
+    return {"message": f"Sent to {sent} registrants ({errors} errors)", "sent": sent, "errors": errors}
 
 
 # =================== ADMIN NEWS ROUTES ===================
