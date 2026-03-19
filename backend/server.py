@@ -1043,8 +1043,26 @@ async def admin_create_member(data: MemberCreate, admin=Depends(get_current_admi
         raise HTTPException(status_code=400, detail="Email already registered")
     member = Member(**data.model_dump(), status="approved")
     member.join_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    count = await db.members.count_documents({"status": "approved"})
-    member.membership_id = f"IDSEA{datetime.now().year}{str(count+1).zfill(4)}"
+    # Generate membership ID with global serial continuation
+    mtype = data.membership_type
+    prefix_map = {"academic": "ACD", "entrepreneur": "ENT", "corporate": "COP"}
+    type_prefix = prefix_map.get(mtype, "MEM")
+    year = datetime.now().year
+    all_members = await db.members.find(
+        {"status": "approved", "membership_id": {"$regex": f"^{type_prefix}/IDSEA/"}},
+        {"_id": 0, "membership_id": 1}
+    ).to_list(None)
+    max_serial = 0
+    for m in all_members:
+        try:
+            s = int(m["membership_id"].split("/")[-1])
+            if s > max_serial:
+                max_serial = s
+        except (ValueError, IndexError):
+            pass
+    member.membership_id = f"{type_prefix}/IDSEA/{year}/{str(max_serial + 1).zfill(4)}"
+    if data.permanent_address and data.permanent_address.get("state"):
+        member.state = data.permanent_address["state"]
     await db.members.insert_one(member.model_dump())
     return member.model_dump()
 
@@ -1070,16 +1088,25 @@ async def approve_member(member_id: str, background_tasks: BackgroundTasks, admi
         raise HTTPException(status_code=404, detail="Member not found")
 
     # Generate membership ID: ACD/IDSEA/2026/0001, ENT/IDSEA/2026/0001, COP/IDSEA/2026/0001
+    # Serial continues from last year's last serial (global across all years for this type)
     mtype = member.get("membership_type", "academic")
     prefix_map = {"academic": "ACD", "entrepreneur": "ENT", "corporate": "COP"}
     type_prefix = prefix_map.get(mtype, "MEM")
     year = datetime.now().year
-    count = await db.members.count_documents({
-        "status": "approved",
-        "membership_type": mtype,
-        "membership_id": {"$regex": f"^{type_prefix}/IDSEA/{year}/"}
-    })
-    serial = str(count + 1).zfill(4)
+    # Find the highest serial across ALL years for this type
+    all_members = await db.members.find(
+        {"status": "approved", "membership_id": {"$regex": f"^{type_prefix}/IDSEA/"}},
+        {"_id": 0, "membership_id": 1}
+    ).to_list(None)
+    max_serial = 0
+    for m in all_members:
+        try:
+            s = int(m["membership_id"].split("/")[-1])
+            if s > max_serial:
+                max_serial = s
+        except (ValueError, IndexError):
+            pass
+    serial = str(max_serial + 1).zfill(4)
     membership_id = f"{type_prefix}/IDSEA/{year}/{serial}"
 
     # Derive state from permanent address if not set
@@ -1147,11 +1174,19 @@ async def change_member_type(member_id: str, data: dict, admin=Depends(get_curre
         prefix_map = {"academic": "ACD", "entrepreneur": "ENT", "corporate": "COP"}
         type_prefix = prefix_map.get(new_type, "MEM")
         year = datetime.now().year
-        count = await db.members.count_documents({
-            "status": "approved", "membership_type": new_type,
-            "membership_id": {"$regex": f"^{type_prefix}/IDSEA/{year}/"}
-        })
-        update["membership_id"] = f"{type_prefix}/IDSEA/{year}/{str(count + 1).zfill(4)}"
+        all_members = await db.members.find(
+            {"status": "approved", "membership_id": {"$regex": f"^{type_prefix}/IDSEA/"}},
+            {"_id": 0, "membership_id": 1}
+        ).to_list(None)
+        max_serial = 0
+        for m in all_members:
+            try:
+                s = int(m["membership_id"].split("/")[-1])
+                if s > max_serial:
+                    max_serial = s
+            except (ValueError, IndexError):
+                pass
+        update["membership_id"] = f"{type_prefix}/IDSEA/{year}/{str(max_serial + 1).zfill(4)}"
     await db.members.update_one({"id": member_id}, {"$set": update})
     return {"message": "Membership type changed", "membership_id": update.get("membership_id", member.get("membership_id", ""))}
 
