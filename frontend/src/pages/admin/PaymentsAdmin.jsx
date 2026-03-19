@@ -31,9 +31,13 @@ export default function PaymentsAdmin() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [methodFilter, setMethodFilter] = useState('all');
-  const [form, setForm] = useState({ member_name: '', member_email: '', membership_type: 'academic', amount: '', payment_method: 'manual', purpose: 'membership', notes: '' });
+  const [form, setForm] = useState({ member_name: '', member_email: '', membership_type: 'academic', amount: '', payment_method: 'manual', purpose: 'membership', notes: '', member_id: '', utr_number: '' });
   const [editForm, setEditForm] = useState({});
   const [refundNotes, setRefundNotes] = useState('');
+  const [payerSearch, setPayerSearch] = useState('');
+  const [payerResults, setPayerResults] = useState([]);
+  const [payerSearching, setPayerSearching] = useState(false);
+  const [payerSelected, setPayerSelected] = useState(false);
   const token = localStorage.getItem('idsea_token');
   const headers = { Authorization: `Bearer ${token}` };
 
@@ -50,11 +54,35 @@ export default function PaymentsAdmin() {
   useEffect(() => { load(); }, []);
 
   const handleAdd = async () => {
+    if (!form.member_name || !form.amount) { showToast('Name and amount are required'); return; }
     try {
       await axios.post(`${API}/admin/payments/manual`, { ...form, amount: parseFloat(form.amount) }, { headers });
       showToast('Payment recorded'); setShowAddModal(false); load();
-      setForm({ member_name: '', member_email: '', membership_type: 'academic', amount: '', payment_method: 'manual', purpose: 'membership', notes: '' });
+      setForm({ member_name: '', member_email: '', membership_type: 'academic', amount: '', payment_method: 'manual', purpose: 'membership', notes: '', member_id: '', utr_number: '' });
+      setPayerSelected(false); setPayerSearch(''); setPayerResults([]);
     } catch { showToast('Error recording payment'); }
+  };
+
+  const searchPayers = async (q) => {
+    setPayerSearch(q);
+    if (q.length < 2) { setPayerResults([]); return; }
+    setPayerSearching(true);
+    try {
+      const r = await axios.get(`${API}/admin/members`, { params: { search: q }, headers });
+      setPayerResults(r.data.slice(0, 10));
+    } catch { setPayerResults([]); }
+    setPayerSearching(false);
+  };
+
+  const selectPayer = (m) => {
+    setForm(f => ({
+      ...f,
+      member_name: `${m.prefix || ''} ${m.name}`.trim(),
+      member_email: m.email || '',
+      membership_type: m.membership_type || 'academic',
+      member_id: m.membership_id || m.id || '',
+    }));
+    setPayerSearch(''); setPayerResults([]); setPayerSelected(true);
   };
 
   const handleVerify = async (paymentId, action) => {
@@ -349,26 +377,118 @@ export default function PaymentsAdmin() {
       {/* Add Manual Payment Modal */}
       {showAddModal && (
         <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: '440px' }}>
+          <div className="modal-content" style={{ maxWidth: '520px', maxHeight: '85vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h2 style={{ fontFamily: 'Poppins', fontSize: '17px', fontWeight: 700, color: '#0c3c60', margin: 0 }}>Record Manual Payment</h2>
-              <button onClick={() => setShowAddModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af' }}><X size={20} /></button>
+              <h2 style={{ fontFamily: 'Poppins', fontSize: '17px', fontWeight: 700, color: '#0c3c60', margin: 0 }}>Record Payment</h2>
+              <button onClick={() => { setShowAddModal(false); setPayerSelected(false); setPayerSearch(''); setPayerResults([]); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af' }}><X size={20} /></button>
             </div>
-            {[['member_name', 'Payer Name', 'text'], ['member_email', 'Email', 'email'], ['amount', 'Amount (₹)', 'number']].map(([k, label, type]) => (
-              <div key={k} className="form-group">
-                <label className="form-label">{label}</label>
-                <input type={type} value={form[k]} onChange={e => setForm({ ...form, [k]: e.target.value })} className="form-input" required />
-              </div>
-            ))}
+
+            {/* Member Search */}
+            <div style={{ background: '#f8fafc', borderRadius: '10px', padding: '14px', marginBottom: '16px', border: '1px solid #e5e7eb' }}>
+              <div style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '13px', color: '#0c3c60', marginBottom: '10px' }}>Select Payee (Search Members)</div>
+              {payerSelected ? (
+                <div style={{ background: '#d1fae5', borderRadius: '8px', padding: '10px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} data-testid="selected-payer-badge">
+                  <div>
+                    <span style={{ fontWeight: 600, fontSize: '13px', color: '#065f46' }}>{form.member_name}</span>
+                    {form.member_id && <span style={{ marginLeft: '8px', fontSize: '11px', color: '#6b7280', fontFamily: 'monospace' }}>{form.member_id}</span>}
+                    <div style={{ fontSize: '11px', color: '#6b7280' }}>{form.member_email} | {form.membership_type}</div>
+                  </div>
+                  <button onClick={() => {
+                    setPayerSelected(false); setPayerSearch('');
+                    setForm(f => ({ ...f, member_name: '', member_email: '', member_id: '', membership_type: 'academic' }));
+                  }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#991b1b' }}><X size={14} /></button>
+                </div>
+              ) : (
+                <div style={{ position: 'relative' }}>
+                  <Search size={15} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} />
+                  <input value={payerSearch} onChange={e => searchPayers(e.target.value)} placeholder="Search by name, email, or membership ID..."
+                    className="form-input" style={{ paddingLeft: '34px', fontSize: '13px' }} data-testid="payer-search-input" />
+                  {payerSearching && <div style={{ fontSize: '12px', color: '#9ca3af', padding: '6px 0' }}>Searching...</div>}
+                  {payerResults.length > 0 && (
+                    <div style={{ border: '1px solid #e5e7eb', borderRadius: '8px', marginTop: '6px', maxHeight: '200px', overflowY: 'auto', background: 'white', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} data-testid="payer-results-list">
+                      {payerResults.map(m => (
+                        <div key={m.id} onClick={() => selectPayer(m)} data-testid={`payer-option-${m.id}`}
+                          style={{ display: 'flex', gap: '10px', alignItems: 'center', padding: '10px 12px', cursor: 'pointer', borderBottom: '1px solid #f3f4f6', transition: 'background 0.15s' }}
+                          onMouseEnter={e => e.currentTarget.style.background = '#f0fdf4'}
+                          onMouseLeave={e => e.currentTarget.style.background = 'white'}>
+                          <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: '#0c3c60', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '11px', flexShrink: 0 }}>{m.name?.charAt(0)}</div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontWeight: 600, fontSize: '13px', color: '#111827' }}>{m.prefix ? `${m.prefix} ` : ''}{m.name}</div>
+                            <div style={{ fontSize: '11px', color: '#9ca3af', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                              <span>{m.email}</span>
+                              {m.membership_id && <span style={{ color: '#0c3c60', fontWeight: 600, fontFamily: 'monospace' }}>{m.membership_id}</span>}
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' }}>
+                            <span style={{ fontSize: '11px', textTransform: 'capitalize', fontWeight: 600, color: '#6b7280' }}>{m.membership_type}</span>
+                            <span style={{ fontSize: '10px', color: m.status === 'approved' ? '#1e7a4d' : '#d97706' }}>{m.status}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Payer details (editable) */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <div className="form-group" style={{ margin: 0 }}><label className="form-label">Payer Name *</label>
+                <input value={form.member_name} onChange={e => setForm({ ...form, member_name: e.target.value })} className="form-input" placeholder="Name" data-testid="add-payer-name" />
+              </div>
+              <div className="form-group" style={{ margin: 0 }}><label className="form-label">Email</label>
+                <input type="email" value={form.member_email} onChange={e => setForm({ ...form, member_email: e.target.value })} className="form-input" placeholder="Email" />
+              </div>
+            </div>
+
+            {/* Amount */}
+            <div className="form-group" style={{ marginTop: '10px' }}>
+              <label className="form-label">Amount (₹) *</label>
+              <input type="number" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} className="form-input" placeholder="Enter amount" data-testid="add-amount" style={{ fontSize: '16px', fontWeight: 700 }} />
+            </div>
+
+            {/* Payment Method */}
+            <div className="form-group">
+              <label className="form-label">Payment Method</label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+                {[
+                  { value: 'razorpay', label: 'Razorpay', icon: CreditCard, color: '#1e40af' },
+                  { value: 'upi', label: 'UPI', icon: QrCode, color: '#1e7a4d' },
+                  { value: 'bank_transfer', label: 'Bank', icon: Building2, color: '#92400e' },
+                  { value: 'manual', label: 'Cash/Other', icon: IndianRupee, color: '#6b7280' },
+                ].map(({ value, label, icon: Icon, color }) => (
+                  <div key={value} onClick={() => setForm({ ...form, payment_method: value })} data-testid={`method-${value}`}
+                    style={{
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px',
+                      padding: '10px 6px', borderRadius: '8px', cursor: 'pointer', transition: 'all 0.2s',
+                      border: form.payment_method === value ? `2px solid ${color}` : '2px solid #e5e7eb',
+                      background: form.payment_method === value ? `${color}10` : 'white',
+                    }}>
+                    <Icon size={18} style={{ color: form.payment_method === value ? color : '#9ca3af' }} />
+                    <span style={{ fontSize: '11px', fontWeight: 600, color: form.payment_method === value ? color : '#9ca3af' }}>{label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* UTR / Transaction Reference (for UPI, Bank Transfer) */}
+            {(form.payment_method === 'upi' || form.payment_method === 'bank_transfer' || form.payment_method === 'razorpay') && (
               <div className="form-group">
+                <label className="form-label">{form.payment_method === 'razorpay' ? 'Razorpay Payment ID' : 'UTR / Transaction Reference'}</label>
+                <input value={form.utr_number} onChange={e => setForm({ ...form, utr_number: e.target.value })} className="form-input"
+                  placeholder={form.payment_method === 'razorpay' ? 'pay_xxxxx' : 'Enter UTR number'} data-testid="add-utr" />
+              </div>
+            )}
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <div className="form-group" style={{ margin: 0 }}>
                 <label className="form-label">Purpose</label>
                 <select value={form.purpose} onChange={e => setForm({ ...form, purpose: e.target.value })} className="form-select">
                   <option value="membership">Membership</option>
                   <option value="event_registration">Event Registration</option>
                 </select>
               </div>
-              <div className="form-group">
+              <div className="form-group" style={{ margin: 0 }}>
                 <label className="form-label">Membership Type</label>
                 <select value={form.membership_type} onChange={e => setForm({ ...form, membership_type: e.target.value })} className="form-select">
                   <option value="academic">Academic</option>
@@ -379,7 +499,7 @@ export default function PaymentsAdmin() {
             </div>
             <div className="form-group"><label className="form-label">Notes (Optional)</label><textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} className="form-textarea" rows={2} placeholder="Payment notes..." /></div>
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '16px' }}>
-              <button onClick={() => setShowAddModal(false)} className="btn-secondary">Cancel</button>
+              <button onClick={() => { setShowAddModal(false); setPayerSelected(false); setPayerSearch(''); setPayerResults([]); }} className="btn-secondary">Cancel</button>
               <button onClick={handleAdd} className="btn-primary" data-testid="save-payment-btn">Save Payment</button>
             </div>
           </div>

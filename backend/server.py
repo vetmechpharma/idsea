@@ -2155,6 +2155,8 @@ async def admin_get_payments(admin=Depends(get_current_admin)):
 
 @api_router.post("/admin/payments/manual")
 async def admin_add_manual_payment(data: dict, admin=Depends(get_current_admin)):
+    method = data.get("payment_method", "manual")
+    status = "paid" if method in ["manual", "razorpay"] else "verification_pending"
     payment = Payment(
         member_id=data.get("member_id", ""),
         member_name=data.get("member_name", ""),
@@ -2163,8 +2165,10 @@ async def admin_add_manual_payment(data: dict, admin=Depends(get_current_admin))
         event_registration_id=data.get("event_registration_id", ""),
         purpose=data.get("purpose", "membership"),
         amount=float(data.get("amount", 0)),
-        payment_method="manual",
-        status="paid",
+        payment_method=method,
+        utr_number=data.get("utr_number", ""),
+        razorpay_payment_id=data.get("utr_number", "") if method == "razorpay" else "",
+        status=status,
         notes=data.get("notes", "")
     )
     await db.payments.insert_one(payment.model_dump())
