@@ -8,7 +8,7 @@ import os
 import io
 from datetime import datetime
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://idsea-events.preview.emergentagent.com')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://member-connect-38.preview.emergentagent.com')
 
 class TestPublicMembershipApply:
     """Tests for public membership application with new fields"""
