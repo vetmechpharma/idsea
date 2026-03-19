@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
-import { Download, FileText, Search, Filter, X, Mail, MessageSquare, Edit2, ChevronLeft, Hotel, MapPin, CheckCircle, Send, ExternalLink, BedDouble } from 'lucide-react';
+import { Download, FileText, Search, Filter, X, Mail, MessageSquare, Edit2, ChevronLeft, Hotel, MapPin, CheckCircle, Send, ExternalLink, BedDouble, Plus, Trash2, Eye } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -22,6 +22,10 @@ export default function EventRegistrations() {
   const [selectedReg, setSelectedReg] = useState(null);
   const [accomForm, setAccomForm] = useState({ assigned_room_no: '', assigned_location: '', assigned_location_type: '', assigned_map_link: '' });
   const [showDetail, setShowDetail] = useState(null);
+  const [editModal, setEditModal] = useState(null);
+  const [editForm, setEditForm] = useState({});
+  const [manualModal, setManualModal] = useState(false);
+  const [manualForm, setManualForm] = useState({ name: '', email: '', phone: '', qualification: '', organization: '', state: '', is_member: false, member_category: '', accommodation_choice: 'none', registration_fee: 0, accommodation_fee: 0, membership_fee: 0, total_amount: 0, payment_status: 'pending' });
 
   const token = localStorage.getItem('idsea_token');
   const headers = { Authorization: `Bearer ${token}` };
@@ -107,6 +111,49 @@ export default function EventRegistrations() {
   const exportPDF = () => window.open(`${API}/admin/events/${eventId}/registrations/export/pdf?token=${token}`, '_blank');
   const exportAccom = () => window.open(`${API}/admin/events/${eventId}/registrations/accommodation-report?token=${token}`, '_blank');
 
+  const openEditModal = (reg) => {
+    setEditModal(reg);
+    setEditForm({
+      name: reg.name || '', email: reg.email || '', phone: reg.phone || '',
+      qualification: reg.qualification || '', organization: reg.organization || '', state: reg.state || '',
+      is_member: reg.is_member || false, member_category: reg.member_category || '',
+      accommodation_choice: reg.accommodation_choice || 'none', hotel_name: reg.hotel_name || '',
+      registration_fee: reg.registration_fee || 0, accommodation_fee: reg.accommodation_fee || 0,
+      membership_fee: reg.membership_fee || 0, total_amount: reg.total_amount || 0,
+      payment_status: reg.payment_status || 'pending', payment_mode: reg.payment_mode || 'offline',
+    });
+  };
+
+  const saveEdit = async () => {
+    if (!editModal) return;
+    try {
+      const payload = { ...editForm };
+      payload.total_amount = parseFloat(payload.registration_fee || 0) + parseFloat(payload.accommodation_fee || 0) + parseFloat(payload.membership_fee || 0);
+      await axios.put(`${API}/admin/event-registrations/${editModal.id}`, payload, { headers });
+      showToast('Registration updated'); setEditModal(null); load();
+    } catch (e) { showToast('Update failed: ' + (e.response?.data?.detail || 'Error')); }
+  };
+
+  const deleteReg = async (regId, regName) => {
+    if (!window.confirm(`Delete registration for "${regName}"? This cannot be undone.`)) return;
+    try {
+      await axios.delete(`${API}/admin/event-registrations/${regId}`, { headers });
+      showToast('Registration deleted'); load();
+    } catch { showToast('Delete failed'); }
+  };
+
+  const saveManual = async () => {
+    if (!manualForm.name || !manualForm.email) { showToast('Name and email required'); return; }
+    try {
+      const payload = { ...manualForm };
+      payload.total_amount = parseFloat(payload.registration_fee || 0) + parseFloat(payload.accommodation_fee || 0) + parseFloat(payload.membership_fee || 0);
+      await axios.post(`${API}/admin/events/${eventId}/register-manual`, payload, { headers });
+      showToast('Registration created'); setManualModal(false);
+      setManualForm({ name: '', email: '', phone: '', qualification: '', organization: '', state: '', is_member: false, member_category: '', accommodation_choice: 'none', registration_fee: 0, accommodation_fee: 0, membership_fee: 0, total_amount: 0, payment_status: 'pending' });
+      load();
+    } catch (e) { showToast('Failed: ' + (e.response?.data?.detail || 'Error')); }
+  };
+
   const downloadFile = async (url, filename) => {
     try {
       const r = await axios.get(url, { headers, responseType: 'blob' });
@@ -136,6 +183,7 @@ export default function EventRegistrations() {
             <p style={{ fontSize: '13px', color: '#6b7280', marginTop: '4px' }}>{event?.date}{event?.end_date ? ` — ${event.end_date}` : ''} | {event?.venue}</p>
           </div>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <button onClick={() => setManualModal(true)} className="btn-primary" style={{ fontSize: '12px', padding: '7px 12px' }} data-testid="manual-register-btn"><Plus size={13} /> Register Participant</button>
             <button onClick={() => downloadFile(`${API}/admin/events/${eventId}/registrations/export`, 'registrations.xlsx')} className="btn-secondary" style={{ fontSize: '12px', padding: '7px 12px' }} data-testid="export-excel"><Download size={13} /> Excel</button>
             <button onClick={() => downloadFile(`${API}/admin/events/${eventId}/registrations/export/pdf`, 'registrations.pdf')} className="btn-secondary" style={{ fontSize: '12px', padding: '7px 12px' }} data-testid="export-pdf"><FileText size={13} /> PDF</button>
             <button onClick={() => downloadFile(`${API}/admin/events/${eventId}/registrations/accommodation-report`, 'accommodation.xlsx')} className="btn-secondary" style={{ fontSize: '12px', padding: '7px 12px' }} data-testid="export-accom"><BedDouble size={13} /> Accommodation</button>
@@ -232,6 +280,18 @@ export default function EventRegistrations() {
                 </td>
                 <td>
                   <div style={{ display: 'flex', gap: '4px' }}>
+                    <button onClick={() => setShowDetail(reg)} title="View Details" data-testid={`view-btn-${i}`}
+                      style={{ background: '#f0f9ff', color: '#0c3c60', border: 'none', padding: '4px 6px', borderRadius: '4px', cursor: 'pointer' }}>
+                      <Eye size={13} />
+                    </button>
+                    <button onClick={() => openEditModal(reg)} title="Edit Registration" data-testid={`edit-btn-${i}`}
+                      style={{ background: '#fef3c7', color: '#92400e', border: 'none', padding: '4px 6px', borderRadius: '4px', cursor: 'pointer' }}>
+                      <Edit2 size={13} />
+                    </button>
+                    <button onClick={() => deleteReg(reg.id, reg.name)} title="Delete Registration" data-testid={`delete-btn-${i}`}
+                      style={{ background: '#fee2e2', color: '#991b1b', border: 'none', padding: '4px 6px', borderRadius: '4px', cursor: 'pointer' }}>
+                      <Trash2 size={13} />
+                    </button>
                     {reg.accommodation_choice && reg.accommodation_choice !== 'self' && reg.accommodation_choice !== 'none' && (
                       <button onClick={() => openAccomEdit(reg)} title="Assign Room" data-testid={`assign-room-${i}`}
                         style={{ background: '#dbeafe', color: '#1e40af', border: 'none', padding: '4px 6px', borderRadius: '4px', cursor: 'pointer' }}>
@@ -350,6 +410,108 @@ export default function EventRegistrations() {
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '20px' }}>
               <button onClick={() => setSelectedReg(null)} className="btn-secondary">Cancel</button>
               <button onClick={saveAccom} className="btn-primary" data-testid="save-accom-btn"><MapPin size={14} /> Save & Assign</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Registration Modal */}
+      {editModal && (
+        <div className="modal-overlay" onClick={() => setEditModal(null)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px', maxHeight: '85vh', overflowY: 'auto' }} data-testid="edit-reg-modal">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ fontFamily: 'Poppins', fontSize: '17px', fontWeight: 700, color: '#0c3c60', margin: 0 }}>Edit Registration</h3>
+              <button onClick={() => setEditModal(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af' }}><X size={20} /></button>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <div className="form-group" style={{ margin: 0 }}><label className="form-label">Name *</label><input value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} className="form-input" data-testid="edit-reg-name" /></div>
+              <div className="form-group" style={{ margin: 0 }}><label className="form-label">Email *</label><input value={editForm.email} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))} className="form-input" data-testid="edit-reg-email" /></div>
+              <div className="form-group" style={{ margin: 0 }}><label className="form-label">Phone</label><input value={editForm.phone} onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))} className="form-input" /></div>
+              <div className="form-group" style={{ margin: 0 }}><label className="form-label">Organization</label><input value={editForm.organization} onChange={e => setEditForm(f => ({ ...f, organization: e.target.value }))} className="form-input" /></div>
+              <div className="form-group" style={{ margin: 0 }}><label className="form-label">Qualification</label><input value={editForm.qualification} onChange={e => setEditForm(f => ({ ...f, qualification: e.target.value }))} className="form-input" /></div>
+              <div className="form-group" style={{ margin: 0 }}><label className="form-label">State</label><input value={editForm.state} onChange={e => setEditForm(f => ({ ...f, state: e.target.value }))} className="form-input" /></div>
+              <div className="form-group" style={{ margin: 0 }}><label className="form-label">Category</label>
+                <select value={editForm.member_category} onChange={e => setEditForm(f => ({ ...f, member_category: e.target.value }))} className="form-select">
+                  <option value="">Non-Member</option><option value="academic">Academic</option><option value="entrepreneur">Entrepreneur</option><option value="corporate">Corporate</option>
+                </select>
+              </div>
+              <div className="form-group" style={{ margin: 0 }}><label className="form-label">Accommodation</label>
+                <select value={editForm.accommodation_choice} onChange={e => setEditForm(f => ({ ...f, accommodation_choice: e.target.value }))} className="form-select">
+                  <option value="none">None</option><option value="default">Default</option><option value="free">Free</option><option value="hotel">Premium Hotel</option><option value="self">Self</option>
+                </select>
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginTop: '12px' }}>
+              <div className="form-group" style={{ margin: 0 }}><label className="form-label">Reg Fee (₹)</label><input type="number" value={editForm.registration_fee} onChange={e => setEditForm(f => ({ ...f, registration_fee: e.target.value }))} className="form-input" data-testid="edit-reg-fee" /></div>
+              <div className="form-group" style={{ margin: 0 }}><label className="form-label">Accom Fee (₹)</label><input type="number" value={editForm.accommodation_fee} onChange={e => setEditForm(f => ({ ...f, accommodation_fee: e.target.value }))} className="form-input" /></div>
+              <div className="form-group" style={{ margin: 0 }}><label className="form-label">Membership Fee (₹)</label><input type="number" value={editForm.membership_fee} onChange={e => setEditForm(f => ({ ...f, membership_fee: e.target.value }))} className="form-input" /></div>
+            </div>
+            <div style={{ background: '#f0f9ff', borderRadius: '8px', padding: '12px', marginTop: '12px', fontSize: '14px', color: '#0c3c60', fontWeight: 700 }}>
+              Total: ₹{(parseFloat(editForm.registration_fee || 0) + parseFloat(editForm.accommodation_fee || 0) + parseFloat(editForm.membership_fee || 0)).toLocaleString()}
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '12px' }}>
+              <div className="form-group" style={{ margin: 0 }}><label className="form-label">Payment Status</label>
+                <select value={editForm.payment_status} onChange={e => setEditForm(f => ({ ...f, payment_status: e.target.value }))} className="form-select" data-testid="edit-payment-status">
+                  <option value="pending">Pending</option><option value="paid">Paid</option><option value="verification_pending">Verification Pending</option><option value="rejected">Rejected</option><option value="refunded">Refunded</option>
+                </select>
+              </div>
+              <div className="form-group" style={{ margin: 0 }}><label className="form-label">Payment Mode</label>
+                <select value={editForm.payment_mode} onChange={e => setEditForm(f => ({ ...f, payment_mode: e.target.value }))} className="form-select">
+                  <option value="offline">Offline</option><option value="razorpay">Razorpay</option><option value="upi">UPI</option><option value="bank_transfer">Bank Transfer</option><option value="manual">Manual</option>
+                </select>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '20px' }}>
+              <button onClick={() => setEditModal(null)} className="btn-secondary">Cancel</button>
+              <button onClick={saveEdit} className="btn-primary" data-testid="save-edit-reg-btn">Save Changes</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Manual Registration Modal */}
+      {manualModal && (
+        <div className="modal-overlay" onClick={() => setManualModal(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px', maxHeight: '85vh', overflowY: 'auto' }} data-testid="manual-reg-modal">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ fontFamily: 'Poppins', fontSize: '17px', fontWeight: 700, color: '#0c3c60', margin: 0 }}>Register Participant</h3>
+              <button onClick={() => setManualModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af' }}><X size={20} /></button>
+            </div>
+            <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '16px' }}>Manually register a participant for <strong>{event?.title}</strong></p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <div className="form-group" style={{ margin: 0, gridColumn: '1 / -1' }}><label className="form-label">Full Name *</label><input value={manualForm.name} onChange={e => setManualForm(f => ({ ...f, name: e.target.value }))} className="form-input" placeholder="Full name" data-testid="manual-name" /></div>
+              <div className="form-group" style={{ margin: 0 }}><label className="form-label">Email *</label><input value={manualForm.email} onChange={e => setManualForm(f => ({ ...f, email: e.target.value }))} className="form-input" placeholder="Email" data-testid="manual-email" /></div>
+              <div className="form-group" style={{ margin: 0 }}><label className="form-label">Phone</label><input value={manualForm.phone} onChange={e => setManualForm(f => ({ ...f, phone: e.target.value }))} className="form-input" placeholder="Phone" data-testid="manual-phone" /></div>
+              <div className="form-group" style={{ margin: 0 }}><label className="form-label">Organization</label><input value={manualForm.organization} onChange={e => setManualForm(f => ({ ...f, organization: e.target.value }))} className="form-input" /></div>
+              <div className="form-group" style={{ margin: 0 }}><label className="form-label">Qualification</label><input value={manualForm.qualification} onChange={e => setManualForm(f => ({ ...f, qualification: e.target.value }))} className="form-input" /></div>
+              <div className="form-group" style={{ margin: 0 }}><label className="form-label">State</label><input value={manualForm.state} onChange={e => setManualForm(f => ({ ...f, state: e.target.value }))} className="form-input" /></div>
+              <div className="form-group" style={{ margin: 0 }}><label className="form-label">Category</label>
+                <select value={manualForm.member_category} onChange={e => setManualForm(f => ({ ...f, member_category: e.target.value, is_member: !!e.target.value }))} className="form-select">
+                  <option value="">Non-Member</option><option value="academic">Academic</option><option value="entrepreneur">Entrepreneur</option><option value="corporate">Corporate</option>
+                </select>
+              </div>
+              <div className="form-group" style={{ margin: 0 }}><label className="form-label">Accommodation</label>
+                <select value={manualForm.accommodation_choice} onChange={e => setManualForm(f => ({ ...f, accommodation_choice: e.target.value }))} className="form-select">
+                  <option value="none">None</option><option value="default">Default</option><option value="free">Free</option><option value="hotel">Premium Hotel</option><option value="self">Self</option>
+                </select>
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginTop: '12px' }}>
+              <div className="form-group" style={{ margin: 0 }}><label className="form-label">Reg Fee (₹)</label><input type="number" value={manualForm.registration_fee} onChange={e => setManualForm(f => ({ ...f, registration_fee: e.target.value }))} className="form-input" data-testid="manual-reg-fee" /></div>
+              <div className="form-group" style={{ margin: 0 }}><label className="form-label">Accom Fee (₹)</label><input type="number" value={manualForm.accommodation_fee} onChange={e => setManualForm(f => ({ ...f, accommodation_fee: e.target.value }))} className="form-input" /></div>
+              <div className="form-group" style={{ margin: 0 }}><label className="form-label">Membership Fee (₹)</label><input type="number" value={manualForm.membership_fee} onChange={e => setManualForm(f => ({ ...f, membership_fee: e.target.value }))} className="form-input" /></div>
+            </div>
+            <div style={{ background: '#f0f9ff', borderRadius: '8px', padding: '12px', marginTop: '12px', fontSize: '14px', color: '#0c3c60', fontWeight: 700 }}>
+              Total: ₹{(parseFloat(manualForm.registration_fee || 0) + parseFloat(manualForm.accommodation_fee || 0) + parseFloat(manualForm.membership_fee || 0)).toLocaleString()}
+            </div>
+            <div className="form-group" style={{ marginTop: '12px' }}><label className="form-label">Payment Status</label>
+              <select value={manualForm.payment_status} onChange={e => setManualForm(f => ({ ...f, payment_status: e.target.value }))} className="form-select" data-testid="manual-payment-status">
+                <option value="pending">Pending</option><option value="paid">Paid</option>
+              </select>
+            </div>
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '20px' }}>
+              <button onClick={() => setManualModal(false)} className="btn-secondary">Cancel</button>
+              <button onClick={saveManual} className="btn-primary" data-testid="save-manual-reg-btn"><Plus size={14} /> Register</button>
             </div>
           </div>
         </div>

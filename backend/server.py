@@ -1387,6 +1387,72 @@ async def admin_update_registration_accommodation(reg_id: str, data: dict, admin
     return {"message": "Accommodation details updated"}
 
 
+@api_router.put("/admin/event-registrations/{reg_id}")
+async def admin_update_registration(reg_id: str, data: dict, admin=Depends(get_current_admin)):
+    reg = await db.event_registrations.find_one({"id": reg_id}, {"_id": 0})
+    if not reg:
+        raise HTTPException(status_code=404, detail="Registration not found")
+    allowed = ["name", "email", "phone", "qualification", "organization", "state",
+               "is_member", "member_id", "member_category", "accommodation_choice",
+               "hotel_name", "wants_membership", "membership_type",
+               "registration_fee", "accommodation_fee", "membership_fee", "total_amount",
+               "payment_status", "payment_mode"]
+    update = {}
+    for f in allowed:
+        if f in data:
+            val = data[f]
+            if f in ["registration_fee", "accommodation_fee", "membership_fee", "total_amount"]:
+                val = float(val)
+            elif f in ["is_member", "wants_membership"]:
+                val = bool(val)
+            update[f] = val
+    if update:
+        await db.event_registrations.update_one({"id": reg_id}, {"$set": update})
+    return {"message": "Registration updated"}
+
+
+@api_router.delete("/admin/event-registrations/{reg_id}")
+async def admin_delete_registration(reg_id: str, admin=Depends(get_current_admin)):
+    reg = await db.event_registrations.find_one({"id": reg_id}, {"_id": 0})
+    if not reg:
+        raise HTTPException(status_code=404, detail="Registration not found")
+    await db.event_registrations.delete_one({"id": reg_id})
+    return {"message": "Registration deleted"}
+
+
+@api_router.post("/admin/events/{event_id}/register-manual")
+async def admin_manual_registration(event_id: str, data: dict, admin=Depends(get_current_admin)):
+    event = await db.events.find_one({"id": event_id}, {"_id": 0})
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    reg = EventRegistration(
+        event_id=event_id,
+        is_member=data.get("is_member", False),
+        member_id=data.get("member_id", ""),
+        member_category=data.get("member_category", ""),
+        name=data.get("name", ""),
+        email=data.get("email", ""),
+        phone=data.get("phone", ""),
+        qualification=data.get("qualification", ""),
+        organization=data.get("organization", ""),
+        state=data.get("state", ""),
+        accommodation_choice=data.get("accommodation_choice", "none"),
+        hotel_name=data.get("hotel_name", ""),
+        wants_membership=data.get("wants_membership", False),
+        membership_type=data.get("membership_type", ""),
+        registration_fee=float(data.get("registration_fee", 0)),
+        accommodation_fee=float(data.get("accommodation_fee", 0)),
+        membership_fee=float(data.get("membership_fee", 0)),
+        total_amount=float(data.get("total_amount", 0)),
+        payment_status=data.get("payment_status", "pending"),
+        payment_mode="manual",
+    )
+    await db.event_registrations.insert_one(reg.model_dump())
+    result = reg.model_dump()
+    result.pop("_id", None)
+    return {"message": "Registration created", "registration": result}
+
+
 @api_router.get("/admin/events/{event_id}/registrations/export/pdf")
 async def admin_export_registrations_pdf(event_id: str, admin=Depends(get_current_admin)):
     event = await db.events.find_one({"id": event_id}, {"_id": 0})
