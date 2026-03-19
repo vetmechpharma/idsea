@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Plus, Trash2, Save, CreditCard, Building2, QrCode, Settings } from 'lucide-react';
+import { Plus, Trash2, Save, CreditCard, Building2, QrCode, Key, ToggleLeft, ToggleRight, Eye, EyeOff } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -8,21 +8,47 @@ const emptyBank = { bank_name: '', account_no: '', ifsc: '', branch: '', holder_
 const emptyUpi = { upi_id: '', name: '' };
 
 export default function PaymentSettings() {
-  const [settings, setSettings] = useState({ bank_accounts: [], upi_ids: [] });
+  const [settings, setSettings] = useState({ bank_accounts: [], upi_ids: [], razorpay_key_id: '', razorpay_key_secret: '', methods_enabled: { razorpay: true, upi: true, bank_transfer: true } });
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState('');
+  const [showSecret, setShowSecret] = useState(false);
   const token = localStorage.getItem('idsea_token');
   const headers = { Authorization: `Bearer ${token}` };
   const showToast = (m) => { setToast(m); setTimeout(() => setToast(''), 3000); };
 
   useEffect(() => {
-    axios.get(`${API}/admin/payment-settings`, { headers }).then(r => { setSettings(r.data); setLoading(false); }).catch(() => setLoading(false));
+    axios.get(`${API}/admin/payment-settings`, { headers }).then(r => {
+      const d = r.data;
+      setSettings({
+        bank_accounts: d.bank_accounts || [],
+        upi_ids: d.upi_ids || [],
+        razorpay_key_id: d.razorpay_key_id || '',
+        razorpay_key_secret: d.razorpay_key_secret_masked || '',
+        razorpay_configured: d.razorpay_configured || false,
+        methods_enabled: d.methods_enabled || { razorpay: true, upi: true, bank_transfer: true }
+      });
+      setLoading(false);
+    }).catch(() => setLoading(false));
   }, []);
 
   const save = async () => {
     try {
-      await axios.put(`${API}/admin/payment-settings`, { bank_accounts: settings.bank_accounts, upi_ids: settings.upi_ids }, { headers });
+      const payload = {
+        bank_accounts: settings.bank_accounts,
+        upi_ids: settings.upi_ids,
+        razorpay_key_id: settings.razorpay_key_id,
+        razorpay_key_secret: settings.razorpay_key_secret,
+        methods_enabled: settings.methods_enabled,
+      };
+      await axios.put(`${API}/admin/payment-settings`, payload, { headers });
       showToast('Payment settings saved!');
+      // Reload to get updated status
+      const r = await axios.get(`${API}/admin/payment-settings`, { headers });
+      setSettings(s => ({
+        ...s,
+        razorpay_configured: r.data.razorpay_configured,
+        razorpay_key_secret: r.data.razorpay_key_secret_masked || s.razorpay_key_secret,
+      }));
     } catch { showToast('Save failed'); }
   };
 
@@ -38,30 +64,77 @@ export default function PaymentSettings() {
     const upis = [...s.upi_ids]; upis[i] = { ...upis[i], [key]: val }; return { ...s, upi_ids: upis };
   });
 
+  const toggleMethod = (method) => setSettings(s => ({
+    ...s, methods_enabled: { ...s.methods_enabled, [method]: !s.methods_enabled[method] }
+  }));
+
   if (loading) return <div className="loading-spinner">Loading...</div>;
+
+  const MethodToggle = ({ method, label, icon: Icon }) => {
+    const enabled = settings.methods_enabled[method];
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: enabled ? '#f0fdf4' : '#fef2f2', borderRadius: '8px', border: `1px solid ${enabled ? '#bbf7d0' : '#fecaca'}`, cursor: 'pointer', transition: 'all 0.2s' }}
+        onClick={() => toggleMethod(method)} data-testid={`toggle-${method}`}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <Icon size={18} style={{ color: enabled ? '#1e7a4d' : '#991b1b' }} />
+          <span style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '14px', color: enabled ? '#1e7a4d' : '#991b1b' }}>{label}</span>
+        </div>
+        {enabled ? <ToggleRight size={24} style={{ color: '#1e7a4d' }} /> : <ToggleLeft size={24} style={{ color: '#991b1b' }} />}
+      </div>
+    );
+  };
 
   return (
     <div>
       {toast && <div className="toast-success">{toast}</div>}
       <div className="page-header">
         <h1 className="page-title" data-testid="payment-settings-title">Payment Settings</h1>
-        <button onClick={save} className="btn-primary" data-testid="save-payment-settings"><Save size={14} /> Save Settings</button>
+        <button onClick={save} className="btn-primary" data-testid="save-payment-settings"><Save size={14} /> Save All Settings</button>
       </div>
 
-      {/* Razorpay Status */}
+      {/* Payment Method Toggles */}
       <div className="admin-card" style={{ padding: '20px', marginBottom: '20px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-          <CreditCard size={20} style={{ color: '#0c3c60' }} />
-          <h3 style={{ fontFamily: 'Poppins', fontSize: '15px', fontWeight: 700, color: '#0c3c60', margin: 0 }}>Razorpay Gateway</h3>
+        <h3 style={{ fontFamily: 'Poppins', fontSize: '15px', fontWeight: 700, color: '#0c3c60', margin: '0 0 16px' }}>Enable / Disable Payment Methods</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+          <MethodToggle method="razorpay" label="Razorpay (Online)" icon={CreditCard} />
+          <MethodToggle method="upi" label="UPI Payment" icon={QrCode} />
+          <MethodToggle method="bank_transfer" label="Bank Transfer" icon={Building2} />
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: settings.razorpay_configured ? '#1e7a4d' : '#ef4444' }} />
-          <span style={{ fontSize: '13px', color: settings.razorpay_configured ? '#1e7a4d' : '#ef4444', fontWeight: 600 }}>
-            {settings.razorpay_configured ? 'Configured' : 'Not Configured'}
-          </span>
-          {settings.razorpay_key_id && <span style={{ fontSize: '12px', color: '#6b7280', marginLeft: '8px' }}>Key: {settings.razorpay_key_id.slice(0, 12)}...</span>}
+      </div>
+
+      {/* Razorpay Configuration */}
+      <div className="admin-card" style={{ padding: '20px', marginBottom: '20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+          <Key size={20} style={{ color: '#0c3c60' }} />
+          <h3 style={{ fontFamily: 'Poppins', fontSize: '15px', fontWeight: 700, color: '#0c3c60', margin: 0 }}>Razorpay Configuration</h3>
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: settings.razorpay_configured ? '#1e7a4d' : '#ef4444' }} />
+            <span style={{ fontSize: '13px', color: settings.razorpay_configured ? '#1e7a4d' : '#ef4444', fontWeight: 600 }}>
+              {settings.razorpay_configured ? 'Configured' : 'Not Configured'}
+            </span>
+          </div>
         </div>
-        <p style={{ fontSize: '12px', color: '#6b7280', marginTop: '8px' }}>Razorpay keys are configured via environment variables (RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET)</p>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+          <div className="form-group" style={{ margin: 0 }}>
+            <label className="form-label">Razorpay Key ID</label>
+            <input value={settings.razorpay_key_id} onChange={e => setSettings(s => ({ ...s, razorpay_key_id: e.target.value }))}
+              className="form-input" placeholder="rzp_test_..." data-testid="razorpay-key-id" />
+          </div>
+          <div className="form-group" style={{ margin: 0 }}>
+            <label className="form-label">Razorpay Key Secret</label>
+            <div style={{ position: 'relative' }}>
+              <input type={showSecret ? 'text' : 'password'}
+                value={settings.razorpay_key_secret} onChange={e => setSettings(s => ({ ...s, razorpay_key_secret: e.target.value }))}
+                className="form-input" placeholder="Enter secret key..." data-testid="razorpay-key-secret"
+                style={{ paddingRight: '40px' }} />
+              <button onClick={() => setShowSecret(!showSecret)}
+                style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280' }}>
+                {showSecret ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+          </div>
+        </div>
+        <p style={{ fontSize: '12px', color: '#6b7280', marginTop: '10px' }}>Enter your Razorpay test or live API keys. Keys are securely stored and the secret is masked after saving.</p>
       </div>
 
       {/* Bank Accounts */}
@@ -75,7 +148,7 @@ export default function PaymentSettings() {
         </div>
 
         {settings.bank_accounts.length === 0 ? (
-          <p style={{ color: '#9ca3af', fontSize: '13px', textAlign: 'center', padding: '20px' }}>No bank accounts added. Add one for bank transfer payments.</p>
+          <p style={{ color: '#9ca3af', fontSize: '13px', textAlign: 'center', padding: '20px' }}>No bank accounts added.</p>
         ) : (
           settings.bank_accounts.map((bank, i) => (
             <div key={i} data-testid={`bank-${i}`} style={{ background: '#f8fafc', borderRadius: '10px', padding: '16px', marginBottom: '12px', border: '1px solid #e5e7eb' }}>
@@ -106,7 +179,7 @@ export default function PaymentSettings() {
         </div>
 
         {settings.upi_ids.length === 0 ? (
-          <p style={{ color: '#9ca3af', fontSize: '13px', textAlign: 'center', padding: '20px' }}>No UPI IDs added. Add one for automatic QR code generation.</p>
+          <p style={{ color: '#9ca3af', fontSize: '13px', textAlign: 'center', padding: '20px' }}>No UPI IDs added.</p>
         ) : (
           settings.upi_ids.map((upi, i) => (
             <div key={i} data-testid={`upi-${i}`} style={{ display: 'flex', gap: '10px', alignItems: 'end', marginBottom: '10px' }}>
@@ -116,7 +189,7 @@ export default function PaymentSettings() {
             </div>
           ))
         )}
-        <p style={{ fontSize: '12px', color: '#6b7280', marginTop: '12px' }}>QR codes are auto-generated with the exact payment amount using the first UPI ID.</p>
+        <p style={{ fontSize: '12px', color: '#6b7280', marginTop: '12px' }}>QR codes are auto-generated with the payment amount using the first UPI ID.</p>
       </div>
     </div>
   );

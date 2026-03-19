@@ -52,6 +52,16 @@ security = HTTPBearer()
 
 RAZORPAY_KEY_ID = os.environ.get('RAZORPAY_KEY_ID', '')
 RAZORPAY_KEY_SECRET = os.environ.get('RAZORPAY_KEY_SECRET', '')
+
+async def get_effective_razorpay_keys():
+    """Get Razorpay keys from DB first, fallback to env vars"""
+    settings = await db.payment_settings.find_one({}, {"_id": 0})
+    if settings:
+        db_key = settings.get("razorpay_key_id", "")
+        db_secret = settings.get("razorpay_key_secret", "")
+        if db_key and db_secret:
+            return db_key, db_secret
+    return RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET
 SMTP_HOST = os.environ.get('SMTP_HOST', '')
 SMTP_PORT_VAL = int(os.environ.get('SMTP_PORT', '587'))
 SMTP_USER = os.environ.get('SMTP_USER', '')
@@ -84,10 +94,14 @@ class AdminLogin(BaseModel):
 
 class Member(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    prefix: Optional[str] = ""
     name: str
     qualification: Optional[str] = ""
     specialization: Optional[str] = ""
     organization: Optional[str] = ""
+    permanent_address: Optional[dict] = Field(default_factory=lambda: {"line1": "", "line2": "", "line3": "", "state": "", "district": "", "pincode": ""})
+    contact_address: Optional[dict] = Field(default_factory=lambda: {"line1": "", "line2": "", "line3": "", "state": "", "district": "", "pincode": ""})
+    contact_same_as_permanent: Optional[bool] = False
     address: Optional[str] = ""
     state: Optional[str] = ""
     phone: Optional[str] = ""
@@ -104,10 +118,14 @@ class Member(BaseModel):
 
 
 class MemberCreate(BaseModel):
+    prefix: Optional[str] = ""
     name: str
     qualification: Optional[str] = ""
     specialization: Optional[str] = ""
     organization: Optional[str] = ""
+    permanent_address: Optional[dict] = Field(default_factory=lambda: {"line1": "", "line2": "", "line3": "", "state": "", "district": "", "pincode": ""})
+    contact_address: Optional[dict] = Field(default_factory=lambda: {"line1": "", "line2": "", "line3": "", "state": "", "district": "", "pincode": ""})
+    contact_same_as_permanent: Optional[bool] = False
     address: Optional[str] = ""
     state: Optional[str] = ""
     phone: Optional[str] = ""
@@ -118,10 +136,14 @@ class MemberCreate(BaseModel):
 
 
 class MemberUpdate(BaseModel):
+    prefix: Optional[str] = None
     name: Optional[str] = None
     qualification: Optional[str] = None
     specialization: Optional[str] = None
     organization: Optional[str] = None
+    permanent_address: Optional[dict] = None
+    contact_address: Optional[dict] = None
+    contact_same_as_permanent: Optional[bool] = None
     address: Optional[str] = None
     state: Optional[str] = None
     phone: Optional[str] = None
@@ -325,11 +347,14 @@ class Payment(BaseModel):
     purpose: str = "membership"  # membership, event_registration
     amount: float
     currency: str = "INR"
-    payment_method: str = "razorpay"  # razorpay, upi, bank_transfer
+    payment_method: str = "razorpay"  # razorpay, upi, bank_transfer, manual
     razorpay_order_id: Optional[str] = ""
     razorpay_payment_id: Optional[str] = ""
     utr_number: Optional[str] = ""
-    status: str = "pending"
+    status: str = "pending"  # pending, verification_pending, paid, rejected, refunded
+    refund_status: Optional[str] = ""  # "", initiated, completed
+    refund_date: Optional[str] = ""
+    notes: Optional[str] = ""
     created_at: str = Field(default_factory=now_iso)
 
 
@@ -433,9 +458,17 @@ async def get_current_admin(credentials: HTTPAuthorizationCredentials = Depends(
 
 
 def get_razorpay_client():
+    """Sync version - tries env keys only. Use async version for DB keys."""
     if RAZORPAY_AVAILABLE and RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET:
         return razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
     return None
+
+async def get_razorpay_client_async():
+    """Async version - checks DB keys first, then env vars"""
+    key_id, key_secret = await get_effective_razorpay_keys()
+    if RAZORPAY_AVAILABLE and key_id and key_secret:
+        return razorpay.Client(auth=(key_id, key_secret)), key_id
+    return None, ""
 
 
 def send_email_smtp(recipients: List[str], subject: str, body: str, smtp_settings: dict = None, attachments: list = None):
@@ -878,12 +911,15 @@ async def apply_membership(data: MemberCreate, background_tasks: BackgroundTasks
         raise HTTPException(status_code=400, detail="Email already registered")
     member = Member(**data.model_dump())
     member.join_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    # Derive state from permanent_address for backward compat
+    if data.permanent_address and data.permanent_address.get("state"):
+        member.state = data.permanent_address["state"]
     await db.members.insert_one(member.model_dump())
 
     # Send registration email
     if member.email:
         variables = {
-            "member_name": member.name,
+            "member_name": f"{member.prefix} {member.name}".strip() if member.prefix else member.name,
             "email": member.email,
             "phone": member.phone or "",
             "qualification": member.qualification or "",
@@ -896,6 +932,22 @@ async def apply_membership(data: MemberCreate, background_tasks: BackgroundTasks
         background_tasks.add_task(send_templated_email, "registration_submitted", [member.email], variables)
 
     return {"message": "Application submitted successfully", "id": member.id}
+
+
+@api_router.post("/public/upload-photo")
+async def public_upload_photo(file: UploadFile = File(...)):
+    """Public photo upload for membership applications (images only, max 5MB)"""
+    ext = Path(file.filename).suffix.lower()
+    if ext not in ['.jpg', '.jpeg', '.png', '.webp']:
+        raise HTTPException(status_code=400, detail="Only image files (jpg, png, webp) allowed")
+    content = await file.read()
+    if len(content) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File too large (max 5MB)")
+    unique_name = f"member_{uuid.uuid4().hex[:12]}{ext}"
+    file_path = UPLOAD_DIR / unique_name
+    async with aiofiles.open(file_path, 'wb') as f:
+        await f.write(content)
+    return {"file_url": f"/api/uploads/{unique_name}"}
 
 
 @api_router.get("/public/events")
@@ -1016,11 +1068,26 @@ async def approve_member(member_id: str, background_tasks: BackgroundTasks, admi
     member = await db.members.find_one({"id": member_id}, {"_id": 0})
     if not member:
         raise HTTPException(status_code=404, detail="Member not found")
-    count = await db.members.count_documents({"status": "approved"})
-    membership_id = f"IDSEA{datetime.now().year}{str(count+1).zfill(4)}"
+
+    # Generate membership ID: ACD/IDSEA/2026/0001, ENT/IDSEA/2026/0001, COP/IDSEA/2026/0001
+    mtype = member.get("membership_type", "academic")
+    prefix_map = {"academic": "ACD", "entrepreneur": "ENT", "corporate": "COP"}
+    type_prefix = prefix_map.get(mtype, "MEM")
+    year = datetime.now().year
+    count = await db.members.count_documents({
+        "status": "approved",
+        "membership_type": mtype,
+        "membership_id": {"$regex": f"^{type_prefix}/IDSEA/{year}/"}
+    })
+    serial = str(count + 1).zfill(4)
+    membership_id = f"{type_prefix}/IDSEA/{year}/{serial}"
+
+    # Derive state from permanent address if not set
+    state = member.get("state", "") or member.get("permanent_address", {}).get("state", "")
+
     await db.members.update_one(
         {"id": member_id},
-        {"$set": {"status": "approved", "membership_id": membership_id, "updated_at": now_iso()}}
+        {"$set": {"status": "approved", "membership_id": membership_id, "state": state, "updated_at": now_iso()}}
     )
 
     # Send welcome email with membership certificate attached
@@ -1054,6 +1121,56 @@ async def reject_member(member_id: str, admin=Depends(get_current_admin)):
         {"$set": {"status": "rejected", "updated_at": now_iso()}}
     )
     return {"message": "Member rejected"}
+
+
+@api_router.put("/admin/members/{member_id}/hold")
+async def hold_member(member_id: str, admin=Depends(get_current_admin)):
+    await db.members.update_one(
+        {"id": member_id},
+        {"$set": {"status": "hold", "updated_at": now_iso()}}
+    )
+    return {"message": "Member put on hold"}
+
+
+@api_router.put("/admin/members/{member_id}/change-type")
+async def change_member_type(member_id: str, data: dict, admin=Depends(get_current_admin)):
+    """Change membership type and regenerate membership ID if already approved"""
+    member = await db.members.find_one({"id": member_id}, {"_id": 0})
+    if not member:
+        raise HTTPException(status_code=404, detail="Member not found")
+    new_type = data.get("membership_type")
+    if new_type not in ["academic", "entrepreneur", "corporate"]:
+        raise HTTPException(status_code=400, detail="Invalid membership type")
+    update = {"membership_type": new_type, "updated_at": now_iso()}
+    # Regenerate ID if already approved
+    if member.get("status") == "approved":
+        prefix_map = {"academic": "ACD", "entrepreneur": "ENT", "corporate": "COP"}
+        type_prefix = prefix_map.get(new_type, "MEM")
+        year = datetime.now().year
+        count = await db.members.count_documents({
+            "status": "approved", "membership_type": new_type,
+            "membership_id": {"$regex": f"^{type_prefix}/IDSEA/{year}/"}
+        })
+        update["membership_id"] = f"{type_prefix}/IDSEA/{year}/{str(count + 1).zfill(4)}"
+    await db.members.update_one({"id": member_id}, {"$set": update})
+    return {"message": "Membership type changed", "membership_id": update.get("membership_id", member.get("membership_id", ""))}
+
+
+@api_router.post("/admin/members/{member_id}/send-email")
+async def send_member_email(member_id: str, data: dict, background_tasks: BackgroundTasks, admin=Depends(get_current_admin)):
+    member = await db.members.find_one({"id": member_id}, {"_id": 0})
+    if not member:
+        raise HTTPException(status_code=404, detail="Member not found")
+    subject = data.get("subject", "")
+    body = data.get("body", "")
+    if not subject or not body:
+        raise HTTPException(status_code=400, detail="Subject and body required")
+    background_tasks.add_task(send_email_smtp, member["email"], subject, body)
+    await db.email_logs.insert_one({
+        "id": str(uuid.uuid4()), "to": member["email"], "subject": subject,
+        "status": "sent", "sent_at": now_iso(), "template": "custom"
+    })
+    return {"message": f"Email sent to {member['email']}"}
 
 
 # =================== ADMIN EVENT ROUTES ===================
@@ -1694,7 +1811,7 @@ async def create_payment_order(data: PaymentOrder):
         currency=data.currency
     )
     razorpay_order_id = ""
-    rzp_client = get_razorpay_client()
+    rzp_client, key_id = await get_razorpay_client_async()
     if rzp_client:
         try:
             order = rzp_client.order.create({
@@ -1715,16 +1832,17 @@ async def create_payment_order(data: PaymentOrder):
         "razorpay_order_id": razorpay_order_id,
         "amount": data.amount,
         "currency": data.currency,
-        "key_id": RAZORPAY_KEY_ID
+        "key_id": key_id
     }
 
 
 @api_router.post("/payments/verify")
 async def verify_payment(data: PaymentVerify):
-    if RAZORPAY_KEY_SECRET:
+    _, key_secret = await get_effective_razorpay_keys()
+    if key_secret:
         msg = f"{data.razorpay_order_id}|{data.razorpay_payment_id}"
         expected = hmac.new(
-            RAZORPAY_KEY_SECRET.encode('utf-8'),
+            key_secret.encode('utf-8'),
             msg.encode('utf-8'),
             hashlib.sha256
         ).hexdigest()
@@ -1812,12 +1930,17 @@ async def generate_upi_qr(amount: float, name: str = "IDSEA"):
 @api_router.get("/public/payment-settings")
 async def get_public_payment_settings():
     settings = await db.payment_settings.find_one({}, {"_id": 0})
+    key_id, key_secret = await get_effective_razorpay_keys()
     if not settings:
-        return {"bank_accounts": [], "upi_ids": [], "razorpay_enabled": bool(RAZORPAY_KEY_ID)}
+        return {"bank_accounts": [], "upi_ids": [], "razorpay_enabled": bool(key_id and key_secret),
+                "methods_enabled": {"razorpay": bool(key_id), "upi": True, "bank_transfer": True}}
+    methods = settings.get("methods_enabled", {"razorpay": True, "upi": True, "bank_transfer": True})
+    rzp_configured = bool(key_id and key_secret)
     return {
-        "bank_accounts": settings.get("bank_accounts", []),
-        "upi_ids": [{"upi_id": u.get("upi_id", ""), "name": u.get("name", "")} for u in settings.get("upi_ids", [])],
-        "razorpay_enabled": bool(RAZORPAY_KEY_ID)
+        "bank_accounts": settings.get("bank_accounts", []) if methods.get("bank_transfer", True) else [],
+        "upi_ids": [{"upi_id": u.get("upi_id", ""), "name": u.get("name", "")} for u in settings.get("upi_ids", [])] if methods.get("upi", True) else [],
+        "razorpay_enabled": rzp_configured and methods.get("razorpay", True),
+        "methods_enabled": methods
     }
 
 
@@ -1826,10 +1949,15 @@ async def get_public_payment_settings():
 @api_router.get("/admin/payment-settings")
 async def admin_get_payment_settings(admin=Depends(get_current_admin)):
     settings = await db.payment_settings.find_one({}, {"_id": 0})
+    key_id, key_secret = await get_effective_razorpay_keys()
     if not settings:
-        settings = {"bank_accounts": [], "upi_ids": [], "razorpay_key_id": RAZORPAY_KEY_ID}
-    settings["razorpay_key_id"] = RAZORPAY_KEY_ID
-    settings["razorpay_configured"] = bool(RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET)
+        settings = {"bank_accounts": [], "upi_ids": []}
+    settings["razorpay_key_id"] = settings.get("razorpay_key_id", "") or RAZORPAY_KEY_ID
+    settings["razorpay_configured"] = bool(key_id and key_secret)
+    if "methods_enabled" not in settings:
+        settings["methods_enabled"] = {"razorpay": True, "upi": True, "bank_transfer": True}
+    # Mask secret for display
+    settings["razorpay_key_secret_masked"] = ("*" * 20 + key_secret[-4:]) if key_secret else ""
     return settings
 
 
@@ -1838,7 +1966,13 @@ async def admin_update_payment_settings(data: dict, admin=Depends(get_current_ad
     update = {
         "bank_accounts": data.get("bank_accounts", []),
         "upi_ids": data.get("upi_ids", []),
+        "methods_enabled": data.get("methods_enabled", {"razorpay": True, "upi": True, "bank_transfer": True}),
     }
+    # Store Razorpay keys in DB if provided
+    if data.get("razorpay_key_id"):
+        update["razorpay_key_id"] = data["razorpay_key_id"]
+    if data.get("razorpay_key_secret") and not data["razorpay_key_secret"].startswith("*"):
+        update["razorpay_key_secret"] = data["razorpay_key_secret"]
     await db.payment_settings.update_one({}, {"$set": update}, upsert=True)
     return {"message": "Payment settings updated"}
 
@@ -1861,7 +1995,56 @@ async def admin_verify_utr(payment_id: str, data: dict, admin=Depends(get_curren
         await db.payments.update_one({"id": payment_id}, {"$set": {"status": "rejected"}})
         if payment.get("event_registration_id"):
             await db.event_registrations.update_one({"id": payment["event_registration_id"]}, {"$set": {"payment_status": "rejected"}})
+        if payment.get("member_id"):
+            await db.members.update_one({"id": payment["member_id"]}, {"$set": {"payment_status": "rejected"}})
         return {"message": "Payment rejected"}
+
+
+@api_router.put("/admin/payments/{payment_id}")
+async def admin_update_payment(payment_id: str, data: dict, admin=Depends(get_current_admin)):
+    payment = await db.payments.find_one({"id": payment_id}, {"_id": 0})
+    if not payment:
+        raise HTTPException(status_code=404, detail="Payment not found")
+    update = {}
+    for field in ["utr_number", "notes", "member_name", "member_email", "amount", "payment_method"]:
+        if field in data:
+            update[field] = data[field]
+    if "amount" in update:
+        update["amount"] = float(update["amount"])
+    if update:
+        await db.payments.update_one({"id": payment_id}, {"$set": update})
+    return {"message": "Payment updated"}
+
+
+@api_router.delete("/admin/payments/{payment_id}")
+async def admin_delete_payment(payment_id: str, admin=Depends(get_current_admin)):
+    payment = await db.payments.find_one({"id": payment_id}, {"_id": 0})
+    if not payment:
+        raise HTTPException(status_code=404, detail="Payment not found")
+    await db.payments.delete_one({"id": payment_id})
+    # Reset linked registration/member payment status
+    if payment.get("event_registration_id"):
+        await db.event_registrations.update_one({"id": payment["event_registration_id"]}, {"$set": {"payment_status": "pending"}})
+    if payment.get("member_id"):
+        await db.members.update_one({"id": payment["member_id"]}, {"$set": {"payment_status": "pending"}})
+    return {"message": "Payment deleted"}
+
+
+@api_router.post("/admin/payments/{payment_id}/refund")
+async def admin_refund_payment(payment_id: str, data: dict, admin=Depends(get_current_admin)):
+    payment = await db.payments.find_one({"id": payment_id}, {"_id": 0})
+    if not payment:
+        raise HTTPException(status_code=404, detail="Payment not found")
+    refund_notes = data.get("notes", "")
+    await db.payments.update_one({"id": payment_id}, {"$set": {
+        "status": "refunded", "refund_status": "completed",
+        "refund_date": now_iso(), "notes": refund_notes
+    }})
+    if payment.get("event_registration_id"):
+        await db.event_registrations.update_one({"id": payment["event_registration_id"]}, {"$set": {"payment_status": "refunded"}})
+    if payment.get("member_id"):
+        await db.members.update_one({"id": payment["member_id"]}, {"$set": {"payment_status": "refunded"}})
+    return {"message": "Payment refunded"}
 
 
 @api_router.get("/admin/payments")
@@ -1876,9 +2059,12 @@ async def admin_add_manual_payment(data: dict, admin=Depends(get_current_admin))
         member_name=data.get("member_name", ""),
         member_email=data.get("member_email", ""),
         membership_type=data.get("membership_type", ""),
+        event_registration_id=data.get("event_registration_id", ""),
+        purpose=data.get("purpose", "membership"),
         amount=float(data.get("amount", 0)),
         payment_method="manual",
-        status="paid"
+        status="paid",
+        notes=data.get("notes", "")
     )
     await db.payments.insert_one(payment.model_dump())
     result = payment.model_dump()
