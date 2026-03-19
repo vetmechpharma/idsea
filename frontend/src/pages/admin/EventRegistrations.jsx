@@ -25,7 +25,11 @@ export default function EventRegistrations() {
   const [editModal, setEditModal] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [manualModal, setManualModal] = useState(false);
-  const [manualForm, setManualForm] = useState({ name: '', email: '', phone: '', qualification: '', organization: '', state: '', is_member: false, member_category: '', accommodation_choice: 'none', registration_fee: 0, accommodation_fee: 0, membership_fee: 0, total_amount: 0, payment_status: 'pending' });
+  const [manualForm, setManualForm] = useState({ name: '', email: '', phone: '', qualification: '', organization: '', state: '', is_member: false, member_id: '', member_category: '', accommodation_choice: 'none', registration_fee: 0, accommodation_fee: 0, membership_fee: 0, total_amount: 0, payment_status: 'pending' });
+  const [memberSearch, setMemberSearch] = useState('');
+  const [memberResults, setMemberResults] = useState([]);
+  const [memberSearching, setMemberSearching] = useState(false);
+  const [selectingMember, setSelectingMember] = useState(false);
 
   const token = localStorage.getItem('idsea_token');
   const headers = { Authorization: `Bearer ${token}` };
@@ -149,9 +153,38 @@ export default function EventRegistrations() {
       payload.total_amount = parseFloat(payload.registration_fee || 0) + parseFloat(payload.accommodation_fee || 0) + parseFloat(payload.membership_fee || 0);
       await axios.post(`${API}/admin/events/${eventId}/register-manual`, payload, { headers });
       showToast('Registration created'); setManualModal(false);
-      setManualForm({ name: '', email: '', phone: '', qualification: '', organization: '', state: '', is_member: false, member_category: '', accommodation_choice: 'none', registration_fee: 0, accommodation_fee: 0, membership_fee: 0, total_amount: 0, payment_status: 'pending' });
+      setManualForm({ name: '', email: '', phone: '', qualification: '', organization: '', state: '', is_member: false, member_id: '', member_category: '', accommodation_choice: 'none', registration_fee: 0, accommodation_fee: 0, membership_fee: 0, total_amount: 0, payment_status: 'pending' });
+      setSelectingMember(false); setMemberSearch(''); setMemberResults([]);
       load();
     } catch (e) { showToast('Failed: ' + (e.response?.data?.detail || 'Error')); }
+  };
+
+  const searchMembers = async (q) => {
+    setMemberSearch(q);
+    if (q.length < 2) { setMemberResults([]); return; }
+    setMemberSearching(true);
+    try {
+      const r = await axios.get(`${API}/admin/members`, { params: { search: q, status: 'approved' }, headers });
+      setMemberResults(r.data.slice(0, 10));
+    } catch { setMemberResults([]); }
+    setMemberSearching(false);
+  };
+
+  const selectMember = (m) => {
+    setManualForm(f => ({
+      ...f,
+      name: `${m.prefix || ''} ${m.name}`.trim(),
+      email: m.email || '',
+      phone: m.phone || '',
+      qualification: m.qualification || '',
+      organization: m.organization || '',
+      state: m.state || m.permanent_address?.state || '',
+      is_member: true,
+      member_id: m.membership_id || m.id || '',
+      member_category: m.membership_type || '',
+    }));
+    setMemberSearch('');
+    setMemberResults([]);
   };
 
   const downloadFile = async (url, filename) => {
@@ -471,13 +504,68 @@ export default function EventRegistrations() {
 
       {/* Manual Registration Modal */}
       {manualModal && (
-        <div className="modal-overlay" onClick={() => setManualModal(false)}>
+        <div className="modal-overlay" onClick={() => { setManualModal(false); setSelectingMember(false); setMemberSearch(''); setMemberResults([]); }}>
           <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px', maxHeight: '85vh', overflowY: 'auto' }} data-testid="manual-reg-modal">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h3 style={{ fontFamily: 'Poppins', fontSize: '17px', fontWeight: 700, color: '#0c3c60', margin: 0 }}>Register Participant</h3>
-              <button onClick={() => setManualModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af' }}><X size={20} /></button>
+              <button onClick={() => { setManualModal(false); setSelectingMember(false); setMemberSearch(''); setMemberResults([]); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af' }}><X size={20} /></button>
             </div>
             <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '16px' }}>Manually register a participant for <strong>{event?.title}</strong></p>
+
+            {/* Member Selection Toggle */}
+            <div style={{ background: selectingMember ? '#f0fdf4' : '#f8fafc', borderRadius: '10px', padding: '14px', marginBottom: '16px', border: `1px solid ${selectingMember ? '#bbf7d0' : '#e5e7eb'}`, transition: 'all 0.2s' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', marginBottom: selectingMember ? '12px' : 0 }}>
+                <input type="checkbox" checked={selectingMember} onChange={e => {
+                  setSelectingMember(e.target.checked);
+                  if (!e.target.checked) {
+                    setMemberSearch(''); setMemberResults([]);
+                    setManualForm(f => ({ ...f, is_member: false, member_id: '', member_category: '', name: '', email: '', phone: '', qualification: '', organization: '', state: '' }));
+                  }
+                }} style={{ width: '18px', height: '18px', accentColor: '#1e7a4d' }} data-testid="toggle-member-select" />
+                <span style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '14px', color: selectingMember ? '#1e7a4d' : '#374151' }}>Select from existing members</span>
+              </label>
+              {selectingMember && (
+                <div style={{ position: 'relative' }}>
+                  <div style={{ position: 'relative' }}>
+                    <Search size={15} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} />
+                    <input value={memberSearch} onChange={e => searchMembers(e.target.value)} placeholder="Search member by name, email, or ID..." className="form-input"
+                      style={{ paddingLeft: '34px', fontSize: '13px' }} data-testid="member-search-input" autoFocus />
+                  </div>
+                  {memberSearching && <div style={{ fontSize: '12px', color: '#9ca3af', padding: '8px 0' }}>Searching...</div>}
+                  {memberResults.length > 0 && (
+                    <div style={{ border: '1px solid #e5e7eb', borderRadius: '8px', marginTop: '6px', maxHeight: '200px', overflowY: 'auto', background: 'white', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} data-testid="member-results-list">
+                      {memberResults.map(m => (
+                        <div key={m.id} onClick={() => selectMember(m)} data-testid={`member-option-${m.id}`}
+                          style={{ display: 'flex', gap: '10px', alignItems: 'center', padding: '10px 12px', cursor: 'pointer', borderBottom: '1px solid #f3f4f6', transition: 'background 0.15s' }}
+                          onMouseEnter={e => e.currentTarget.style.background = '#f0fdf4'}
+                          onMouseLeave={e => e.currentTarget.style.background = 'white'}>
+                          {m.photo_url ? <img src={m.photo_url.startsWith('/api') ? `${API.replace('/api', '')}${m.photo_url}` : m.photo_url} alt="" style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }} /> : <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#0c3c60', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '12px', flexShrink: 0 }}>{m.name?.charAt(0)}</div>}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontWeight: 600, fontSize: '13px', color: '#111827' }}>{m.prefix ? `${m.prefix} ` : ''}{m.name}</div>
+                            <div style={{ fontSize: '11px', color: '#9ca3af', display: 'flex', gap: '8px' }}>
+                              <span>{m.email}</span>
+                              {m.membership_id && <span style={{ color: '#0c3c60', fontWeight: 600, fontFamily: 'monospace' }}>{m.membership_id}</span>}
+                            </div>
+                          </div>
+                          <span style={{ fontSize: '11px', color: '#6b7280', textTransform: 'capitalize', fontWeight: 600 }}>{m.membership_type}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {manualForm.is_member && manualForm.member_id && (
+                    <div style={{ marginTop: '8px', background: '#d1fae5', borderRadius: '8px', padding: '10px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} data-testid="selected-member-badge">
+                      <div>
+                        <span style={{ fontSize: '13px', fontWeight: 600, color: '#065f46' }}>Selected: {manualForm.name}</span>
+                        <span style={{ marginLeft: '8px', fontSize: '11px', color: '#6b7280', fontFamily: 'monospace' }}>{manualForm.member_id}</span>
+                      </div>
+                      <button onClick={() => { setManualForm(f => ({ ...f, is_member: false, member_id: '', member_category: '', name: '', email: '', phone: '', qualification: '', organization: '', state: '' })); setMemberSearch(''); }}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#991b1b' }}><X size={14} /></button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
               <div className="form-group" style={{ margin: 0, gridColumn: '1 / -1' }}><label className="form-label">Full Name *</label><input value={manualForm.name} onChange={e => setManualForm(f => ({ ...f, name: e.target.value }))} className="form-input" placeholder="Full name" data-testid="manual-name" /></div>
               <div className="form-group" style={{ margin: 0 }}><label className="form-label">Email *</label><input value={manualForm.email} onChange={e => setManualForm(f => ({ ...f, email: e.target.value }))} className="form-input" placeholder="Email" data-testid="manual-email" /></div>
