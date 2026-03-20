@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import {
   LayoutDashboard, Users, CreditCard, Calendar, Newspaper,
   Image, BookOpen, Mail, UserCheck, Award, BarChart3,
-  Settings, Shield, LogOut, Menu, X, FileText, SlidersHorizontal, MessageSquare
+  Settings, Shield, LogOut, Menu, X, FileText, SlidersHorizontal, MessageSquare, Crown
 } from 'lucide-react';
 
 const navItems = [
@@ -23,6 +23,7 @@ const navItems = [
   { path: '/admin/cms', icon: Settings, label: 'CMS Settings' },
   { path: '/admin/sliders', icon: SlidersHorizontal, label: 'Slider Management' },
   { path: '/admin/payment-settings', icon: CreditCard, label: 'Payment Settings' },
+  { path: '/admin/membership-plans', icon: Crown, label: 'Membership Plans' },
   { path: '/admin/whatsapp', icon: MessageSquare, label: 'WhatsApp' },
   { path: '/admin/roles', icon: Shield, label: 'Admin Roles' },
 ];

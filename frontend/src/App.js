@@ -33,6 +33,7 @@ import SliderAdmin from './pages/admin/SliderAdmin';
 import EventRegistrations from './pages/admin/EventRegistrations';
 import PaymentSettings from './pages/admin/PaymentSettings';
 import WhatsappAdmin from './pages/admin/WhatsappAdmin';
+import MembershipAdmin from './pages/admin/MembershipAdmin';
 
 const ProtectedRoute = ({ children }) => {
   const { admin } = useAuth();
@@ -74,6 +75,7 @@ function App() {
             <Route path="sliders" element={<SliderAdmin />} />
             <Route path="payment-settings" element={<PaymentSettings />} />
             <Route path="whatsapp" element={<WhatsappAdmin />} />
+            <Route path="membership-plans" element={<MembershipAdmin />} />
             <Route path="roles" element={<RolesAdmin />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />

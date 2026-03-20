@@ -1,0 +1,187 @@
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
+import { Plus, Edit3, Trash2, Save, X, Crown, ToggleLeft, ToggleRight } from 'lucide-react';
+
+const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+
+export default function MembershipAdmin() {
+  const [plans, setPlans] = useState([]);
+  const [showModal, setShowModal] = useState(false);
+  const [editPlan, setEditPlan] = useState(null);
+  const [form, setForm] = useState({ key: '', label: '', fee_inr: 0, fee_usd: 0, enabled: true, description: '' });
+  const token = localStorage.getItem('idsea_token');
+  const headers = { Authorization: `Bearer ${token}` };
+
+  const fetchPlans = async () => {
+    try {
+      const r = await axios.get(`${API}/admin/membership-plans`, { headers });
+      setPlans(r.data || []);
+    } catch {}
+  };
+
+  useEffect(() => { fetchPlans(); }, []);
+
+  const openCreate = () => {
+    setEditPlan(null);
+    setForm({ key: '', label: '', fee_inr: 0, fee_usd: 0, enabled: true, description: '' });
+    setShowModal(true);
+  };
+
+  const openEdit = (plan) => {
+    setEditPlan(plan);
+    setForm({
+      key: plan.key || '',
+      label: plan.label || '',
+      fee_inr: plan.fee_inr || 0,
+      fee_usd: plan.fee_usd || 0,
+      enabled: plan.enabled !== false,
+      description: plan.description || '',
+    });
+    setShowModal(true);
+  };
+
+  const handleSave = async () => {
+    if (!form.label) { alert('Label is required'); return; }
+    const payload = {
+      ...form,
+      key: form.key || form.label.toLowerCase().replace(/\s+/g, '_'),
+    };
+    try {
+      if (editPlan) {
+        await axios.put(`${API}/admin/membership-plans/${editPlan.id}`, payload, { headers });
+      } else {
+        await axios.post(`${API}/admin/membership-plans`, payload, { headers });
+      }
+      setShowModal(false);
+      fetchPlans();
+    } catch (e) {
+      alert(e.response?.data?.detail || 'Error saving plan');
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Delete this membership plan?')) return;
+    try {
+      await axios.delete(`${API}/admin/membership-plans/${id}`, { headers });
+      fetchPlans();
+    } catch (e) {
+      alert(e.response?.data?.detail || 'Error deleting plan');
+    }
+  };
+
+  const toggleEnabled = async (plan) => {
+    try {
+      await axios.put(`${API}/admin/membership-plans/${plan.id}`, { enabled: !plan.enabled }, { headers });
+      fetchPlans();
+    } catch {}
+  };
+
+  return (
+    <div data-testid="membership-admin" style={{ maxWidth: '900px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <div>
+          <h1 style={{ fontFamily: 'Poppins', fontSize: '24px', fontWeight: 700, color: '#0c3c60', margin: 0 }}>Membership Plans</h1>
+          <p style={{ fontSize: '13px', color: '#64748b', margin: '4px 0 0', fontFamily: 'Inter, sans-serif' }}>Manage membership types and fees for IDSEA</p>
+        </div>
+        <button onClick={openCreate} className="btn-primary" data-testid="create-plan-btn">
+          <Plus size={16} /> Add Plan
+        </button>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        {plans.map(plan => (
+          <div key={plan.id} data-testid={`plan-${plan.id}`} style={{
+            background: 'white', borderRadius: '10px', border: '1px solid #e2e8f0',
+            padding: '18px 22px', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            opacity: plan.enabled ? 1 : 0.6
+          }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <Crown size={16} style={{ color: '#d4a017' }} />
+                <span style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '15px', color: '#0c3c60' }}>{plan.label}</span>
+                <span style={{
+                  padding: '2px 8px', borderRadius: '10px', fontSize: '11px', fontWeight: 600,
+                  background: plan.enabled ? '#d1fae5' : '#f1f5f9',
+                  color: plan.enabled ? '#065f46' : '#94a3b8'
+                }}>
+                  {plan.enabled ? 'Active' : 'Disabled'}
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: '20px', marginTop: '6px', fontSize: '13px', color: '#64748b' }}>
+                <span>Key: <strong style={{ color: '#334155' }}>{plan.key}</strong></span>
+                <span>INR: <strong style={{ color: '#1e7a4d' }}>&#8377;{plan.fee_inr?.toLocaleString('en-IN')}</strong></span>
+                <span>USD: <strong style={{ color: '#0c3c60' }}>${plan.fee_usd}</strong></span>
+                {plan.description && <span style={{ color: '#94a3b8' }}>{plan.description}</span>}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <button onClick={() => toggleEnabled(plan)} data-testid={`toggle-plan-${plan.id}`}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: plan.enabled ? '#1e7a4d' : '#94a3b8' }}
+                title={plan.enabled ? 'Disable' : 'Enable'}>
+                {plan.enabled ? <ToggleRight size={24} /> : <ToggleLeft size={24} />}
+              </button>
+              <button onClick={() => openEdit(plan)} className="btn-secondary" data-testid={`edit-plan-${plan.id}`}>
+                <Edit3 size={14} /> Edit
+              </button>
+              <button onClick={() => handleDelete(plan.id)} data-testid={`delete-plan-${plan.id}`}
+                style={{ background: '#fee2e2', color: '#991b1b', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}>
+                <Trash2 size={14} />
+              </button>
+            </div>
+          </div>
+        ))}
+        {plans.length === 0 && (
+          <div style={{ background: 'white', borderRadius: '10px', padding: '40px', textAlign: 'center', color: '#94a3b8', fontSize: '14px' }}>
+            No membership plans yet. Click "Add Plan" to create one.
+          </div>
+        )}
+      </div>
+
+      {/* Modal */}
+      {showModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+          <div style={{ background: 'white', borderRadius: '12px', width: '95%', maxWidth: '520px', padding: '0' }}>
+            <div style={{ padding: '16px 24px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 style={{ fontFamily: 'Poppins', fontSize: '18px', fontWeight: 700, color: '#0c3c60', margin: 0 }}>
+                {editPlan ? 'Edit Plan' : 'Create Plan'}
+              </h2>
+              <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={20} /></button>
+            </div>
+            <div style={{ padding: '20px 24px' }}>
+              <div className="form-group">
+                <label className="form-label">Plan Name *</label>
+                <input value={form.label} onChange={e => setForm(f => ({ ...f, label: e.target.value }))} className="form-input" data-testid="plan-label-input" placeholder="e.g. Academic, Corporate, International" />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Key (auto-generated if empty)</label>
+                <input value={form.key} onChange={e => setForm(f => ({ ...f, key: e.target.value }))} className="form-input" data-testid="plan-key-input" placeholder="e.g. academic" />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div className="form-group">
+                  <label className="form-label">Fee INR (&#8377;)</label>
+                  <input type="number" value={form.fee_inr} onChange={e => setForm(f => ({ ...f, fee_inr: parseFloat(e.target.value) || 0 }))} className="form-input" data-testid="plan-fee-inr" />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Fee USD ($)</label>
+                  <input type="number" value={form.fee_usd} onChange={e => setForm(f => ({ ...f, fee_usd: parseFloat(e.target.value) || 0 }))} className="form-input" data-testid="plan-fee-usd" />
+                </div>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Description</label>
+                <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} className="form-input" placeholder="Brief description of this plan" />
+              </div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', marginTop: '8px' }}>
+                <input type="checkbox" checked={form.enabled} onChange={e => setForm(f => ({ ...f, enabled: e.target.checked }))} />
+                <span className="form-label" style={{ margin: 0 }}>Enabled (visible to public)</span>
+              </label>
+            </div>
+            <div style={{ padding: '12px 24px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button onClick={() => setShowModal(false)} className="btn-secondary">Cancel</button>
+              <button onClick={handleSave} className="btn-primary" data-testid="save-plan-btn"><Save size={14} /> {editPlan ? 'Update' : 'Create'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
