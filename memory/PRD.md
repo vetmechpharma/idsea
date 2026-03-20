@@ -23,23 +23,30 @@ Build a full-stack website for IDSEA with a public-facing website and comprehens
 - **Become a Member:** Non-Members, Students & International Delegates can apply for dynamic membership plans during registration
 - **Admin Pages:** EventsAdmin (5-tab modal: Basic, Fees, Accommodation, Hotels, Add-ons), MembershipAdmin (CRUD for plans)
 
+### Event Image & Brochure Upload - COMPLETE (March 2026)
+- **Event Image Upload:** Admin can upload event images (jpg/png/webp) via Basic Info tab
+- **Event Brochure Upload:** Admin can upload PDF brochures via Basic Info tab
+- **Download Brochure:** Prominent green "Download Brochure" button on public Events page
+- **Image Thumbnails:** Admin event list shows 56x56px image thumbnails
+- **Speaker Details:** Removed from event model and all views
+- **Venue Map Link:** Google Maps link field in event creation, shown in admin list, public page, emails, and WhatsApp messages
+
 ### Membership Plans - Dynamic Management (March 2026)
 - Admin page at /admin/membership-plans with full CRUD
-- Default plans: Academic (₹3,100/$50), Entrepreneur (₹5,100/$75), Corporate (₹25,100/$300), International ($100)
+- Default plans: Academic, Entrepreneur, Corporate, International
 - Enable/disable toggle per plan
 - Plans exposed via /api/public/membership-plans for registration flow
 
 ### WhatsApp Integration (AK Nexus) - WORKING
-- **API Format**: v1 query-param based
 - Admin page at `/admin/whatsapp` with 3 tabs: Configuration, Send Messages, Message Logs
-- Auto notifications for 6 events
+- Auto notifications for 6 events (including venue map links)
 - Bulk messaging to members/registrants
 
 ### Payment System - Multi-method (Razorpay/UPI/Bank), admin management
 ### Membership System - Custom IDs, structured forms, admin approve/deny/hold
 ### Admin Panel (18+ sections)
 
-## Testing: iterations 1-16 all pass
+## Testing: iterations 1-17 all pass
 
 ## Backlog
 - P1: Member Directory (public), News & Contact pages
