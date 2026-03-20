@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os, logging, uuid, hmac, hashlib, smtplib, io, asyncio, base64
+import httpx
 from pathlib import Path
 from pydantic import BaseModel, Field
 from typing import List, Optional
@@ -931,6 +932,14 @@ async def apply_membership(data: MemberCreate, background_tasks: BackgroundTasks
         }
         background_tasks.add_task(send_templated_email, "registration_submitted", [member.email], variables)
 
+    # Send WhatsApp notification
+    if member.phone:
+        background_tasks.add_task(
+            send_whatsapp_notification, member.phone, "membership_submitted",
+            {"name": f"{member.prefix} {member.name}".strip() if member.prefix else member.name,
+             "membership_type": member.membership_type}
+        )
+
     return {"message": "Application submitted successfully", "id": member.id}
 
 
@@ -1138,15 +1147,29 @@ async def approve_member(member_id: str, background_tasks: BackgroundTasks, admi
         attachments = [{"filename": f"IDSEA_Membership_Certificate_{membership_id}.pdf", "data": cert_pdf}]
         background_tasks.add_task(send_templated_email, "membership_approved", [member["email"]], variables, attachments)
 
+    # Send WhatsApp notification on approval
+    if member.get("phone"):
+        background_tasks.add_task(
+            send_whatsapp_notification, member["phone"], "membership_approved",
+            {"name": member.get("name", ""), "membership_id": membership_id, "membership_type": member.get("membership_type", "")}
+        )
+
     return {"message": "Member approved", "membership_id": membership_id}
 
 
 @api_router.put("/admin/members/{member_id}/reject")
-async def reject_member(member_id: str, admin=Depends(get_current_admin)):
+async def reject_member(member_id: str, background_tasks: BackgroundTasks, admin=Depends(get_current_admin)):
+    member = await db.members.find_one({"id": member_id}, {"_id": 0})
     await db.members.update_one(
         {"id": member_id},
         {"$set": {"status": "rejected", "updated_at": now_iso()}}
     )
+    # Send WhatsApp notification
+    if member and member.get("phone"):
+        background_tasks.add_task(
+            send_whatsapp_notification, member["phone"], "membership_denied",
+            {"name": member.get("name", "")}
+        )
     return {"message": "Member rejected"}
 
 
@@ -1294,7 +1317,7 @@ async def lookup_member_by_phone(phone: str):
 
 
 @api_router.post("/public/events/{event_id}/register")
-async def register_for_event(event_id: str, data: dict):
+async def register_for_event(event_id: str, data: dict, background_tasks: BackgroundTasks):
     event = await db.events.find_one({"id": event_id}, {"_id": 0})
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
@@ -1346,6 +1369,15 @@ async def register_for_event(event_id: str, data: dict):
 
     result = reg.model_dump()
     result.pop("_id", None)
+
+    # Send WhatsApp notification for event registration
+    if reg.phone:
+        background_tasks.add_task(
+            send_whatsapp_notification, reg.phone, "event_registered",
+            {"name": reg.name, "event_title": event.get("title", ""), "event_date": event.get("date", ""),
+             "event_venue": event.get("venue", ""), "total_amount": str(reg.total_amount), "payment_status": reg.payment_status}
+        )
+
     return {"message": "Registration successful", "registration": result}
 
 
@@ -1411,7 +1443,7 @@ async def admin_update_registration_payment(reg_id: str, data: dict, admin=Depen
 
 
 @api_router.put("/admin/event-registrations/{reg_id}/accommodation")
-async def admin_update_registration_accommodation(reg_id: str, data: dict, admin=Depends(get_current_admin)):
+async def admin_update_registration_accommodation(reg_id: str, data: dict, background_tasks: BackgroundTasks, admin=Depends(get_current_admin)):
     update = {
         "assigned_room_no": data.get("assigned_room_no", ""),
         "assigned_location": data.get("assigned_location", ""),
@@ -1419,6 +1451,18 @@ async def admin_update_registration_accommodation(reg_id: str, data: dict, admin
         "assigned_map_link": data.get("assigned_map_link", ""),
     }
     await db.event_registrations.update_one({"id": reg_id}, {"$set": update})
+
+    # Send WhatsApp notification for room allotment
+    reg = await db.event_registrations.find_one({"id": reg_id}, {"_id": 0})
+    if reg and reg.get("phone") and update.get("assigned_room_no"):
+        event = await db.events.find_one({"id": reg.get("event_id", "")}, {"_id": 0})
+        map_link = f"Map: {update['assigned_map_link']}" if update.get("assigned_map_link") else ""
+        background_tasks.add_task(
+            send_whatsapp_notification, reg["phone"], "room_allotment",
+            {"name": reg.get("name", ""), "event_title": event.get("title", "") if event else "",
+             "room_no": update["assigned_room_no"], "location": update.get("assigned_location", ""), "map_link": map_link}
+        )
+
     return {"message": "Accommodation details updated"}
 
 
@@ -2757,6 +2801,255 @@ async def admin_delete_slider(slider_id: str, admin=Depends(get_current_admin)):
     return {"message": "Slider deleted"}
 
 
+
+# =================== WHATSAPP (AK NEXUS) SERVICE ===================
+
+AKNEXUS_BASE_URL = "https://app.aknexus.in/api/v2"
+
+
+async def get_whatsapp_settings():
+    settings = await db.whatsapp_settings.find_one({}, {"_id": 0})
+    return settings or {}
+
+
+async def aknexus_request(method: str, path: str, json_data: dict = None, params: dict = None):
+    settings = await get_whatsapp_settings()
+    token = settings.get("access_token", "")
+    if not token:
+        return {"error": "WhatsApp access token not configured"}
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+    url = f"{AKNEXUS_BASE_URL}{path}"
+    async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
+        try:
+            if method == "GET":
+                resp = await client.get(url, headers=headers, params=params)
+            elif method == "POST":
+                resp = await client.post(url, headers=headers, json=json_data or {})
+            elif method == "PUT":
+                resp = await client.put(url, headers=headers, json=json_data or {})
+            elif method == "DELETE":
+                resp = await client.delete(url, headers=headers)
+            else:
+                return {"error": f"Unsupported method: {method}"}
+            logging.info(f"AK Nexus {method} {path} -> {resp.status_code}")
+            if resp.status_code >= 400:
+                try:
+                    return {"error": resp.json().get("message", resp.text[:200]), "status_code": resp.status_code}
+                except Exception:
+                    return {"error": f"HTTP {resp.status_code}: {resp.text[:200]}", "status_code": resp.status_code}
+            try:
+                return resp.json()
+            except Exception:
+                return {"raw_response": resp.text[:500], "status_code": resp.status_code}
+        except httpx.TimeoutException:
+            return {"error": "Request timed out"}
+        except Exception as e:
+            logging.error(f"AK Nexus API error: {e}")
+            return {"error": str(e)}
+
+
+async def send_whatsapp_message(phone: str, message: str, instance_id: str = None):
+    settings = await get_whatsapp_settings()
+    if not settings.get("enabled", False):
+        return False
+    iid = instance_id or settings.get("instance_id", "")
+    if not iid:
+        return False
+    phone = phone.strip().replace("+", "").replace(" ", "").replace("-", "")
+    if len(phone) == 10:
+        phone = "91" + phone
+    result = await aknexus_request("POST", "/whatsapp/send/text", {
+        "instance_id": iid, "to": phone, "message": message
+    })
+    if result.get("error"):
+        logging.warning(f"WhatsApp send failed to {phone}: {result['error']}")
+        return False
+    await db.whatsapp_logs.insert_one({
+        "id": str(uuid.uuid4()), "phone": phone, "message": message[:200],
+        "instance_id": iid, "status": "sent", "response": str(result)[:500], "sent_at": now_iso()
+    })
+    return True
+
+
+async def send_whatsapp_notification(phone: str, notification_type: str, variables: dict):
+    templates = {
+        "membership_submitted": "Hello {name},\n\nThank you for applying for IDSEA {membership_type} membership.\n\nYour application has been received and is under review. We will notify you once it is processed.\n\nRegards,\nIDSEA Team",
+        "membership_approved": "Congratulations {name}!\n\nYour IDSEA membership has been approved.\n\nMembership ID: {membership_id}\nType: {membership_type}\n\nWelcome to the IDSEA family!\n\nRegards,\nIDSEA Team",
+        "membership_denied": "Dear {name},\n\nWe regret to inform you that your IDSEA membership application has been denied.\n\nPlease contact us at info@idsea.org for more details.\n\nRegards,\nIDSEA Team",
+        "event_registered": "Hello {name},\n\nYou have been successfully registered for:\n\n*{event_title}*\nDate: {event_date}\nVenue: {event_venue}\nTotal Amount: Rs. {total_amount}\n\nPayment Status: {payment_status}\n\nRegards,\nIDSEA Team",
+        "room_allotment": "Hello {name},\n\nYour accommodation details for *{event_title}*:\n\nRoom No: {room_no}\nLocation: {location}\n{map_link}\n\nRegards,\nIDSEA Team",
+        "payment_received": "Hello {name},\n\nWe have received your payment of Rs. {amount}.\n\nTransaction Reference: {reference}\n\nThank you!\nIDSEA Team",
+    }
+    template = templates.get(notification_type, "")
+    if not template:
+        return False
+    try:
+        message = template.format(**variables)
+    except KeyError:
+        message = template
+        for k, v in variables.items():
+            message = message.replace("{" + k + "}", str(v))
+    return await send_whatsapp_message(phone, message)
+
+
+# =================== WHATSAPP ADMIN ENDPOINTS ===================
+
+@api_router.get("/admin/whatsapp-settings")
+async def admin_get_whatsapp_settings(admin=Depends(get_current_admin)):
+    settings = await get_whatsapp_settings()
+    if not settings:
+        settings = {"access_token": "", "instance_id": "", "enabled": False, "auto_notifications": {}}
+    token = settings.get("access_token", "")
+    settings["access_token_masked"] = ("*" * 8 + token[-5:]) if len(token) > 5 else token
+    settings["access_token"] = token
+    return settings
+
+
+@api_router.put("/admin/whatsapp-settings")
+async def admin_update_whatsapp_settings(data: dict, admin=Depends(get_current_admin)):
+    update = {
+        "enabled": data.get("enabled", False),
+        "auto_notifications": data.get("auto_notifications", {
+            "membership_submitted": True, "membership_approved": True,
+            "membership_denied": True, "event_registered": True,
+            "room_allotment": True, "payment_received": True,
+        }),
+        "updated_at": now_iso()
+    }
+    if data.get("access_token") and not data["access_token"].startswith("*"):
+        update["access_token"] = data["access_token"]
+    if data.get("instance_id"):
+        update["instance_id"] = data["instance_id"]
+    await db.whatsapp_settings.update_one({}, {"$set": update}, upsert=True)
+    return {"message": "WhatsApp settings updated"}
+
+
+@api_router.post("/admin/whatsapp/connect")
+async def admin_whatsapp_connect(data: dict, admin=Depends(get_current_admin)):
+    custom_id = data.get("instance_id", "")
+    payload = {}
+    if custom_id:
+        payload["instance_id"] = custom_id
+    result = await aknexus_request("POST", "/whatsapp/instance/connect", payload)
+    if result.get("error"):
+        return {"status": "error", "message": result["error"], "result": result}
+    iid = result.get("instance_id") or result.get("data", {}).get("instance_id") or custom_id
+    if iid:
+        await db.whatsapp_settings.update_one({}, {"$set": {"instance_id": iid, "updated_at": now_iso()}}, upsert=True)
+    return {"status": "success", "instance_id": iid, "result": result}
+
+
+@api_router.get("/admin/whatsapp/status")
+async def admin_whatsapp_status(admin=Depends(get_current_admin)):
+    settings = await get_whatsapp_settings()
+    iid = settings.get("instance_id", "")
+    if not iid:
+        return {"status": "not_configured", "instance_id": ""}
+    result = await aknexus_request("GET", f"/whatsapp/instance/status/{iid}")
+    return {"instance_id": iid, **result}
+
+
+@api_router.get("/admin/whatsapp/qr")
+async def admin_whatsapp_qr(admin=Depends(get_current_admin)):
+    settings = await get_whatsapp_settings()
+    iid = settings.get("instance_id", "")
+    if not iid:
+        raise HTTPException(status_code=400, detail="No instance configured. Connect first.")
+    result = await aknexus_request("GET", f"/whatsapp/instance/qr/{iid}")
+    return result
+
+
+@api_router.post("/admin/whatsapp/disconnect")
+async def admin_whatsapp_disconnect(admin=Depends(get_current_admin)):
+    settings = await get_whatsapp_settings()
+    iid = settings.get("instance_id", "")
+    if not iid:
+        raise HTTPException(status_code=400, detail="No instance configured")
+    result = await aknexus_request("POST", "/whatsapp/instance/disconnect", {"instance_id": iid})
+    return result
+
+
+@api_router.get("/admin/whatsapp/instances")
+async def admin_whatsapp_instances(admin=Depends(get_current_admin)):
+    result = await aknexus_request("GET", "/whatsapp/instances")
+    return result
+
+
+@api_router.post("/admin/whatsapp/send-test")
+async def admin_whatsapp_send_test(data: dict, admin=Depends(get_current_admin)):
+    phone = data.get("phone", "")
+    message = data.get("message", "This is a test message from IDSEA Admin Panel.")
+    if not phone:
+        raise HTTPException(status_code=400, detail="Phone number required")
+    settings = await get_whatsapp_settings()
+    iid = settings.get("instance_id", "")
+    if not iid:
+        raise HTTPException(status_code=400, detail="No WhatsApp instance configured")
+    result = await aknexus_request("POST", "/whatsapp/send/text", {
+        "instance_id": iid,
+        "to": phone.strip().replace("+", "").replace(" ", "").replace("-", ""),
+        "message": message
+    })
+    if result.get("error"):
+        raise HTTPException(status_code=400, detail=result["error"])
+    return {"message": "Test message sent", "result": result}
+
+
+@api_router.post("/admin/whatsapp/send-bulk")
+async def admin_whatsapp_send_bulk(data: dict, background_tasks: BackgroundTasks, admin=Depends(get_current_admin)):
+    message = data.get("message", "")
+    target = data.get("target", "all_members")
+    event_id = data.get("event_id", "")
+    membership_filter = data.get("membership_type", "")
+    if not message:
+        raise HTTPException(status_code=400, detail="Message is required")
+
+    async def _send_bulk():
+        recipients = []
+        if target == "event_registered" and event_id:
+            regs = await db.event_registrations.find({"event_id": event_id}, {"_id": 0}).to_list(5000)
+            recipients = [{"name": r.get("name", ""), "phone": r.get("phone", "")} for r in regs if r.get("phone")]
+        else:
+            query = {"status": "approved"}
+            if membership_filter and membership_filter != "all":
+                query["membership_type"] = membership_filter
+            members = await db.members.find(query, {"_id": 0}).to_list(10000)
+            recipients = [{"name": m.get("name", ""), "phone": m.get("phone", "")} for m in members if m.get("phone")]
+        sent, failed = 0, 0
+        for r in recipients:
+            personalized = message.replace("{name}", r["name"])
+            success = await send_whatsapp_message(r["phone"], personalized)
+            if success:
+                sent += 1
+            else:
+                failed += 1
+            await asyncio.sleep(1)
+        await db.whatsapp_logs.insert_one({
+            "id": str(uuid.uuid4()), "type": "bulk", "target": target,
+            "event_id": event_id, "message": message[:200],
+            "total_recipients": len(recipients), "sent": sent, "failed": failed, "sent_at": now_iso()
+        })
+
+    background_tasks.add_task(_send_bulk)
+    return {"message": "Bulk message sending started in background"}
+
+
+@api_router.get("/admin/whatsapp/logs")
+async def admin_whatsapp_logs(admin=Depends(get_current_admin), limit: int = 100):
+    logs = await db.whatsapp_logs.find({}, {"_id": 0}).sort("sent_at", -1).to_list(limit)
+    return logs
+
+
+@api_router.post("/whatsapp/webhook")
+async def whatsapp_webhook(data: dict):
+    logging.info(f"WhatsApp webhook received: {str(data)[:500]}")
+    await db.whatsapp_webhooks.insert_one({
+        "id": str(uuid.uuid4()), "data": data, "received_at": now_iso()
+    })
+    return {"status": "ok"}
+
+
+
 # =================== APP SETUP ===================
 
 app.include_router(api_router)
@@ -2899,6 +3192,7 @@ async def startup_event():
             "facebook_url": "", "twitter_url": "", "linkedin_url": "",
             "updated_at": now_iso()
         })
+
 
 
 @app.on_event("shutdown")
