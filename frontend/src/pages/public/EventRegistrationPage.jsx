@@ -1263,6 +1263,8 @@ export default function EventRegistrationPage() {
                   memberId={memberData?.membership_id || ''}
                   eventRegistrationId={regResult.id}
                   membershipType={membershipType || memberData?.membership_type || ''}
+                  currency={currency}
+                  isInternational={isInternational}
                   onSuccess={handlePaymentSuccess}
                   onCancel={() => setSubmitted(true)}
                 />

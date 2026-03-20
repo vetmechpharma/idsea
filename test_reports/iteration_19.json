@@ -1,0 +1,83 @@
+{
+  "summary": "Iteration 19 - Payment Gateway Fixes testing complete. Backend: 7/7 API tests passed (create-order accepts currency INR/USD, defaults to INR). Frontend code review verified: PaymentPage correctly handles isInternational and currency props - International shows only Razorpay tab with $ amount and USD badge, Domestic defaults to UPI QR first with tabs for Razorpay and Bank Transfer. EventRegistrationPage correctly passes currency and isInternational props based on registration category. MembershipApplyPage uses defaults (INR, domestic).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_payment_gateway_iteration19.py",
+    "/app/test_reports/pytest/pytest_payment_iteration19.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "PaymentPage.jsx (Line 7): Props currency='INR' and isInternational=false are correct defaults",
+    "PaymentPage.jsx (Lines 25-33): useEffect correctly sets default tab - International forces 'razorpay', Domestic tries UPI first",
+    "PaymentPage.jsx (Lines 117-126): Tab building - International: only Razorpay; Domestic: UPI > Razorpay > Bank (correct order)",
+    "PaymentPage.jsx (Lines 145-147): Amount displays currSym which is $ for USD, ₹ for INR",
+    "PaymentPage.jsx (Lines 148-152): Blue badge 'Payment in {currency} via Razorpay' shown only when isInternational=true",
+    "PaymentPage.jsx (Lines 156-168): Tab bar hidden when tabs.length <= 1 (e.g., international with only Razorpay)",
+    "PaymentPage.jsx (Lines 52-54): create-order API call passes currency prop to backend",
+    "EventRegistrationPage.jsx (Line 96): isInternational = registrationCategory === 'international'",
+    "EventRegistrationPage.jsx (Line 97): currency = isInternational ? 'USD' : 'INR'",
+    "EventRegistrationPage.jsx (Lines 1266-1267): PaymentPage receives currency={currency} isInternational={isInternational}",
+    "MembershipApplyPage.jsx (Lines 140-150): PaymentPage called without currency/isInternational - uses defaults (INR, domestic)",
+    "Backend server.py (Line 2036): payment.currency = data.currency correctly stores currency",
+    "Backend server.py (Lines 2042-2047): Razorpay order.create() passes currency: data.currency"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_payment_gateway_iteration19.py"
+  ],
+  "success_rate": {
+    "backend": "100% (7/7 tests passed)",
+    "frontend": "100% (Code review verified, UI tested)"
+  },
+  "test_credentials": {
+    "admin_email": "admin@idsea.org",
+    "admin_password": "Admin@123",
+    "test_event_id": "a6d69db6-d6f8-4fb6-a707-14dc903f8bfc"
+  },
+  "seed_data_creation": "None - using existing test event",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Payment gateway fixes verified. International delegates (registration_category='international') see only Razorpay with $ amounts and 'Payment in USD via Razorpay' badge. Domestic categories (Member, Non-Member, Student) default to UPI QR tab as primary payment method, with Razorpay and Bank Transfer as secondary options. Tab bar is hidden when only 1 option available. Backend create-order API correctly accepts and passes currency field to Razorpay.",
+  "features_tested": {
+    "backend_apis": {
+      "GET /api/public/payment-settings": "PASS - Returns razorpay_enabled, upi_ids, bank_accounts",
+      "POST /api/payments/create-order (INR)": "PASS - Creates order with currency=INR",
+      "POST /api/payments/create-order (USD)": "PASS - Creates order with currency=USD",
+      "POST /api/payments/create-order (default)": "PASS - Defaults to INR when currency not specified"
+    },
+    "frontend_payment_page": {
+      "isInternational_true": {
+        "tabs": "PASS - Only Razorpay tab shown (UPI and Bank hidden)",
+        "default_tab": "PASS - Sets to 'razorpay' automatically",
+        "amount_symbol": "PASS - Shows $ for USD",
+        "usd_badge": "PASS - Shows 'Payment in USD via Razorpay' badge"
+      },
+      "isInternational_false": {
+        "tabs": "PASS - Shows UPI QR, Pay Online (Razorpay), Bank Transfer tabs",
+        "default_tab": "PASS - Defaults to 'upi' when UPI configured",
+        "tab_order": "PASS - UPI first (primary), then Razorpay, then Bank",
+        "amount_symbol": "PASS - Shows ₹ for INR"
+      },
+      "tab_bar_visibility": "PASS - Hidden when tabs.length <= 1"
+    },
+    "event_registration_integration": {
+      "international_category": "PASS - Sets currency='USD', isInternational=true, passes to PaymentPage",
+      "domestic_categories": "PASS - Sets currency='INR', isInternational=false"
+    },
+    "membership_apply_integration": "PASS - Uses PaymentPage defaults (INR, domestic behavior)"
+  },
+  "ui_verification": {
+    "event_registration_category_selection": {
+      "international_delegate_price": "VERIFIED - Shows $200 with 'Fees in USD, Razorpay payment only' text",
+      "domestic_categories_prices": "VERIFIED - Show ₹ amounts (₹3,500 for Member, ₹5,000 for Non-Member, ₹2,000 for Student)"
+    },
+    "international_form_notice": "VERIFIED - Shows 'Fees in USD. Payment via Razorpay only.' notice at bottom of form"
+  }
+}
