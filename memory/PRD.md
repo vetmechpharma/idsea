@@ -1,54 +1,49 @@
 # IDSEA - Indian Dairy Scientists and Entrepreneurs Association
 
 ## Problem Statement
-Build a full-stack website for IDSEA with a public-facing website and comprehensive admin panel.
+Build a full-stack website for IDSEA with public-facing website and comprehensive admin panel.
 
 ## Tech Stack
 - Frontend: React 19, TailwindCSS, Shadcn/UI, Axios, React Router v7, Lucide Icons
 - Backend: FastAPI (Python), Motor (async MongoDB), httpx
 - Database: MongoDB | Auth: JWT | Payments: Razorpay, UPI QR, Bank Transfer
-- WhatsApp: AK Nexus v1 API (https://app.aknexus.in/api) - query param auth
+- WhatsApp: AK Nexus v1 API | SMTP for emails
 
 ## Default Admin: admin@idsea.org / Admin@123
 
 ## Implemented Features
 
 ### Event Registration System V2 - COMPLETE (March 2026)
-- **4 Participant Categories:** IDSEA Member (phone lookup), Non-Member (address + ID proof PDF), Student/JRF/SRF/RA/Retired (college + bonafide PDF), International Delegate (USD fees, Razorpay only)
+- **4 Participant Categories:** Member (phone lookup), Non-Member, Student/JRF/SRF/RA/Retired, International Delegate
+- **All non-member categories** require full address (Line 1, Line 2, District, State, Pincode/Postal Code) + Identity Proof PDF upload
+- **Student** additionally requires College/University + Bonafide Certificate PDF
+- **International** fees in USD, Razorpay only, full address with country + postal code
 - **Fee Tiers:** Early Bird & Regular with per-category fees
-- **Accommodation:** Default (per-category fees), Self (no fee), Premium Hotels (with room types, tax %)
-- **Free Accommodation:** Admin can enable free accommodation for specific categories
-- **Additional Persons:** Guests with name, age, mobile; admin-set per-person fee
-- **Optional Add-ons:** Admin-created (name, description, INR/USD fees, downloadable PDF)
-- **Become a Member:** Non-Members, Students & International Delegates can apply for dynamic membership plans during registration
-- **Admin Pages:** EventsAdmin (5-tab modal: Basic, Fees, Accommodation, Hotels, Add-ons), MembershipAdmin (CRUD for plans)
+- **Accommodation:** Default (per-category fees), Self (no fee), Premium Hotels (room types with INR + USD prices, tax %)
+- **Free Accommodation:** Admin configurable per category
+- **Additional Persons:** Name, age, mobile; INR + USD per-person fees
+- **Optional Add-ons:** Admin-created with INR/USD fees and downloadable PDFs
+- **Become a Member:** Available for Non-Members, Students & International Delegates
+- **Venue Map Link:** Google Maps URL in events - shown in public pages, emails, WhatsApp
 
-### Event Image & Brochure Upload - COMPLETE (March 2026)
-- **Event Image Upload:** Admin can upload event images (jpg/png/webp) via Basic Info tab
-- **Event Brochure Upload:** Admin can upload PDF brochures via Basic Info tab
-- **Download Brochure:** Prominent green "Download Brochure" button on public Events page
-- **Image Thumbnails:** Admin event list shows 56x56px image thumbnails
-- **Speaker Details:** Removed from event model and all views
-- **Venue Map Link:** Google Maps link field in event creation, shown in admin list, public page, emails, and WhatsApp messages
+### Admin Event Management - COMPLETE (March 2026)
+- **EventsAdmin:** 5-tab modal (Basic, Fees, Accommodation, Hotels, Add-ons)
+- **Event Image Upload:** Upload images for events, thumbnail in admin list
+- **Event Brochure Upload:** PDF upload with "Download Brochure" button on public page
+- **Premium Hotels Admin:** Room types with both INR and USD prices + tax %
+- **View Registrations Button:** Links to full registration management page
+- **EventRegistrations Page:** View/Edit/Delete registrations, Manual registration, Excel/PDF export, Room allotment, WhatsApp/Email messaging
 
-### Membership Plans - Dynamic Management (March 2026)
-- Admin page at /admin/membership-plans with full CRUD
-- Default plans: Academic, Entrepreneur, Corporate, International
-- Enable/disable toggle per plan
-- Plans exposed via /api/public/membership-plans for registration flow
+### Membership Plans - Dynamic Management
+- Admin CRUD at /admin/membership-plans
+- Plans: Academic, Entrepreneur, Corporate, International (with INR + USD fees)
 
 ### WhatsApp Integration (AK Nexus) - WORKING
-- Admin page at `/admin/whatsapp` with 3 tabs: Configuration, Send Messages, Message Logs
-- Auto notifications for 6 events (including venue map links)
-- Bulk messaging to members/registrants
+### Payment System - Multi-method | Membership System | Admin Panel (18+ sections)
 
-### Payment System - Multi-method (Razorpay/UPI/Bank), admin management
-### Membership System - Custom IDs, structured forms, admin approve/deny/hold
-### Admin Panel (18+ sections)
-
-## Testing: iterations 1-17 all pass
+## Testing: iterations 1-18 all pass
 
 ## Backlog
 - P1: Member Directory (public), News & Contact pages
 - P2: Admin Roles, Member renewal reminders
-- P3: Mobile responsive, Backend modularization (server.py > 3200 lines)
+- P3: Mobile responsive, Backend modularization (server.py > 3300 lines)
