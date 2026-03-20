@@ -10,6 +10,15 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const MEMBERSHIP_LABELS = { academic: 'Academic Member', entrepreneur: 'Entrepreneur Member', corporate: 'Corporate Member' };
 
+const REG_CATEGORIES = [
+  { key: 'idsea_member', label: 'IDSEA Member', description: 'Academic / Entrepreneur / Corporate member' },
+  { key: 'non_member', label: 'Non-Member', description: 'General participant' },
+  { key: 'student', label: 'Student / JRF / SRF / RA / Retired', description: 'Students, research fellows, retired professionals' },
+  { key: 'accompanying', label: 'Accompanying Person', description: 'Husband / Wife / Parents / Children' },
+  { key: 'corporate_industry', label: 'Corporate / Industry Personnel', description: 'Max 2 persons per registration' },
+  { key: 'international', label: 'International Delegates', description: 'Fees in USD' },
+];
+
 export default function EventRegistrationPage() {
   const { eventId } = useParams();
   const [info, setInfo] = useState(null);
@@ -22,6 +31,7 @@ export default function EventRegistrationPage() {
 
   // Form state
   const [isMember, setIsMember] = useState(null); // null=not chosen, true, false
+  const [registrationCategory, setRegistrationCategory] = useState(''); // broad category
   const [phone, setPhone] = useState('');
   const [lookupLoading, setLookupLoading] = useState(false);
   const [memberData, setMemberData] = useState(null);
@@ -32,6 +42,9 @@ export default function EventRegistrationPage() {
   const [hotelName, setHotelName] = useState('');
   const [wantsMembership, setWantsMembership] = useState(false);
   const [membershipType, setMembershipType] = useState('');
+  const [accompanyingPersons, setAccompanyingPersons] = useState([{ name: '', relation: '' }]);
+  const [corporatePersons, setCorporatePersons] = useState([{ name: '', designation: '' }]);
+  const [selectedAddons, setSelectedAddons] = useState([]);
 
   useEffect(() => {
     axios.get(`${API}/public/events/${eventId}/registration-info`)
@@ -70,26 +83,30 @@ export default function EventRegistrationPage() {
     setLookupLoading(false);
   };
 
+  // Fee category key for fee lookup
+  const feeCatKey = useMemo(() => {
+    if (registrationCategory === 'idsea_member') return memberCategory || 'academic';
+    if (registrationCategory) return registrationCategory;
+    return isMember ? (memberCategory || 'academic') : 'non_member';
+  }, [registrationCategory, isMember, memberCategory]);
+
   // Fee calculation
   const regFee = useMemo(() => {
     if (!currentTier) return 0;
-    const cat = isMember ? memberCategory : 'non_member';
-    return currentTier.fees?.[cat] || 0;
-  }, [currentTier, isMember, memberCategory]);
+    return currentTier.fees?.[feeCatKey] || 0;
+  }, [currentTier, feeCatKey]);
 
   // Default accommodation fee from tier (category-based)
   const defaultAccomFee = useMemo(() => {
     if (!info?.accommodation?.enabled || !currentTier) return 0;
-    const cat = isMember ? memberCategory : 'non_member';
-    return currentTier.accommodation_fees?.[cat] || 0;
-  }, [info, currentTier, isMember, memberCategory]);
+    return currentTier.accommodation_fees?.[feeCatKey] || 0;
+  }, [info, currentTier, feeCatKey]);
 
   // Is this category eligible for free accommodation?
   const isFreeAccom = useMemo(() => {
     if (!info?.accommodation?.enabled) return false;
-    const cat = isMember ? memberCategory : '';
-    return (info.accommodation.free_categories || []).includes(cat);
-  }, [info, isMember, memberCategory]);
+    return (info.accommodation.free_categories || []).includes(feeCatKey);
+  }, [info, feeCatKey]);
 
   // Calculated accommodation fee based on user's choice
   const accomFee = useMemo(() => {
@@ -112,7 +129,16 @@ export default function EventRegistrationPage() {
     return info?.membership_fees?.[membershipType] || 0;
   }, [wantsMembership, membershipType, isMember, info]);
 
-  const totalAmount = regFee + accomFee + memFee;
+  const addonFee = useMemo(() => {
+    if (!selectedAddons.length || !info?.registration_addons?.length) return 0;
+    return info.registration_addons
+      .filter(a => selectedAddons.includes(a.name))
+      .reduce((sum, a) => sum + (a.fee || 0), 0);
+  }, [selectedAddons, info]);
+
+  const isInternational = registrationCategory === 'international';
+  const currencySymbol = isInternational ? '$' : '₹';
+  const totalAmount = regFee + accomFee + memFee + addonFee;
 
   const accom = info?.accommodation || {};
   const sortedTiers = useMemo(() => {
@@ -120,11 +146,15 @@ export default function EventRegistrationPage() {
     return [...info.fee_tiers].sort((a, b) => a.deadline.localeCompare(b.deadline));
   }, [info]);
 
-  const CATEGORIES = [
+  const FEE_CATEGORIES = [
     { key: 'academic', label: 'Academic' },
     { key: 'entrepreneur', label: 'Entrepreneur' },
     { key: 'corporate', label: 'Corporate' },
     { key: 'non_member', label: 'Non-Member' },
+    { key: 'student', label: 'Student/JRF/SRF/RA/Retired' },
+    { key: 'accompanying', label: 'Accompanying Person' },
+    { key: 'corporate_industry', label: 'Corporate/Industry' },
+    { key: 'international', label: 'International (USD)' },
   ];
 
   const formatDate = (d) => {
@@ -136,34 +166,37 @@ export default function EventRegistrationPage() {
   const handleSubmit = async () => {
     if (!form.name || !form.email || !form.phone) return;
     setSubmitting(true); setError('');
-    // Compute total directly to avoid any stale closure issues
-    const computedTotal = regFee + accomFee + memFee;
+    const computedTotal = regFee + accomFee + memFee + addonFee;
     try {
       const payload = {
         is_member: isMember || false,
         member_id: memberData?.membership_id || '',
         member_category: isMember ? memberCategory : '',
+        registration_category: registrationCategory,
         name: form.name, email: form.email, phone: form.phone,
         qualification: form.qualification, organization: form.organization, state: form.state,
         accommodation_choice: accomChoice || 'none',
         hotel_name: accomChoice === 'hotel' ? hotelName : '',
         wants_membership: wantsMembership,
         membership_type: wantsMembership ? membershipType : '',
+        accompanying_persons: registrationCategory === 'accompanying' ? accompanyingPersons.filter(p => p.name) : [],
+        corporate_persons: registrationCategory === 'corporate_industry' ? corporatePersons.filter(p => p.name) : [],
+        selected_addons: selectedAddons,
         registration_fee: regFee,
         accommodation_fee: accomFee,
         membership_fee: memFee,
+        addon_fee: addonFee,
         total_amount: computedTotal,
         payment_mode: 'offline',
       };
       const r = await axios.post(`${API}/public/events/${eventId}/register`, payload);
       const reg = r.data.registration;
       setRegResult(reg);
-      // Use the actual total_amount from the server response for the most reliable check
       const serverTotal = reg?.total_amount ?? computedTotal;
       if (serverTotal > 0) {
-        setStep(5); // Go to payment step
+        setStep(5);
       } else {
-        setSubmitted(true); // Free registration, go to success
+        setSubmitted(true);
       }
     } catch (e) { setError(e.response?.data?.detail || 'Registration failed'); }
     setSubmitting(false);
@@ -314,7 +347,7 @@ export default function EventRegistrationPage() {
                         <tr>
                           <th>Fee Tier</th>
                           <th>Deadline</th>
-                          {CATEGORIES.map(c => <th key={c.key}>{c.label}</th>)}
+                          {FEE_CATEGORIES.filter(c => sortedTiers.some(t => t.fees?.[c.key])).map(c => <th key={c.key}>{c.label}</th>)}
                         </tr>
                       </thead>
                       <tbody>
@@ -330,8 +363,8 @@ export default function EventRegistrationPage() {
                                 <CalendarClock size={13} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px', color: '#6b7280' }} />
                                 {formatDate(tier.deadline)}
                               </td>
-                              {CATEGORIES.map(c => (
-                                <td key={c.key} className="amount">₹{(tier.fees?.[c.key] || 0).toLocaleString('en-IN')}</td>
+                              {FEE_CATEGORIES.filter(c => sortedTiers.some(t => t.fees?.[c.key])).map(c => (
+                                <td key={c.key} className="amount">{c.key === 'international' ? '$' : '₹'}{(tier.fees?.[c.key] || 0).toLocaleString('en-IN')}</td>
                               ))}
                             </tr>
                           );
@@ -354,10 +387,10 @@ export default function EventRegistrationPage() {
                             <span style={{ fontSize: '12px', color: '#6b7280' }}>By {formatDate(tier.deadline)}</span>
                           </div>
                           <div className="fee-card-body">
-                            {CATEGORIES.map(c => (
+                            {FEE_CATEGORIES.filter(c => tier.fees?.[c.key]).map(c => (
                               <div key={c.key} className="fee-card-row">
                                 <span style={{ color: '#374151' }}>{c.label}</span>
-                                <span style={{ fontFamily: 'Poppins', fontWeight: 700, color: '#0c3c60' }}>₹{(tier.fees?.[c.key] || 0).toLocaleString('en-IN')}</span>
+                                <span style={{ fontFamily: 'Poppins', fontWeight: 700, color: '#0c3c60' }}>{c.key === 'international' ? '$' : '₹'}{(tier.fees?.[c.key] || 0).toLocaleString('en-IN')}</span>
                               </div>
                             ))}
                           </div>
@@ -388,7 +421,7 @@ export default function EventRegistrationPage() {
                         <tr>
                           <th>Fee Tier</th>
                           <th>Deadline</th>
-                          {CATEGORIES.map(c => <th key={c.key}>{c.label}</th>)}
+                          {FEE_CATEGORIES.filter(c => c.key !== 'international' && sortedTiers.some(t => t.accommodation_fees?.[c.key])).map(c => <th key={c.key}>{c.label}</th>)}
                         </tr>
                       </thead>
                       <tbody>
@@ -405,7 +438,7 @@ export default function EventRegistrationPage() {
                                 <CalendarClock size={13} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px', color: '#6b7280' }} />
                                 {formatDate(tier.deadline)}
                               </td>
-                              {CATEGORIES.map(c => (
+                              {FEE_CATEGORIES.filter(c => c.key !== 'international' && sortedTiers.some(t => t.accommodation_fees?.[c.key])).map(c => (
                                 <td key={c.key} className="amount">
                                   {freeCats.includes(c.key)
                                     ? <span className="free-badge">FREE</span>
@@ -434,7 +467,7 @@ export default function EventRegistrationPage() {
                             <span style={{ fontSize: '12px', color: '#6b7280' }}>By {formatDate(tier.deadline)}</span>
                           </div>
                           <div className="fee-card-body">
-                            {CATEGORIES.map(c => (
+                            {FEE_CATEGORIES.filter(c => c.key !== 'international' && tier.accommodation_fees?.[c.key]).map(c => (
                               <div key={c.key} className="fee-card-row">
                                 <span style={{ color: '#374151' }}>{c.label}</span>
                                 <span style={{ fontFamily: 'Poppins', fontWeight: 700, color: '#0c3c60' }}>
@@ -505,42 +538,44 @@ export default function EventRegistrationPage() {
           {step >= 1 && (
           <div style={{ background: 'white', borderRadius: '16px', padding: '32px', boxShadow: '0 4px 12px rgba(0,0,0,0.06)' }}>
 
-            {/* STEP 1: Member or Non-member */}
+            {/* STEP 1: Registration Category */}
             {step === 1 && (
               <div data-testid="step-1">
-                <h3 style={{ fontFamily: 'Poppins', fontSize: '18px', fontWeight: 700, color: '#0c3c60', marginBottom: '24px' }}>Are you an IDSEA Member?</h3>
+                <h3 style={{ fontFamily: 'Poppins', fontSize: '18px', fontWeight: 700, color: '#0c3c60', marginBottom: '24px' }}>Select Registration Category</h3>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
-                  <button onClick={() => { setIsMember(true); setMemberData(null); setLookupError(''); }} data-testid="select-member"
-                    style={{
-                      padding: '24px', borderRadius: '12px', cursor: 'pointer', textAlign: 'center',
-                      border: isMember === true ? '2px solid #1e7a4d' : '2px solid #e5e7eb',
-                      background: isMember === true ? '#f0fdf4' : 'white', transition: 'all 0.2s ease'
-                    }}>
-                    <User size={28} style={{ color: isMember === true ? '#1e7a4d' : '#9ca3af', margin: '0 auto 8px', display: 'block' }} />
-                    <div style={{ fontFamily: 'Poppins', fontWeight: 700, fontSize: '15px', color: '#111827' }}>Yes, I'm a Member</div>
-                    <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '4px' }}>I have an existing IDSEA membership</div>
-                  </button>
-                  <button onClick={() => { setIsMember(false); setMemberData(null); setMemberCategory(''); }} data-testid="select-non-member"
-                    style={{
-                      padding: '24px', borderRadius: '12px', cursor: 'pointer', textAlign: 'center',
-                      border: isMember === false ? '2px solid #0c3c60' : '2px solid #e5e7eb',
-                      background: isMember === false ? '#f0f9ff' : 'white', transition: 'all 0.2s ease'
-                    }}>
-                    <User size={28} style={{ color: isMember === false ? '#0c3c60' : '#9ca3af', margin: '0 auto 8px', display: 'block' }} />
-                    <div style={{ fontFamily: 'Poppins', fontWeight: 700, fontSize: '15px', color: '#111827' }}>Non-Member</div>
-                    <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '4px' }}>I'm registering without membership</div>
-                  </button>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '12px', marginBottom: '24px' }}>
+                  {REG_CATEGORIES.map(cat => {
+                    const fee = currentTier?.fees?.[cat.key === 'idsea_member' ? 'academic' : cat.key] || 0;
+                    const isSelected = registrationCategory === cat.key;
+                    return (
+                      <button key={cat.key} onClick={() => { setRegistrationCategory(cat.key); setIsMember(cat.key === 'idsea_member'); if (cat.key !== 'idsea_member') { setMemberData(null); setMemberCategory(''); } }} data-testid={`cat-${cat.key}`}
+                        style={{
+                          padding: '20px 16px', borderRadius: '12px', cursor: 'pointer', textAlign: 'left',
+                          border: isSelected ? '2px solid #1e7a4d' : '2px solid #e5e7eb',
+                          background: isSelected ? '#f0fdf4' : 'white', transition: 'all 0.2s ease'
+                        }}>
+                        <div style={{ fontFamily: 'Poppins', fontWeight: 700, fontSize: '14px', color: '#111827', marginBottom: '4px' }}>{cat.label}</div>
+                        <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '8px' }}>{cat.description}</div>
+                        {currentTier && cat.key !== 'idsea_member' && (
+                          <div style={{ fontFamily: 'Poppins', fontWeight: 800, fontSize: '16px', color: '#0c3c60' }}>
+                            {cat.key === 'international' ? '$' : '₹'}{fee.toLocaleString('en-IN')}
+                          </div>
+                        )}
+                        {cat.key === 'idsea_member' && currentTier && (
+                          <div style={{ fontSize: '12px', color: '#1e7a4d', fontWeight: 600 }}>Fee based on member type</div>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
 
-                {/* Member Lookup */}
-                {isMember === true && !memberData && (
-                  <div style={{ background: '#f8fafc', borderRadius: '10px', padding: '20px', border: '1px solid #e5e7eb' }}>
+                {/* IDSEA Member Lookup */}
+                {registrationCategory === 'idsea_member' && !memberData && (
+                  <div style={{ background: '#f8fafc', borderRadius: '10px', padding: '20px', border: '1px solid #e5e7eb', marginBottom: '16px' }}>
                     <label className="form-label"><Phone size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '6px' }} />Enter your registered mobile number</label>
                     <div style={{ display: 'flex', gap: '8px' }}>
                       <input value={phone} onChange={e => setPhone(e.target.value)} className="form-input" placeholder="+91 98765 43210" data-testid="phone-lookup-input" style={{ flex: 1 }} />
-                      <button onClick={lookupMember} disabled={lookupLoading} data-testid="lookup-btn"
-                        className="btn-primary" style={{ whiteSpace: 'nowrap' }}>
+                      <button onClick={lookupMember} disabled={lookupLoading} data-testid="lookup-btn" className="btn-primary" style={{ whiteSpace: 'nowrap' }}>
                         {lookupLoading ? 'Searching...' : <><Search size={14} /> Find</>}
                       </button>
                     </div>
@@ -549,8 +584,8 @@ export default function EventRegistrationPage() {
                 )}
 
                 {/* Member Found */}
-                {isMember === true && memberData && (
-                  <div style={{ background: '#f0fdf4', borderRadius: '10px', padding: '20px', border: '1px solid #bbf7d0' }}>
+                {registrationCategory === 'idsea_member' && memberData && (
+                  <div style={{ background: '#f0fdf4', borderRadius: '10px', padding: '20px', border: '1px solid #bbf7d0', marginBottom: '16px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
                       <CheckCircle size={18} style={{ color: '#1e7a4d' }} />
                       <span style={{ fontFamily: 'Poppins', fontWeight: 700, color: '#1e7a4d', fontSize: '14px' }}>Member Found!</span>
@@ -558,7 +593,7 @@ export default function EventRegistrationPage() {
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '14px' }}>
                       <div><span style={{ color: '#6b7280' }}>Name:</span> <strong>{memberData.name}</strong></div>
                       <div><span style={{ color: '#6b7280' }}>ID:</span> <strong>{memberData.membership_id}</strong></div>
-                      <div><span style={{ color: '#6b7280' }}>Category:</span> <span className={`badge badge-${memberData.membership_type}`} style={{ textTransform: 'capitalize' }}>{memberData.membership_type}</span></div>
+                      <div><span style={{ color: '#6b7280' }}>Category:</span> <span style={{ textTransform: 'capitalize' }}>{memberData.membership_type}</span></div>
                       <div><span style={{ color: '#6b7280' }}>Organization:</span> {memberData.organization}</div>
                     </div>
                     {currentTier && (
@@ -570,18 +605,76 @@ export default function EventRegistrationPage() {
                   </div>
                 )}
 
-                {/* Non-member fee preview */}
-                {isMember === false && currentTier && (
-                  <div style={{ background: '#f0f9ff', borderRadius: '10px', padding: '16px', border: '1px solid #bae6fd' }}>
-                    <span style={{ fontSize: '13px', color: '#6b7280' }}>Non-Member Registration Fee ({currentTier.name}):</span>
-                    <span style={{ fontSize: '18px', fontWeight: 800, color: '#0c3c60', marginLeft: '8px', fontFamily: 'Poppins' }}>₹{currentTier.fees?.non_member || 0}</span>
+                {/* Accompanying Persons */}
+                {registrationCategory === 'accompanying' && (
+                  <div style={{ background: '#f8fafc', borderRadius: '10px', padding: '20px', border: '1px solid #e5e7eb', marginBottom: '16px' }}>
+                    <h4 style={{ fontFamily: 'Poppins', fontSize: '15px', fontWeight: 600, color: '#0c3c60', marginBottom: '12px' }}>Accompanying Person Details</h4>
+                    {accompanyingPersons.map((p, idx) => (
+                      <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '8px', marginBottom: '8px' }}>
+                        <input value={p.name} onChange={e => { const arr = [...accompanyingPersons]; arr[idx] = { ...arr[idx], name: e.target.value }; setAccompanyingPersons(arr); }}
+                          className="form-input" placeholder="Full Name" data-testid={`accom-person-name-${idx}`} />
+                        <select value={p.relation} onChange={e => { const arr = [...accompanyingPersons]; arr[idx] = { ...arr[idx], relation: e.target.value }; setAccompanyingPersons(arr); }}
+                          className="form-input" data-testid={`accom-person-relation-${idx}`}>
+                          <option value="">Select Relation</option>
+                          <option value="Husband">Husband</option>
+                          <option value="Wife">Wife</option>
+                          <option value="Father">Father</option>
+                          <option value="Mother">Mother</option>
+                          <option value="Son">Son</option>
+                          <option value="Daughter">Daughter</option>
+                          <option value="Other">Other</option>
+                        </select>
+                        {accompanyingPersons.length > 1 && (
+                          <button onClick={() => setAccompanyingPersons(arr => arr.filter((_, i) => i !== idx))} style={{ background: '#fee2e2', color: '#991b1b', border: 'none', padding: '8px', borderRadius: '6px', cursor: 'pointer' }}>X</button>
+                        )}
+                      </div>
+                    ))}
+                    <button onClick={() => setAccompanyingPersons(arr => [...arr, { name: '', relation: '' }])} data-testid="add-accompanying-person"
+                      style={{ background: '#f0fdf4', border: '1px dashed #1e7a4d', color: '#1e7a4d', padding: '6px 14px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}>+ Add Person</button>
+                  </div>
+                )}
+
+                {/* Corporate/Industry Persons */}
+                {registrationCategory === 'corporate_industry' && (
+                  <div style={{ background: '#f8fafc', borderRadius: '10px', padding: '20px', border: '1px solid #e5e7eb', marginBottom: '16px' }}>
+                    <h4 style={{ fontFamily: 'Poppins', fontSize: '15px', fontWeight: 600, color: '#0c3c60', marginBottom: '12px' }}>Corporate/Industry Personnel (Max 2)</h4>
+                    {corporatePersons.map((p, idx) => (
+                      <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '8px', marginBottom: '8px' }}>
+                        <input value={p.name} onChange={e => { const arr = [...corporatePersons]; arr[idx] = { ...arr[idx], name: e.target.value }; setCorporatePersons(arr); }}
+                          className="form-input" placeholder="Full Name" data-testid={`corp-person-name-${idx}`} />
+                        <input value={p.designation} onChange={e => { const arr = [...corporatePersons]; arr[idx] = { ...arr[idx], designation: e.target.value }; setCorporatePersons(arr); }}
+                          className="form-input" placeholder="Designation" data-testid={`corp-person-desg-${idx}`} />
+                        {corporatePersons.length > 1 && (
+                          <button onClick={() => setCorporatePersons(arr => arr.filter((_, i) => i !== idx))} style={{ background: '#fee2e2', color: '#991b1b', border: 'none', padding: '8px', borderRadius: '6px', cursor: 'pointer' }}>X</button>
+                        )}
+                      </div>
+                    ))}
+                    {corporatePersons.length < 2 && (
+                      <button onClick={() => setCorporatePersons(arr => [...arr, { name: '', designation: '' }])} data-testid="add-corporate-person"
+                        style={{ background: '#f0fdf4', border: '1px dashed #1e7a4d', color: '#1e7a4d', padding: '6px 14px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}>+ Add Person</button>
+                    )}
+                  </div>
+                )}
+
+                {/* Fee preview for non-member categories */}
+                {registrationCategory && registrationCategory !== 'idsea_member' && currentTier && (
+                  <div style={{ background: '#f0f9ff', borderRadius: '10px', padding: '16px', border: '1px solid #bae6fd', marginBottom: '16px' }}>
+                    <span style={{ fontSize: '13px', color: '#6b7280' }}>
+                      {REG_CATEGORIES.find(c => c.key === registrationCategory)?.label} Fee ({currentTier.name}):
+                    </span>
+                    <span style={{ fontSize: '18px', fontWeight: 800, color: '#0c3c60', marginLeft: '8px', fontFamily: 'Poppins' }}>
+                      {registrationCategory === 'international' ? '$' : '₹'}{currentTier.fees?.[registrationCategory] || 0}
+                    </span>
                   </div>
                 )}
 
                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '24px' }}>
-                  <button onClick={() => { if ((isMember && memberData) || isMember === false) setStep(2); }}
-                    disabled={isMember === null || (isMember === true && !memberData)}
-                    className="btn-primary" data-testid="step1-next" style={{ opacity: (isMember === null || (isMember === true && !memberData)) ? 0.5 : 1 }}>
+                  <button onClick={() => {
+                    if (registrationCategory === 'idsea_member' && memberData) setStep(2);
+                    else if (registrationCategory && registrationCategory !== 'idsea_member') setStep(2);
+                  }}
+                    disabled={!registrationCategory || (registrationCategory === 'idsea_member' && !memberData)}
+                    className="btn-primary" data-testid="step1-next" style={{ opacity: (!registrationCategory || (registrationCategory === 'idsea_member' && !memberData)) ? 0.5 : 1 }}>
                     Next <ArrowRight size={14} />
                   </button>
                 </div>
@@ -625,6 +718,34 @@ export default function EventRegistrationPage() {
                         ))}
                       </div>
                     )}
+                  </div>
+                )}
+
+                {/* Optional Add-ons */}
+                {info?.registration_addons?.length > 0 && (
+                  <div style={{ background: '#f8fafc', borderRadius: '10px', padding: '20px', marginTop: '16px', border: '1px solid #e5e7eb' }}>
+                    <h4 style={{ fontFamily: 'Poppins', fontSize: '15px', fontWeight: 600, color: '#0c3c60', marginBottom: '12px' }}>Optional Add-ons</h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {info.registration_addons.map((addon, idx) => {
+                        const isSelected = selectedAddons.includes(addon.name);
+                        return (
+                          <label key={idx} data-testid={`addon-checkbox-${idx}`}
+                            style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 14px', borderRadius: '8px', cursor: 'pointer',
+                              border: isSelected ? '2px solid #1e7a4d' : '1px solid #e5e7eb', background: isSelected ? '#f0fdf4' : 'white', transition: 'all 0.2s' }}>
+                            <input type="checkbox" checked={isSelected} onChange={() => {
+                              setSelectedAddons(prev => isSelected ? prev.filter(n => n !== addon.name) : [...prev, addon.name]);
+                            }} style={{ width: '16px', height: '16px', accentColor: '#1e7a4d' }} />
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '14px', color: '#111827' }}>{addon.name}</div>
+                              {addon.description && <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '2px' }}>{addon.description}</div>}
+                            </div>
+                            <div style={{ fontFamily: 'Poppins', fontWeight: 800, fontSize: '15px', color: '#0c3c60', whiteSpace: 'nowrap' }}>
+                              {addon.currency === 'USD' ? '$' : '₹'}{addon.fee?.toLocaleString('en-IN')}
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
 
@@ -750,9 +871,27 @@ export default function EventRegistrationPage() {
                       <div><span style={{ color: '#6b7280' }}>Name:</span> <strong>{form.name}</strong></div>
                       <div><span style={{ color: '#6b7280' }}>Email:</span> {form.email}</div>
                       <div><span style={{ color: '#6b7280' }}>Phone:</span> {form.phone}</div>
-                      <div><span style={{ color: '#6b7280' }}>Type:</span> {isMember ? <span className={`badge badge-${memberCategory}`} style={{ textTransform: 'capitalize' }}>{memberCategory} Member</span> : 'Non-Member'}</div>
+                      <div><span style={{ color: '#6b7280' }}>Category:</span> <span style={{ textTransform: 'capitalize', fontWeight: 600 }}>{REG_CATEGORIES.find(c => c.key === registrationCategory)?.label || (isMember ? `${memberCategory} Member` : 'Non-Member')}</span></div>
                       {isMember && memberData?.membership_id && <div><span style={{ color: '#6b7280' }}>Member ID:</span> <strong>{memberData.membership_id}</strong></div>}
                     </div>
+                    {/* Accompanying persons */}
+                    {registrationCategory === 'accompanying' && accompanyingPersons.filter(p => p.name).length > 0 && (
+                      <div style={{ marginTop: '12px' }}>
+                        <span style={{ fontSize: '13px', color: '#6b7280', fontWeight: 600 }}>Accompanying Persons:</span>
+                        {accompanyingPersons.filter(p => p.name).map((p, i) => (
+                          <div key={i} style={{ fontSize: '13px', marginTop: '4px' }}>{p.name} ({p.relation})</div>
+                        ))}
+                      </div>
+                    )}
+                    {/* Corporate persons */}
+                    {registrationCategory === 'corporate_industry' && corporatePersons.filter(p => p.name).length > 0 && (
+                      <div style={{ marginTop: '12px' }}>
+                        <span style={{ fontSize: '13px', color: '#6b7280', fontWeight: 600 }}>Corporate Personnel:</span>
+                        {corporatePersons.filter(p => p.name).map((p, i) => (
+                          <div key={i} style={{ fontSize: '13px', marginTop: '4px' }}>{p.name} — {p.designation}</div>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   {/* Accommodation */}
@@ -774,7 +913,7 @@ export default function EventRegistrationPage() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '14px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                         <span>Registration Fee {currentTier ? `(${currentTier.name})` : ''}</span>
-                        <strong>₹{regFee}</strong>
+                        <strong>{currencySymbol}{regFee}</strong>
                       </div>
                       {accom.enabled && accomChoice && accomChoice !== 'self' && (
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -793,6 +932,19 @@ export default function EventRegistrationPage() {
                           <strong>₹0</strong>
                         </div>
                       )}
+                      {selectedAddons.length > 0 && (
+                        <>
+                          {selectedAddons.map(name => {
+                            const a = info.registration_addons?.find(x => x.name === name);
+                            return a ? (
+                              <div key={name} style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <span>Add-on: {name}</span>
+                                <strong>{a.currency === 'USD' ? '$' : '₹'}{a.fee}</strong>
+                              </div>
+                            ) : null;
+                          })}
+                        </>
+                      )}
                       {wantsMembership && memFee > 0 && (
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                           <span>IDSEA Membership ({membershipType})</span>
@@ -801,7 +953,7 @@ export default function EventRegistrationPage() {
                       )}
                       <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '2px solid #0c3c60', paddingTop: '10px', marginTop: '4px' }}>
                         <span style={{ fontFamily: 'Poppins', fontWeight: 700, fontSize: '16px', color: '#0c3c60' }}>Total Amount</span>
-                        <span style={{ fontFamily: 'Poppins', fontWeight: 800, fontSize: '20px', color: '#0c3c60' }}>₹{totalAmount}</span>
+                        <span style={{ fontFamily: 'Poppins', fontWeight: 800, fontSize: '20px', color: '#0c3c60' }}>{currencySymbol}{totalAmount}</span>
                       </div>
                     </div>
                     <p style={{ fontSize: '12px', color: '#6b7280', marginTop: '12px' }}>You will be able to choose your payment method in the next step.</p>

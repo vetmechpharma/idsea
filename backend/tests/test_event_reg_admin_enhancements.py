@@ -7,7 +7,7 @@ import requests
 import os
 import uuid
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://member-connect-38.preview.emergentagent.com').rstrip('/')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://dairy-reg.preview.emergentagent.com').rstrip('/')
 EVENT_ID = "435435f4-774f-4a0f-95e1-1e423493c196"  # International Dairy Conference 2026
 
 

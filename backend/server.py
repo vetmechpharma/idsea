@@ -156,9 +156,10 @@ class MemberUpdate(BaseModel):
 
 
 class FeeTier(BaseModel):
-    name: str = ""
+    name: str = ""  # "early_bird" or "regular"
     deadline: str = ""
-    fees: dict = {}  # {academic: 0, entrepreneur: 0, corporate: 0, non_member: 0}
+    fees: dict = {}  # {member: 0, non_member: 0, student: 0, international: 0}
+    accommodation_fees: dict = {}  # {member: 0, non_member: 0, student: 0, international: 0}
 
 
 class HotelOption(BaseModel):
@@ -188,8 +189,11 @@ class Event(BaseModel):
     image_url: Optional[str] = ""
     registration_enabled: bool = False
     allow_membership_registration: bool = False
-    fee_tiers: List[dict] = []
+    fee_tiers: List[dict] = []  # [{name, deadline, fees: {member, non_member, student, international}}]
     accommodation: dict = {}
+    additional_person_fee: float = 0  # per-person fee for additional accommodation persons
+    registration_addons: List[dict] = []  # [{name, fee_inr, fee_usd, description, pdf_url}]
+    premium_hotels: List[dict] = []  # [{name, amount, tax_percent, room_types: [{type, price}], location, rating}]
     created_at: str = Field(default_factory=now_iso)
 
 
@@ -208,6 +212,9 @@ class EventCreate(BaseModel):
     allow_membership_registration: bool = False
     fee_tiers: List[dict] = []
     accommodation: dict = {}
+    additional_person_fee: float = 0
+    registration_addons: List[dict] = []
+    premium_hotels: List[dict] = []
 
 
 class EventRegistration(BaseModel):
@@ -216,22 +223,51 @@ class EventRegistration(BaseModel):
     is_member: bool = False
     member_id: Optional[str] = ""
     member_category: Optional[str] = ""
+    registration_category: str = ""  # member, non_member, student, international
     name: str
     email: str
     phone: str
     qualification: Optional[str] = ""
     organization: Optional[str] = ""
     state: Optional[str] = ""
-    accommodation_choice: Optional[str] = ""
+    # Address fields (non-member, international)
+    address_line1: Optional[str] = ""
+    address_line2: Optional[str] = ""
+    district: Optional[str] = ""
+    address_state: Optional[str] = ""
+    country: Optional[str] = "India"
+    pincode: Optional[str] = ""
+    # Student fields
+    college: Optional[str] = ""
+    university: Optional[str] = ""
+    # File uploads (PDFs)
+    identity_proof_url: Optional[str] = ""
+    bonafide_cert_url: Optional[str] = ""
+    student_proof_url: Optional[str] = ""
+    # Accommodation
+    accommodation_choice: Optional[str] = ""  # none, default, self_hotel
     hotel_name: Optional[str] = ""
+    hotel_room_type: Optional[str] = ""
+    hotel_tax_percent: float = 0
+    hotel_base_amount: float = 0
+    # Additional persons for accommodation
+    additional_persons: List[dict] = []  # [{name, age, mobile}]
+    additional_persons_fee: float = 0
+    # Membership
     wants_membership: bool = False
     membership_type: Optional[str] = ""
+    # Add-ons
+    selected_addons: List[str] = []
+    addon_fee: float = 0
+    # Fees
     registration_fee: float = 0
     accommodation_fee: float = 0
+    hotel_tax_amount: float = 0
     membership_fee: float = 0
     total_amount: float = 0
     payment_status: str = "pending"
     payment_mode: str = "offline"
+    # Admin fields
     assigned_room_no: Optional[str] = ""
     assigned_location: Optional[str] = ""
     assigned_location_type: Optional[str] = ""
@@ -1290,6 +1326,15 @@ async def get_event_registration_info(event_id: str):
         raise HTTPException(status_code=404, detail="Event not found")
     if not event.get("registration_enabled"):
         raise HTTPException(status_code=400, detail="Registration not enabled for this event")
+    # Get membership plans from DB
+    plans = await db.membership_plans.find({}, {"_id": 0}).to_list(100)
+    if not plans:
+        plans = [
+            {"key": "academic", "label": "Academic", "fee_inr": 3100, "fee_usd": 50, "enabled": True},
+            {"key": "entrepreneur", "label": "Entrepreneur", "fee_inr": 5100, "fee_usd": 75, "enabled": True},
+            {"key": "corporate", "label": "Corporate", "fee_inr": 25100, "fee_usd": 300, "enabled": True},
+            {"key": "international", "label": "International Delegates", "fee_inr": 0, "fee_usd": 100, "enabled": True},
+        ]
     return {
         "id": event["id"],
         "title": event["title"],
@@ -1299,7 +1344,10 @@ async def get_event_registration_info(event_id: str):
         "fee_tiers": event.get("fee_tiers", []),
         "accommodation": event.get("accommodation", {}),
         "allow_membership_registration": event.get("allow_membership_registration", False),
-        "membership_fees": MEMBERSHIP_FEES,
+        "membership_plans": plans,
+        "additional_person_fee": event.get("additional_person_fee", 0),
+        "registration_addons": event.get("registration_addons", []),
+        "premium_hotels": event.get("premium_hotels", []),
     }
 
 
@@ -1329,18 +1377,38 @@ async def register_for_event(event_id: str, data: dict, background_tasks: Backgr
         is_member=data.get("is_member", False),
         member_id=data.get("member_id", ""),
         member_category=data.get("member_category", ""),
+        registration_category=data.get("registration_category", ""),
         name=data.get("name", ""),
         email=data.get("email", ""),
         phone=data.get("phone", ""),
         qualification=data.get("qualification", ""),
         organization=data.get("organization", ""),
         state=data.get("state", ""),
-        accommodation_choice=data.get("accommodation_choice", ""),
+        address_line1=data.get("address_line1", ""),
+        address_line2=data.get("address_line2", ""),
+        district=data.get("district", ""),
+        address_state=data.get("address_state", ""),
+        country=data.get("country", "India"),
+        pincode=data.get("pincode", ""),
+        college=data.get("college", ""),
+        university=data.get("university", ""),
+        identity_proof_url=data.get("identity_proof_url", ""),
+        bonafide_cert_url=data.get("bonafide_cert_url", ""),
+        student_proof_url=data.get("student_proof_url", ""),
+        accommodation_choice=data.get("accommodation_choice", "none"),
         hotel_name=data.get("hotel_name", ""),
+        hotel_room_type=data.get("hotel_room_type", ""),
+        hotel_tax_percent=float(data.get("hotel_tax_percent", 0)),
+        hotel_base_amount=float(data.get("hotel_base_amount", 0)),
+        additional_persons=data.get("additional_persons", []),
+        additional_persons_fee=float(data.get("additional_persons_fee", 0)),
         wants_membership=data.get("wants_membership", False),
         membership_type=data.get("membership_type", ""),
+        selected_addons=data.get("selected_addons", []),
+        addon_fee=float(data.get("addon_fee", 0)),
         registration_fee=float(data.get("registration_fee", 0)),
         accommodation_fee=float(data.get("accommodation_fee", 0)),
+        hotel_tax_amount=float(data.get("hotel_tax_amount", 0)),
         membership_fee=float(data.get("membership_fee", 0)),
         total_amount=float(data.get("total_amount", 0)),
         payment_status="pending",
@@ -1397,7 +1465,7 @@ async def admin_export_event_registrations(event_id: str, admin=Depends(get_curr
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Registrations"
-    headers = ["S.No", "Name", "Email", "Phone", "Organization", "State", "Member", "Member ID", "Category", "Accommodation", "Hotel", "Reg Fee", "Accom Fee", "Membership Fee", "Total", "Payment Status"]
+    headers = ["S.No", "Name", "Email", "Phone", "Organization", "State", "Member", "Member ID", "Reg Category", "Category", "Accommodation", "Hotel", "Accompanying Persons", "Corporate Persons", "Add-ons", "Reg Fee", "Accom Fee", "Addon Fee", "Membership Fee", "Total", "Payment Status"]
     header_fill = openpyxl.styles.PatternFill(start_color="0C3C60", end_color="0C3C60", fill_type="solid")
     header_font = openpyxl.styles.Font(bold=True, color="FFFFFF", size=11)
     for col, h in enumerate(headers, 1):
@@ -1414,14 +1482,21 @@ async def admin_export_event_registrations(event_id: str, admin=Depends(get_curr
         ws.cell(row=i + 1, column=6, value=r.get("state", ""))
         ws.cell(row=i + 1, column=7, value="Yes" if r.get("is_member") else "No")
         ws.cell(row=i + 1, column=8, value=r.get("member_id", ""))
-        ws.cell(row=i + 1, column=9, value=r.get("member_category", ""))
-        ws.cell(row=i + 1, column=10, value=r.get("accommodation_choice", ""))
-        ws.cell(row=i + 1, column=11, value=r.get("hotel_name", ""))
-        ws.cell(row=i + 1, column=12, value=r.get("registration_fee", 0))
-        ws.cell(row=i + 1, column=13, value=r.get("accommodation_fee", 0))
-        ws.cell(row=i + 1, column=14, value=r.get("membership_fee", 0))
-        ws.cell(row=i + 1, column=15, value=r.get("total_amount", 0))
-        ws.cell(row=i + 1, column=16, value=r.get("payment_status", ""))
+        ws.cell(row=i + 1, column=9, value=r.get("registration_category", ""))
+        ws.cell(row=i + 1, column=10, value=r.get("member_category", ""))
+        ws.cell(row=i + 1, column=11, value=r.get("accommodation_choice", ""))
+        ws.cell(row=i + 1, column=12, value=r.get("hotel_name", ""))
+        accom_persons = r.get("accompanying_persons", [])
+        ws.cell(row=i + 1, column=13, value=", ".join([f"{p.get('name','')} ({p.get('relation','')})" for p in accom_persons]) if accom_persons else "")
+        corp_persons = r.get("corporate_persons", [])
+        ws.cell(row=i + 1, column=14, value=", ".join([f"{p.get('name','')} ({p.get('designation','')})" for p in corp_persons]) if corp_persons else "")
+        ws.cell(row=i + 1, column=15, value=", ".join(r.get("selected_addons", [])))
+        ws.cell(row=i + 1, column=16, value=r.get("registration_fee", 0))
+        ws.cell(row=i + 1, column=17, value=r.get("accommodation_fee", 0))
+        ws.cell(row=i + 1, column=18, value=r.get("addon_fee", 0))
+        ws.cell(row=i + 1, column=19, value=r.get("membership_fee", 0))
+        ws.cell(row=i + 1, column=20, value=r.get("total_amount", 0))
+        ws.cell(row=i + 1, column=21, value=r.get("payment_status", ""))
 
     for col in ws.columns:
         max_len = max(len(str(cell.value or "")) for cell in col)
@@ -2800,6 +2875,89 @@ async def admin_delete_slider(slider_id: str, admin=Depends(get_current_admin)):
     await db.sliders.delete_one({"id": slider_id})
     return {"message": "Slider deleted"}
 
+
+
+
+# =================== MEMBERSHIP PLANS ===================
+
+@api_router.get("/admin/membership-plans")
+async def admin_get_membership_plans(admin=Depends(get_current_admin)):
+    plans = await db.membership_plans.find({}, {"_id": 0}).to_list(100)
+    if not plans:
+        defaults = [
+            {"id": str(uuid.uuid4()), "key": "academic", "label": "Academic", "fee_inr": 3100, "fee_usd": 50, "enabled": True, "description": "For academic professionals"},
+            {"id": str(uuid.uuid4()), "key": "entrepreneur", "label": "Entrepreneur", "fee_inr": 5100, "fee_usd": 75, "enabled": True, "description": "For entrepreneurs in dairy industry"},
+            {"id": str(uuid.uuid4()), "key": "corporate", "label": "Corporate", "fee_inr": 25100, "fee_usd": 300, "enabled": True, "description": "For corporate organizations"},
+            {"id": str(uuid.uuid4()), "key": "international", "label": "International Delegates", "fee_inr": 0, "fee_usd": 100, "enabled": True, "description": "For international delegates"},
+        ]
+        for d in defaults:
+            await db.membership_plans.insert_one(d)
+        plans = defaults
+    return plans
+
+
+@api_router.post("/admin/membership-plans")
+async def admin_create_membership_plan(data: dict, admin=Depends(get_current_admin)):
+    plan = {
+        "id": str(uuid.uuid4()),
+        "key": data.get("key", "").lower().replace(" ", "_"),
+        "label": data.get("label", ""),
+        "fee_inr": float(data.get("fee_inr", 0)),
+        "fee_usd": float(data.get("fee_usd", 0)),
+        "enabled": data.get("enabled", True),
+        "description": data.get("description", ""),
+        "created_at": now_iso(),
+    }
+    await db.membership_plans.insert_one(plan)
+    plan.pop("_id", None)
+    return plan
+
+
+@api_router.put("/admin/membership-plans/{plan_id}")
+async def admin_update_membership_plan(plan_id: str, data: dict, admin=Depends(get_current_admin)):
+    update = {k: v for k, v in data.items() if k in ("key", "label", "fee_inr", "fee_usd", "enabled", "description")}
+    if "fee_inr" in update:
+        update["fee_inr"] = float(update["fee_inr"])
+    if "fee_usd" in update:
+        update["fee_usd"] = float(update["fee_usd"])
+    update["updated_at"] = now_iso()
+    await db.membership_plans.update_one({"id": plan_id}, {"$set": update})
+    return {"message": "Plan updated"}
+
+
+@api_router.delete("/admin/membership-plans/{plan_id}")
+async def admin_delete_membership_plan(plan_id: str, admin=Depends(get_current_admin)):
+    await db.membership_plans.delete_one({"id": plan_id})
+    return {"message": "Plan deleted"}
+
+
+@api_router.get("/public/membership-plans")
+async def public_get_membership_plans():
+    plans = await db.membership_plans.find({"enabled": True}, {"_id": 0}).to_list(100)
+    if not plans:
+        plans = [
+            {"key": "academic", "label": "Academic", "fee_inr": 3100, "fee_usd": 50, "enabled": True},
+            {"key": "entrepreneur", "label": "Entrepreneur", "fee_inr": 5100, "fee_usd": 75, "enabled": True},
+            {"key": "corporate", "label": "Corporate", "fee_inr": 25100, "fee_usd": 300, "enabled": True},
+            {"key": "international", "label": "International Delegates", "fee_inr": 0, "fee_usd": 100, "enabled": True},
+        ]
+    return plans
+
+
+# Public PDF upload for registration documents
+@api_router.post("/public/upload-pdf")
+async def public_upload_pdf(file: UploadFile = File(...)):
+    if not file.filename.lower().endswith('.pdf'):
+        raise HTTPException(status_code=400, detail="Only PDF files are allowed")
+    if file.size and file.size > 10 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File too large. Max 10MB.")
+    ext = os.path.splitext(file.filename)[1]
+    fname = f"{uuid.uuid4()}{ext}"
+    fpath = UPLOAD_DIR / fname
+    with open(fpath, "wb") as f:
+        content = await file.read()
+        f.write(content)
+    return {"url": f"/api/uploads/{fname}", "filename": fname}
 
 
 # =================== WHATSAPP (AK NEXUS) SERVICE ===================
