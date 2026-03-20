@@ -1470,7 +1470,19 @@ async def admin_export_event_registrations(event_id: str, admin=Depends(get_curr
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Registrations"
-    headers = ["S.No", "Name", "Email", "Phone", "Organization", "State", "Member", "Member ID", "Reg Category", "Category", "Accommodation", "Hotel", "Accompanying Persons", "Corporate Persons", "Add-ons", "Reg Fee", "Accom Fee", "Addon Fee", "Membership Fee", "Total", "Payment Status"]
+    headers = [
+        "S.No", "Name", "Email", "Phone", "Organization", "Qualification",
+        "Reg Category", "Member", "Member ID", "Member Type",
+        "Address Line 1", "Address Line 2", "District", "State", "Country", "Pincode",
+        "College", "University",
+        "Accommodation", "Hotel", "Room Type", "Hotel Base Amt", "Hotel Tax %", "Hotel Tax Amt",
+        "Additional Persons", "Add. Persons Fee",
+        "Add-ons", "Add-on Fee",
+        "Wants Membership", "Membership Type", "Membership Fee",
+        "Reg Fee", "Accom Fee", "Total Amount",
+        "Payment Status", "Payment Mode",
+        "Assigned Room", "Assigned Location", "Notified", "Registered On"
+    ]
     header_fill = openpyxl.styles.PatternFill(start_color="0C3C60", end_color="0C3C60", fill_type="solid")
     header_font = openpyxl.styles.Font(bold=True, color="FFFFFF", size=11)
     for col, h in enumerate(headers, 1):
@@ -1479,29 +1491,48 @@ async def admin_export_event_registrations(event_id: str, admin=Depends(get_curr
         cell.font = header_font
 
     for i, r in enumerate(regs, 1):
-        ws.cell(row=i + 1, column=1, value=i)
-        ws.cell(row=i + 1, column=2, value=r.get("name", ""))
-        ws.cell(row=i + 1, column=3, value=r.get("email", ""))
-        ws.cell(row=i + 1, column=4, value=r.get("phone", ""))
-        ws.cell(row=i + 1, column=5, value=r.get("organization", ""))
-        ws.cell(row=i + 1, column=6, value=r.get("state", ""))
-        ws.cell(row=i + 1, column=7, value="Yes" if r.get("is_member") else "No")
-        ws.cell(row=i + 1, column=8, value=r.get("member_id", ""))
-        ws.cell(row=i + 1, column=9, value=r.get("registration_category", ""))
-        ws.cell(row=i + 1, column=10, value=r.get("member_category", ""))
-        ws.cell(row=i + 1, column=11, value=r.get("accommodation_choice", ""))
-        ws.cell(row=i + 1, column=12, value=r.get("hotel_name", ""))
-        accom_persons = r.get("accompanying_persons", [])
-        ws.cell(row=i + 1, column=13, value=", ".join([f"{p.get('name','')} ({p.get('relation','')})" for p in accom_persons]) if accom_persons else "")
-        corp_persons = r.get("corporate_persons", [])
-        ws.cell(row=i + 1, column=14, value=", ".join([f"{p.get('name','')} ({p.get('designation','')})" for p in corp_persons]) if corp_persons else "")
-        ws.cell(row=i + 1, column=15, value=", ".join(r.get("selected_addons", [])))
-        ws.cell(row=i + 1, column=16, value=r.get("registration_fee", 0))
-        ws.cell(row=i + 1, column=17, value=r.get("accommodation_fee", 0))
-        ws.cell(row=i + 1, column=18, value=r.get("addon_fee", 0))
-        ws.cell(row=i + 1, column=19, value=r.get("membership_fee", 0))
-        ws.cell(row=i + 1, column=20, value=r.get("total_amount", 0))
-        ws.cell(row=i + 1, column=21, value=r.get("payment_status", ""))
+        row = i + 1
+        ws.cell(row=row, column=1, value=i)
+        ws.cell(row=row, column=2, value=r.get("name", ""))
+        ws.cell(row=row, column=3, value=r.get("email", ""))
+        ws.cell(row=row, column=4, value=r.get("phone", ""))
+        ws.cell(row=row, column=5, value=r.get("organization", ""))
+        ws.cell(row=row, column=6, value=r.get("qualification", ""))
+        ws.cell(row=row, column=7, value=r.get("registration_category", ""))
+        ws.cell(row=row, column=8, value="Yes" if r.get("is_member") else "No")
+        ws.cell(row=row, column=9, value=r.get("member_id", ""))
+        ws.cell(row=row, column=10, value=r.get("member_category", ""))
+        ws.cell(row=row, column=11, value=r.get("address_line1", ""))
+        ws.cell(row=row, column=12, value=r.get("address_line2", ""))
+        ws.cell(row=row, column=13, value=r.get("district", ""))
+        ws.cell(row=row, column=14, value=r.get("address_state", r.get("state", "")))
+        ws.cell(row=row, column=15, value=r.get("country", "India"))
+        ws.cell(row=row, column=16, value=r.get("pincode", ""))
+        ws.cell(row=row, column=17, value=r.get("college", ""))
+        ws.cell(row=row, column=18, value=r.get("university", ""))
+        ws.cell(row=row, column=19, value=r.get("accommodation_choice", ""))
+        ws.cell(row=row, column=20, value=r.get("hotel_name", ""))
+        ws.cell(row=row, column=21, value=r.get("hotel_room_type", ""))
+        ws.cell(row=row, column=22, value=r.get("hotel_base_amount", 0))
+        ws.cell(row=row, column=23, value=r.get("hotel_tax_percent", 0))
+        ws.cell(row=row, column=24, value=r.get("hotel_tax_amount", 0))
+        add_persons = r.get("additional_persons", [])
+        ws.cell(row=row, column=25, value=", ".join([f"{p.get('name','')} (Age:{p.get('age','')}, Mob:{p.get('mobile','')})" for p in add_persons]) if add_persons else "")
+        ws.cell(row=row, column=26, value=r.get("additional_persons_fee", 0))
+        ws.cell(row=row, column=27, value=", ".join(r.get("selected_addons", [])))
+        ws.cell(row=row, column=28, value=r.get("addon_fee", 0))
+        ws.cell(row=row, column=29, value="Yes" if r.get("wants_membership") else "No")
+        ws.cell(row=row, column=30, value=r.get("membership_type", ""))
+        ws.cell(row=row, column=31, value=r.get("membership_fee", 0))
+        ws.cell(row=row, column=32, value=r.get("registration_fee", 0))
+        ws.cell(row=row, column=33, value=r.get("accommodation_fee", 0))
+        ws.cell(row=row, column=34, value=r.get("total_amount", 0))
+        ws.cell(row=row, column=35, value=r.get("payment_status", ""))
+        ws.cell(row=row, column=36, value=r.get("payment_mode", ""))
+        ws.cell(row=row, column=37, value=r.get("assigned_room_no", ""))
+        ws.cell(row=row, column=38, value=r.get("assigned_location", ""))
+        ws.cell(row=row, column=39, value="Yes" if r.get("accommodation_notified") else "No")
+        ws.cell(row=row, column=40, value=r.get("created_at", ""))
 
     for col in ws.columns:
         max_len = max(len(str(cell.value or "")) for cell in col)
@@ -1552,17 +1583,24 @@ async def admin_update_registration(reg_id: str, data: dict, admin=Depends(get_c
     if not reg:
         raise HTTPException(status_code=404, detail="Registration not found")
     allowed = ["name", "email", "phone", "qualification", "organization", "state",
-               "is_member", "member_id", "member_category", "accommodation_choice",
-               "hotel_name", "wants_membership", "membership_type",
-               "registration_fee", "accommodation_fee", "membership_fee", "total_amount",
+               "is_member", "member_id", "member_category", "registration_category",
+               "address_line1", "address_line2", "district", "address_state", "country", "pincode",
+               "college", "university",
+               "accommodation_choice", "hotel_name", "hotel_room_type",
+               "wants_membership", "membership_type", "selected_addons",
+               "registration_fee", "accommodation_fee", "addon_fee",
+               "additional_persons_fee", "membership_fee", "total_amount",
                "payment_status", "payment_mode"]
+    float_fields = {"registration_fee", "accommodation_fee", "addon_fee",
+                    "additional_persons_fee", "membership_fee", "total_amount"}
+    bool_fields = {"is_member", "wants_membership"}
     update = {}
     for f in allowed:
         if f in data:
             val = data[f]
-            if f in ["registration_fee", "accommodation_fee", "membership_fee", "total_amount"]:
+            if f in float_fields:
                 val = float(val)
-            elif f in ["is_member", "wants_membership"]:
+            elif f in bool_fields:
                 val = bool(val)
             update[f] = val
     if update:
@@ -1589,14 +1627,28 @@ async def admin_manual_registration(event_id: str, data: dict, admin=Depends(get
         is_member=data.get("is_member", False),
         member_id=data.get("member_id", ""),
         member_category=data.get("member_category", ""),
+        registration_category=data.get("registration_category", "non_member"),
         name=data.get("name", ""),
         email=data.get("email", ""),
         phone=data.get("phone", ""),
         qualification=data.get("qualification", ""),
         organization=data.get("organization", ""),
-        state=data.get("state", ""),
+        state=data.get("state", data.get("address_state", "")),
+        address_line1=data.get("address_line1", ""),
+        address_line2=data.get("address_line2", ""),
+        district=data.get("district", ""),
+        address_state=data.get("address_state", ""),
+        country=data.get("country", "India"),
+        pincode=data.get("pincode", ""),
+        college=data.get("college", ""),
+        university=data.get("university", ""),
         accommodation_choice=data.get("accommodation_choice", "none"),
         hotel_name=data.get("hotel_name", ""),
+        hotel_room_type=data.get("hotel_room_type", ""),
+        additional_persons=data.get("additional_persons", []),
+        additional_persons_fee=float(data.get("additional_persons_fee", 0)),
+        selected_addons=data.get("selected_addons", []),
+        addon_fee=float(data.get("addon_fee", 0)),
         wants_membership=data.get("wants_membership", False),
         membership_type=data.get("membership_type", ""),
         registration_fee=float(data.get("registration_fee", 0)),
@@ -1604,7 +1656,7 @@ async def admin_manual_registration(event_id: str, data: dict, admin=Depends(get
         membership_fee=float(data.get("membership_fee", 0)),
         total_amount=float(data.get("total_amount", 0)),
         payment_status=data.get("payment_status", "pending"),
-        payment_mode="manual",
+        payment_mode=data.get("payment_mode", "manual"),
     )
     await db.event_registrations.insert_one(reg.model_dump())
     result = reg.model_dump()
@@ -1631,26 +1683,29 @@ async def admin_export_registrations_pdf(event_id: str, admin=Depends(get_curren
     elements.append(Paragraph(f"IDSEA - {event.get('title', 'Event')}", title_style))
     elements.append(Paragraph(f"Date: {event.get('date', '')} | Venue: {event.get('venue', '')} | Total: {len(regs)} registrations", sub_style))
 
-    headers = ["#", "Name", "Phone", "Organization", "Category", "Accom", "Room", "Location", "Total", "Payment"]
-    data = [headers]
+    pdf_headers = ["#", "Name", "Email", "Phone", "Organization", "Reg Category", "State", "Accom", "Hotel", "Room", "Total", "Payment"]
+    data = [pdf_headers]
+    cat_labels = {"member": "Member", "non_member": "Non-Member", "student": "Student", "international": "Intl"}
     for idx, r in enumerate(regs, 1):
         accom = r.get("accommodation_choice", "-")
-        if accom == "hotel":
-            accom = r.get("hotel_name", "Hotel")[:18]
+        if accom in ("premium_hotel", "hotel"):
+            accom = r.get("hotel_name", "Hotel")[:16]
         data.append([
             str(idx),
-            Paragraph(r.get("name", "")[:28], cell_style),
-            r.get("phone", "")[:16],
-            Paragraph(r.get("organization", "")[:24], cell_style),
-            r.get("member_category", r.get("membership_type", "-"))[:12],
+            Paragraph(r.get("name", "")[:26], cell_style),
+            Paragraph(r.get("email", "")[:24], cell_style),
+            r.get("phone", "")[:14],
+            Paragraph(r.get("organization", "")[:22], cell_style),
+            cat_labels.get(r.get("registration_category", ""), r.get("registration_category", "-"))[:12],
+            r.get("address_state", r.get("state", ""))[:12],
             accom[:14],
+            r.get("hotel_name", "")[:14] if r.get("accommodation_choice") in ("premium_hotel", "hotel") else "-",
             r.get("assigned_room_no", "") or "-",
-            Paragraph(r.get("assigned_location", "")[:20], cell_style),
             f"{r.get('total_amount', 0)}",
             r.get("payment_status", "")[:10],
         ])
 
-    col_widths = [25, 90, 70, 85, 55, 60, 40, 75, 45, 50]
+    col_widths = [22, 78, 78, 58, 72, 48, 48, 52, 52, 35, 40, 42]
     table = Table(data, colWidths=col_widths, repeatRows=1)
     table.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0c3c60")),
