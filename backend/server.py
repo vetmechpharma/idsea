@@ -2945,55 +2945,16 @@ async def admin_update_whatsapp_settings(data: dict, admin=Depends(get_current_a
     return {"message": "WhatsApp settings updated"}
 
 
-@api_router.post("/admin/whatsapp/connect")
-async def admin_whatsapp_connect(data: dict, admin=Depends(get_current_admin)):
-    custom_id = data.get("instance_id", "")
-    extra = {}
-    if custom_id:
-        extra["instance_id"] = custom_id
-    result = await aknexus_request("create_instance", extra)
-    if result.get("status") == "error":
-        return result
-    iid = result.get("instance_id") or custom_id
-    if iid:
-        await db.whatsapp_settings.update_one({}, {"$set": {"instance_id": iid, "updated_at": now_iso()}}, upsert=True)
-    return result
-
-
 @api_router.get("/admin/whatsapp/status")
 async def admin_whatsapp_status(admin=Depends(get_current_admin)):
     settings = await get_whatsapp_settings()
     iid = settings.get("instance_id", "")
     if not iid:
         return {"status": "not_configured", "instance_id": ""}
-    result = await aknexus_request("reboot")
-    return {"instance_id": iid, **result}
-
-
-@api_router.get("/admin/whatsapp/qr")
-async def admin_whatsapp_qr(admin=Depends(get_current_admin)):
-    settings = await get_whatsapp_settings()
-    iid = settings.get("instance_id", "")
-    if not iid:
-        raise HTTPException(status_code=400, detail="No instance configured. Connect first.")
-    result = await aknexus_request("get_qrcode")
-    return result
-
-
-@api_router.post("/admin/whatsapp/disconnect")
-async def admin_whatsapp_disconnect(admin=Depends(get_current_admin)):
-    settings = await get_whatsapp_settings()
-    iid = settings.get("instance_id", "")
-    if not iid:
-        raise HTTPException(status_code=400, detail="No instance configured")
-    result = await aknexus_request("reset_instance")
-    return result
-
-
-@api_router.get("/admin/whatsapp/instances")
-async def admin_whatsapp_instances(admin=Depends(get_current_admin)):
-    result = await aknexus_request("get_qrcode")
-    return result
+    result = await aknexus_request("send", {"number": "0", "type": "text", "message": "ping"})
+    if "not been activated" in result.get("message", ""):
+        return {"status": "error", "instance_id": iid, "message": result["message"]}
+    return {"status": "success", "instance_id": iid, "message": "Instance is active"}
 
 
 @api_router.post("/admin/whatsapp/send-test")
@@ -3013,7 +2974,13 @@ async def admin_whatsapp_send_test(data: dict, admin=Depends(get_current_admin))
     result = await aknexus_request("send", {
         "number": phone_clean, "type": "text", "message": message,
     })
-    if result.get("status") == "error":
+    is_success = result.get("status") == "success"
+    await db.whatsapp_logs.insert_one({
+        "id": str(uuid.uuid4()), "phone": phone_clean, "message": message[:200],
+        "instance_id": iid, "status": "sent" if is_success else "failed",
+        "response": str(result)[:500], "sent_at": now_iso()
+    })
+    if not is_success:
         return {"status": "error", "message": result.get("message", "Send failed"), "result": result}
     return {"status": "success", "message": "Test message sent", "result": result}
 
