@@ -13,23 +13,35 @@ Build a full-stack website for IDSEA with a public-facing website and comprehens
 
 ## Implemented Features
 
+### Event Registration System V2 - COMPLETE (March 2026)
+- **4 Participant Categories:** IDSEA Member (phone lookup), Non-Member (address + ID proof PDF), Student/JRF/SRF/RA/Retired (college + bonafide PDF), International Delegate (USD fees, Razorpay only)
+- **Fee Tiers:** Early Bird & Regular with per-category fees
+- **Accommodation:** Default (per-category fees), Self (no fee), Premium Hotels (with room types, tax %)
+- **Free Accommodation:** Admin can enable free accommodation for specific categories
+- **Additional Persons:** Guests with name, age, mobile; admin-set per-person fee
+- **Optional Add-ons:** Admin-created (name, description, INR/USD fees, downloadable PDF)
+- **Become a Member:** Non-Members, Students & International Delegates can apply for dynamic membership plans during registration
+- **Admin Pages:** EventsAdmin (5-tab modal: Basic, Fees, Accommodation, Hotels, Add-ons), MembershipAdmin (CRUD for plans)
+
+### Membership Plans - Dynamic Management (March 2026)
+- Admin page at /admin/membership-plans with full CRUD
+- Default plans: Academic (₹3,100/$50), Entrepreneur (₹5,100/$75), Corporate (₹25,100/$300), International ($100)
+- Enable/disable toggle per plan
+- Plans exposed via /api/public/membership-plans for registration flow
+
 ### WhatsApp Integration (AK Nexus) - WORKING
-- **API Format**: v1 query-param based (`/api/send?number=...&type=text&message=...&instance_id=...&access_token=...`)
+- **API Format**: v1 query-param based
 - Admin page at `/admin/whatsapp` with 3 tabs: Configuration, Send Messages, Message Logs
-- Simple config: paste Access Token + Instance ID (instance created on AK Nexus server)
-- Auto notifications for 6 events: membership submitted/approved/denied, event registration, room allotment, payment received
-- Bulk messaging to all members (with type filter) or event registrants
-- Message logs with status tracking (sent/failed)
-- Webhook endpoint for AK Nexus callbacks
+- Auto notifications for 6 events
+- Bulk messaging to members/registrants
 
 ### Payment System - Multi-method (Razorpay/UPI/Bank), admin management
 ### Membership System - Custom IDs, structured forms, admin approve/deny/hold
-### Event Registration - Multi-step public flow, admin management with exports
-### Admin Panel (17+ sections)
+### Admin Panel (18+ sections)
 
-## Testing: iterations 1-14 all pass
+## Testing: iterations 1-16 all pass
 
 ## Backlog
 - P1: Member Directory (public), News & Contact pages
 - P2: Admin Roles, Member renewal reminders
-- P3: Mobile responsive, Backend modularization
+- P3: Mobile responsive, Backend modularization (server.py > 3200 lines)
