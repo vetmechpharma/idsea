@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Plus, Edit3, Trash2, Save, X, Calendar, MapPin, Eye, EyeOff, ChevronDown, ChevronUp, Hotel, Users } from 'lucide-react';
+import { Plus, Edit3, Trash2, Save, X, Calendar, MapPin, Eye, EyeOff, ChevronDown, ChevronUp, Hotel, Users, Upload, Image, FileText, ExternalLink } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -23,13 +23,15 @@ export default function EventsAdmin() {
   const [activeSection, setActiveSection] = useState('basic');
 
   const initForm = {
-    title: '', date: '', end_date: '', venue: '', description: '', registration_fee: 0,
-    brochure_url: '', speaker_details: '', status: 'upcoming', image_url: '',
+    title: '', date: '', end_date: '', venue: '', venue_map_link: '', description: '', registration_fee: 0,
+    brochure_url: '', status: 'upcoming', image_url: '',
     registration_enabled: false, allow_membership_registration: false,
     fee_tiers: [], accommodation: { ...emptyAccom },
     additional_person_fee: 0, registration_addons: [], premium_hotels: []
   };
   const [form, setForm] = useState(initForm);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadingBrochure, setUploadingBrochure] = useState(false);
   const token = localStorage.getItem('idsea_token');
   const headers = { Authorization: `Bearer ${token}` };
 
@@ -50,8 +52,9 @@ export default function EventsAdmin() {
     setEditEvent(e);
     setForm({
       title: e.title, date: e.date, end_date: e.end_date || '', venue: e.venue,
+      venue_map_link: e.venue_map_link || '',
       description: e.description || '', registration_fee: e.registration_fee || 0,
-      brochure_url: e.brochure_url || '', speaker_details: e.speaker_details || '',
+      brochure_url: e.brochure_url || '',
       status: e.status, image_url: e.image_url || '',
       registration_enabled: e.registration_enabled || false,
       allow_membership_registration: e.allow_membership_registration || false,
@@ -171,14 +174,27 @@ export default function EventsAdmin() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
         {events.map(e => (
           <div key={e.id} data-testid={`event-${e.id}`} style={{ background: 'white', borderRadius: '10px', border: '1px solid #e2e8f0', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <div style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '15px', color: '#0c3c60' }}>{e.title}</div>
-              <div style={{ display: 'flex', gap: '16px', marginTop: '4px', fontSize: '13px', color: '#64748b' }}>
-                <span><Calendar size={12} style={{ display: 'inline', verticalAlign: 'middle' }} /> {e.date}</span>
-                <span><MapPin size={12} style={{ display: 'inline', verticalAlign: 'middle' }} /> {e.venue}</span>
-                <span style={{ padding: '1px 8px', borderRadius: '10px', fontSize: '11px', fontWeight: 600, background: e.registration_enabled ? '#d1fae5' : '#f1f5f9', color: e.registration_enabled ? '#065f46' : '#94a3b8' }}>
-                  {e.registration_enabled ? 'Reg. Open' : 'Reg. Closed'}
-                </span>
+            <div style={{ display: 'flex', gap: '14px', alignItems: 'center', flex: 1 }}>
+              {e.image_url && (
+                <img src={e.image_url.startsWith('http') ? e.image_url : `${process.env.REACT_APP_BACKEND_URL}${e.image_url}`} alt={e.title}
+                  style={{ width: '56px', height: '56px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #e2e8f0', flexShrink: 0 }} />
+              )}
+              <div>
+                <div style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '15px', color: '#0c3c60', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {e.title}
+                  {e.brochure_url && (
+                    <a href={e.brochure_url.startsWith('http') ? e.brochure_url : `${process.env.REACT_APP_BACKEND_URL}${e.brochure_url}`} target="_blank" rel="noreferrer"
+                      title="Download Brochure" style={{ color: '#1e7a4d' }}><FileText size={14} /></a>
+                  )}
+                </div>
+                <div style={{ display: 'flex', gap: '16px', marginTop: '4px', fontSize: '13px', color: '#64748b', flexWrap: 'wrap' }}>
+                  <span><Calendar size={12} style={{ display: 'inline', verticalAlign: 'middle' }} /> {e.date}</span>
+                  <span><MapPin size={12} style={{ display: 'inline', verticalAlign: 'middle' }} /> {e.venue}</span>
+                  {e.venue_map_link && <a href={e.venue_map_link} target="_blank" rel="noreferrer" style={{ color: '#2563eb', display: 'flex', alignItems: 'center', gap: '3px', fontSize: '12px' }}><ExternalLink size={11} /> Map</a>}
+                  <span style={{ padding: '1px 8px', borderRadius: '10px', fontSize: '11px', fontWeight: 600, background: e.registration_enabled ? '#d1fae5' : '#f1f5f9', color: e.registration_enabled ? '#065f46' : '#94a3b8' }}>
+                    {e.registration_enabled ? 'Reg. Open' : 'Reg. Closed'}
+                  </span>
+                </div>
               </div>
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
@@ -227,10 +243,77 @@ export default function EventsAdmin() {
                         <option value="upcoming">Upcoming</option><option value="ongoing">Ongoing</option><option value="past">Past</option>
                       </select>
                     </div>
-                    <div className="form-group"><label className="form-label">Image URL</label><input value={form.image_url} onChange={e => setForm(f => ({ ...f, image_url: e.target.value }))} className="form-input" /></div>
+                    <div className="form-group">
+                      <label className="form-label"><MapPin size={13} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} />Venue Google Maps Link</label>
+                      <input value={form.venue_map_link} onChange={e => setForm(f => ({ ...f, venue_map_link: e.target.value }))} className="form-input" placeholder="https://maps.google.com/..." data-testid="venue-map-link" />
+                    </div>
                   </div>
                   <div className="form-group"><label className="form-label">Description</label><textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} className="form-input" rows={3} /></div>
-                  <div className="form-group"><label className="form-label">Speaker Details</label><textarea value={form.speaker_details} onChange={e => setForm(f => ({ ...f, speaker_details: e.target.value }))} className="form-input" rows={2} /></div>
+
+                  {/* Event Image Upload */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '8px' }}>
+                    <div className="form-group">
+                      <label className="form-label"><Image size={13} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} />Event Image</label>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <button onClick={() => {
+                          const input = document.createElement('input');
+                          input.type = 'file'; input.accept = 'image/*';
+                          input.onchange = async (ev) => {
+                            const file = ev.target.files[0]; if (!file) return;
+                            setUploadingImage(true);
+                            const fd = new FormData(); fd.append('file', file);
+                            try {
+                              const r = await axios.post(`${API}/public/upload-photo`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+                              setForm(f => ({ ...f, image_url: r.data.url }));
+                            } catch { alert('Image upload failed'); }
+                            setUploadingImage(false);
+                          };
+                          input.click();
+                        }} className="btn-secondary" data-testid="upload-event-image" style={{ fontSize: '13px', padding: '8px 14px' }}>
+                          {uploadingImage ? 'Uploading...' : <><Upload size={14} /> Upload Image</>}
+                        </button>
+                        {form.image_url && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <img src={form.image_url.startsWith('http') ? form.image_url : `${process.env.REACT_APP_BACKEND_URL}${form.image_url}`} alt="Event" style={{ width: '48px', height: '48px', objectFit: 'cover', borderRadius: '6px', border: '1px solid #e2e8f0' }} />
+                            <button onClick={() => setForm(f => ({ ...f, image_url: '' }))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', fontSize: '12px' }}><X size={14} /></button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Event Brochure Upload */}
+                    <div className="form-group">
+                      <label className="form-label"><FileText size={13} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} />Event Brochure (PDF)</label>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <button onClick={() => {
+                          const input = document.createElement('input');
+                          input.type = 'file'; input.accept = '.pdf';
+                          input.onchange = async (ev) => {
+                            const file = ev.target.files[0]; if (!file) return;
+                            setUploadingBrochure(true);
+                            const fd = new FormData(); fd.append('file', file);
+                            try {
+                              const r = await axios.post(`${API}/public/upload-pdf`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+                              setForm(f => ({ ...f, brochure_url: r.data.url }));
+                            } catch { alert('Brochure upload failed'); }
+                            setUploadingBrochure(false);
+                          };
+                          input.click();
+                        }} className="btn-secondary" data-testid="upload-brochure" style={{ fontSize: '13px', padding: '8px 14px' }}>
+                          {uploadingBrochure ? 'Uploading...' : <><Upload size={14} /> Upload PDF</>}
+                        </button>
+                        {form.brochure_url && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <a href={form.brochure_url.startsWith('http') ? form.brochure_url : `${process.env.REACT_APP_BACKEND_URL}${form.brochure_url}`} target="_blank" rel="noreferrer"
+                              style={{ fontSize: '12px', color: '#1e7a4d', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <FileText size={14} /> View Brochure
+                            </a>
+                            <button onClick={() => setForm(f => ({ ...f, brochure_url: '' }))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', fontSize: '12px' }}><X size={14} /></button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
 
                   {/* Toggles */}
                   <div style={{ display: 'flex', gap: '16px', marginTop: '12px' }}>

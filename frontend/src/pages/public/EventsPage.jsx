@@ -3,7 +3,7 @@ import axios from 'axios';
 import { Link } from 'react-router-dom';
 import PublicNavbar from '../../components/public/PublicNavbar';
 import PublicFooter from '../../components/public/PublicFooter';
-import { Calendar, MapPin, IndianRupee, ArrowRight } from 'lucide-react';
+import { Calendar, MapPin, IndianRupee, ArrowRight, Download, ExternalLink } from 'lucide-react';
 import { API } from '../../contexts/AuthContext';
 
 const STATUS_COLORS = { upcoming: '#1e7a4d', ongoing: '#d97706', completed: '#6b7280' };
@@ -51,16 +51,19 @@ export default function EventsPage() {
             </div>
           ) : (
             <div style={{ display: 'grid', gap: '24px' }}>
-              {filtered.map(event => (
+              {filtered.map(event => {
+                const imgSrc = event.image_url ? (event.image_url.startsWith('http') ? event.image_url : `${process.env.REACT_APP_BACKEND_URL}${event.image_url}`) : '';
+                const brochureSrc = event.brochure_url ? (event.brochure_url.startsWith('http') ? event.brochure_url : `${process.env.REACT_APP_BACKEND_URL}${event.brochure_url}`) : '';
+                return (
                 <div key={event.id} data-testid="event-card" style={{
                   background: 'white', borderRadius: '16px', boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
-                  border: '1px solid #e5e7eb', display: 'grid', gridTemplateColumns: event.image_url ? '240px 1fr' : '1fr',
+                  border: '1px solid #e5e7eb', display: 'grid', gridTemplateColumns: imgSrc ? '240px 1fr' : '1fr',
                   overflow: 'hidden', transition: 'transform 0.2s ease, box-shadow 0.2s ease'
                 }}
                   onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.1)'; }}
                   onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.06)'; }}
                 >
-                  {event.image_url && <img src={event.image_url} alt={event.title} style={{ width: '100%', height: '100%', objectFit: 'cover', minHeight: '200px' }} />}
+                  {imgSrc && <img src={imgSrc} alt={event.title} style={{ width: '100%', height: '100%', objectFit: 'cover', minHeight: '200px' }} />}
                   <div style={{ padding: '24px' }}>
                     <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
                       <span style={{ background: STATUS_COLORS[event.status] + '20', color: STATUS_COLORS[event.status], padding: '3px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: 600, fontFamily: 'Poppins, sans-serif' }}>
@@ -76,6 +79,12 @@ export default function EventsPage() {
                       <div style={{ display: 'flex', gap: '6px', alignItems: 'center', color: '#6b7280', fontSize: '13px' }}>
                         <MapPin size={14} style={{ color: '#1e7a4d' }} />
                         <span>{event.venue}</span>
+                        {event.venue_map_link && (
+                          <a href={event.venue_map_link} target="_blank" rel="noreferrer" data-testid="venue-map-link"
+                            style={{ color: '#2563eb', display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '12px', fontWeight: 600, textDecoration: 'none' }}>
+                            <ExternalLink size={11} /> View on Map
+                          </a>
+                        )}
                       </div>
                       {event.registration_fee > 0 && (
                         <div style={{ display: 'flex', gap: '6px', alignItems: 'center', color: '#6b7280', fontSize: '13px' }}>
@@ -85,27 +94,30 @@ export default function EventsPage() {
                       )}
                     </div>
                     {event.description && <p style={{ color: '#6b7280', fontSize: '14px', lineHeight: 1.6, margin: '0 0 16px', fontFamily: 'Inter, sans-serif' }}>{event.description}</p>}
-                    {event.speaker_details && (
-                      <div style={{ background: '#f8fafc', borderRadius: '8px', padding: '12px', fontSize: '13px', color: '#374151' }}>
-                        <strong style={{ color: '#0c3c60', fontFamily: 'Poppins, sans-serif' }}>Speakers: </strong>
-                        <span style={{ fontFamily: 'Inter, sans-serif' }}>{event.speaker_details}</span>
-                      </div>
-                    )}
-                    {event.brochure_url && (
-                      <a href={event.brochure_url} target="_blank" rel="noreferrer" style={{ display: 'inline-block', marginTop: '12px', color: '#1e7a4d', fontSize: '13px', fontWeight: 600, textDecoration: 'none', fontFamily: 'Poppins, sans-serif' }}>
-                        Download Brochure →
-                      </a>
-                    )}
-                    {event.registration_enabled && event.status !== 'completed' && (
-                      <div style={{ marginTop: '16px' }}>
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap', marginTop: '16px' }}>
+                      {event.registration_enabled && event.status !== 'completed' && (
                         <Link to={`/events/${event.id}/register`} data-testid="event-register-btn" className="btn-primary" style={{ textDecoration: 'none', display: 'inline-flex' }}>
                           Register Now <ArrowRight size={14} />
                         </Link>
-                      </div>
-                    )}
+                      )}
+                      {brochureSrc && (
+                        <a href={brochureSrc} target="_blank" rel="noreferrer" download data-testid="download-brochure-btn"
+                          style={{
+                            display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '10px 18px', borderRadius: '8px',
+                            background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#1e7a4d', fontSize: '13px',
+                            fontFamily: 'Poppins, sans-serif', fontWeight: 600, textDecoration: 'none', cursor: 'pointer',
+                            transition: 'all 0.2s ease'
+                          }}
+                          onMouseEnter={e => { e.currentTarget.style.background = '#d1fae5'; }}
+                          onMouseLeave={e => { e.currentTarget.style.background = '#f0fdf4'; }}>
+                          <Download size={14} /> Download Brochure
+                        </a>
+                      )}
+                    </div>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

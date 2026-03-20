@@ -181,10 +181,10 @@ class Event(BaseModel):
     date: str
     end_date: Optional[str] = ""
     venue: str
+    venue_map_link: Optional[str] = ""
     description: Optional[str] = ""
     registration_fee: Optional[float] = 0
     brochure_url: Optional[str] = ""
-    speaker_details: Optional[str] = ""
     status: str = "upcoming"
     image_url: Optional[str] = ""
     registration_enabled: bool = False
@@ -202,10 +202,10 @@ class EventCreate(BaseModel):
     date: str
     end_date: Optional[str] = ""
     venue: str
+    venue_map_link: Optional[str] = ""
     description: Optional[str] = ""
     registration_fee: Optional[float] = 0
     brochure_url: Optional[str] = ""
-    speaker_details: Optional[str] = ""
     status: str = "upcoming"
     image_url: Optional[str] = ""
     registration_enabled: bool = False
@@ -624,7 +624,7 @@ DEFAULT_EMAIL_TEMPLATES = {
         "name": "New Event Notification",
         "subject": "IDSEA - New Event: {{event_title}}",
         "description": "Sent to approved members when a new event is created (batch: 50 per 30 mins)",
-        "variables": ["member_name", "event_title", "event_date", "event_end_date", "event_venue", "event_description", "registration_fee", "speaker_details"],
+        "variables": ["member_name", "event_title", "event_date", "event_end_date", "event_venue", "venue_map_link", "event_description", "registration_fee"],
         "body": """<div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
   <div style="background: #0c3c60; padding: 32px 24px; text-align: center;">
     <h1 style="color: white; margin: 0; font-size: 22px; font-weight: 700; letter-spacing: 0.5px;">IDSEA</h1>
@@ -638,9 +638,8 @@ DEFAULT_EMAIL_TEMPLATES = {
       <h3 style="color: #0c3c60; margin: 0 0 16px; font-size: 18px;">{{event_title}}</h3>
       <table style="width: 100%; font-size: 13px; color: #374151;">
         <tr><td style="padding: 6px 0; color: #6b7280; width: 35%;">Date</td><td style="padding: 6px 0; font-weight: 600;">{{event_date}} - {{event_end_date}}</td></tr>
-        <tr><td style="padding: 6px 0; color: #6b7280;">Venue</td><td style="padding: 6px 0;">{{event_venue}}</td></tr>
+        <tr><td style="padding: 6px 0; color: #6b7280;">Venue</td><td style="padding: 6px 0;">{{event_venue}} {{venue_map_link}}</td></tr>
         <tr><td style="padding: 6px 0; color: #6b7280;">Registration Fee</td><td style="padding: 6px 0; font-weight: 600;">₹{{registration_fee}}</td></tr>
-        <tr><td style="padding: 6px 0; color: #6b7280;">Speakers</td><td style="padding: 6px 0;">{{speaker_details}}</td></tr>
       </table>
     </div>
     <p style="color: #4b5563; font-size: 14px; line-height: 1.7;">{{event_description}}</p>
@@ -811,9 +810,9 @@ async def batch_event_notification(event: dict, membership_type_filter: str = "a
                 "event_date": event.get("date", ""),
                 "event_end_date": event.get("end_date", ""),
                 "event_venue": event.get("venue", ""),
+                "venue_map_link": f'<a href="{event.get("venue_map_link", "")}">[View on Map]</a>' if event.get("venue_map_link") else "",
                 "event_description": event.get("description", ""),
                 "registration_fee": str(event.get("registration_fee", 0)),
-                "speaker_details": event.get("speaker_details", ""),
             }
             subject = render_template(template.get("subject", ""), variables)
             body = render_template(template.get("body", ""), variables)
@@ -1443,7 +1442,7 @@ async def register_for_event(event_id: str, data: dict, background_tasks: Backgr
         background_tasks.add_task(
             send_whatsapp_notification, reg.phone, "event_registered",
             {"name": reg.name, "event_title": event.get("title", ""), "event_date": event.get("date", ""),
-             "event_venue": event.get("venue", ""), "total_amount": str(reg.total_amount), "payment_status": reg.payment_status}
+             "event_venue": event.get("venue", ""), "venue_map_link": f'Map: {event.get("venue_map_link", "")}' if event.get("venue_map_link") else "", "total_amount": str(reg.total_amount), "payment_status": reg.payment_status}
         )
 
     return {"message": "Registration successful", "registration": result}
@@ -3055,7 +3054,7 @@ async def send_whatsapp_notification(phone: str, notification_type: str, variabl
         "membership_submitted": "Hello {name},\n\nThank you for applying for IDSEA {membership_type} membership.\n\nYour application has been received and is under review. We will notify you once it is processed.\n\nRegards,\nIDSEA Team",
         "membership_approved": "Congratulations {name}!\n\nYour IDSEA membership has been approved.\n\nMembership ID: {membership_id}\nType: {membership_type}\n\nWelcome to the IDSEA family!\n\nRegards,\nIDSEA Team",
         "membership_denied": "Dear {name},\n\nWe regret to inform you that your IDSEA membership application has been denied.\n\nPlease contact us at info@idsea.org for more details.\n\nRegards,\nIDSEA Team",
-        "event_registered": "Hello {name},\n\nYou have been successfully registered for:\n\n*{event_title}*\nDate: {event_date}\nVenue: {event_venue}\nTotal Amount: Rs. {total_amount}\n\nPayment Status: {payment_status}\n\nRegards,\nIDSEA Team",
+        "event_registered": "Hello {name},\n\nYou have been successfully registered for:\n\n*{event_title}*\nDate: {event_date}\nVenue: {event_venue}\n{venue_map_link}\nTotal Amount: Rs. {total_amount}\n\nPayment Status: {payment_status}\n\nRegards,\nIDSEA Team",
         "room_allotment": "Hello {name},\n\nYour accommodation details for *{event_title}*:\n\nRoom No: {room_no}\nLocation: {location}\n{map_link}\n\nRegards,\nIDSEA Team",
         "payment_received": "Hello {name},\n\nWe have received your payment of Rs. {amount}.\n\nTransaction Reference: {reference}\n\nThank you!\nIDSEA Team",
     }
