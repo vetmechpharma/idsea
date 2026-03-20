@@ -94,8 +94,8 @@ export default function EventRegistrationPage() {
   }, [info]);
 
   const isInternational = registrationCategory === 'international';
-  const currency = 'INR';
-  const currSym = '\u20B9';
+  const currency = isInternational ? 'USD' : 'INR';
+  const currSym = isInternational ? '$' : '\u20B9';
   const accom = info?.accommodation || {};
 
   // Fee category key for lookup
@@ -1263,6 +1263,7 @@ export default function EventRegistrationPage() {
                   memberId={memberData?.membership_id || ''}
                   eventRegistrationId={regResult.id}
                   membershipType={membershipType || memberData?.membership_type || ''}
+                  currency={currency}
                   isInternational={isInternational}
                   onSuccess={handlePaymentSuccess}
                   onCancel={() => setSubmitted(true)}
