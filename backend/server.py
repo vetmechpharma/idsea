@@ -105,9 +105,11 @@ class Member(BaseModel):
     contact_same_as_permanent: Optional[bool] = False
     address: Optional[str] = ""
     state: Optional[str] = ""
+    country: Optional[str] = "India"
     phone: Optional[str] = ""
     email: str
     photo_url: Optional[str] = ""
+    identity_proof_url: Optional[str] = ""
     membership_type: str
     membership_id: Optional[str] = ""
     join_date: Optional[str] = ""
@@ -129,9 +131,11 @@ class MemberCreate(BaseModel):
     contact_same_as_permanent: Optional[bool] = False
     address: Optional[str] = ""
     state: Optional[str] = ""
+    country: Optional[str] = "India"
     phone: Optional[str] = ""
     email: str
     photo_url: Optional[str] = ""
+    identity_proof_url: Optional[str] = ""
     membership_type: str
     payment_status: str = "pending"
 
@@ -1091,7 +1095,7 @@ async def admin_create_member(data: MemberCreate, admin=Depends(get_current_admi
     member.join_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     # Generate membership ID with global serial continuation
     mtype = data.membership_type
-    prefix_map = {"academic": "ACD", "entrepreneur": "ENT", "corporate": "COP"}
+    prefix_map = {"academic": "ACD", "entrepreneur": "ENT", "corporate": "COP", "international": "INT"}
     type_prefix = prefix_map.get(mtype, "MEM")
     year = datetime.now().year
     all_members = await db.members.find(
@@ -1136,7 +1140,7 @@ async def approve_member(member_id: str, background_tasks: BackgroundTasks, admi
     # Generate membership ID: ACD/IDSEA/2026/0001, ENT/IDSEA/2026/0001, COP/IDSEA/2026/0001
     # Serial continues from last year's last serial (global across all years for this type)
     mtype = member.get("membership_type", "academic")
-    prefix_map = {"academic": "ACD", "entrepreneur": "ENT", "corporate": "COP"}
+    prefix_map = {"academic": "ACD", "entrepreneur": "ENT", "corporate": "COP", "international": "INT"}
     type_prefix = prefix_map.get(mtype, "MEM")
     year = datetime.now().year
     # Find the highest serial across ALL years for this type
