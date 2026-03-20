@@ -1,0 +1,107 @@
+{
+  "summary": "Iteration 18 - Event Registration Enhancements testing complete. All backend APIs (11/11) passed. All frontend features verified: Student/Non-Member/International categories show correct address fields + identity proof upload (NO duplicate State in basic fields). Premium hotels display INR+USD prices. Additional person fee shows both INR and USD. Admin Events page has 'Registrations' button for events with registration_enabled. EventRegistrations page fully functional.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_event_registration_iteration18.py",
+    "/app/test_reports/pytest/pytest_iteration18.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "EventRegistrationPage.jsx: Basic fields section correctly has only 5 fields (Name, Email, Phone, Qualification, Organization) - NO State field duplicate",
+    "Student category: Correctly shows College/Institute, University, Address (Line1, Line2, District, State, Pincode), Bonafide PDF upload, Identity Proof PDF upload",
+    "International category: Correctly shows Country, Address Line 1/2, District/City, State/Province, Postal Code, Identity Proof upload + USD info notice",
+    "Non-Member category: Correctly shows Address Line 1/2, District, State, Pincode, Identity Proof upload",
+    "Premium Hotels: Room types correctly display both INR (₹) and USD ($) prices in fee overview",
+    "Additional Person Fee: Correctly shows '₹1500 per person / $50 per person (International)' in fee overview",
+    "EventsAdmin.jsx: Hotels tab has room_types with price and price_usd inputs",
+    "EventsAdmin.jsx: Accommodation tab has both additional_person_fee (INR) and additional_person_fee_usd inputs",
+    "EventsAdmin.jsx: Events with registration_enabled=true show 'Registrations' button linking to /admin/events/{eventId}/registrations",
+    "Backend server.py: registration-info API (line 1339-1356) correctly returns venue_map_link and additional_person_fee_usd"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_event_registration_iteration18.py"
+  ],
+  "success_rate": {
+    "backend": "100% (11/11 tests passed)",
+    "frontend": "100% (All features verified)"
+  },
+  "test_credentials": {
+    "admin_email": "admin@idsea.org",
+    "admin_password": "Admin@123",
+    "test_event_id": "a6d69db6-d6f8-4fb6-a707-14dc903f8bfc"
+  },
+  "seed_data_creation": "Test event (IDSEA Annual Conference 2026) already configured with: venue_map_link, additional_person_fee=1500, additional_person_fee_usd=50, premium_hotels with USD prices (The Oberoi: Deluxe 8000/120, Suite 15000/200; Holiday Inn: Standard 4000/60, Deluxe 6000/90)",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All event registration enhancement features fully tested. Student/International/Non-Member categories now require address fields + identity proof. No duplicate State field in basic fields. Premium hotel USD prices working. Admin can set INR and USD fees for additional persons. EventRegistrations page fully functional at /admin/events/{eventId}/registrations with view/edit/delete/email/whatsapp/export features.",
+  "features_tested": {
+    "backend_apis": {
+      "GET /api/public/events/{id}/registration-info": {
+        "venue_map_link": "PASS - Returns Google Maps URL",
+        "additional_person_fee_usd": "PASS - Returns 50",
+        "additional_person_fee": "PASS - Returns 1500",
+        "premium_hotels with price_usd": "PASS - All room types have price_usd"
+      },
+      "GET /api/admin/events": "PASS - Returns events with additional_person_fee_usd and registration_enabled",
+      "GET /api/admin/events/{id}/registrations": "PASS - Returns registration list",
+      "PUT /api/admin/events/{id}": "PASS - Can update additional_person_fee_usd"
+    },
+    "frontend_registration_step2": {
+      "member_category": "PASS - Shows phone lookup, no extra address fields",
+      "student_category": {
+        "basic_fields": "PASS - Name, Email, Phone, Qualification, Organization (NO State)",
+        "college_institute": "PASS - data-testid='college-input'",
+        "university": "PASS - data-testid='university-input'",
+        "address_fields": "PASS - Line1, Line2, District, State, Pincode all present",
+        "bonafide_upload": "PASS - data-testid='upload-bonafide'",
+        "identity_proof_upload": "PASS - data-testid='upload-student-identity'"
+      },
+      "international_category": {
+        "basic_fields": "PASS - Name, Email, Phone, Qualification, Organization (NO State)",
+        "country": "PASS - data-testid='country-input'",
+        "address_fields": "PASS - Line1, Line2, District/City, State/Province, Postal Code",
+        "identity_proof_upload": "PASS - data-testid='upload-intl-identity'",
+        "usd_notice": "PASS - Shows 'Fees in USD. Payment via Razorpay only.'"
+      },
+      "non_member_category": {
+        "basic_fields": "PASS - Name, Email, Phone, Qualification, Organization (NO State)",
+        "address_fields": "PASS - Line1, Line2, District, State, Pincode",
+        "identity_proof_upload": "PASS - data-testid='upload-identity-proof'"
+      }
+    },
+    "frontend_fee_overview": {
+      "premium_hotels_usd_prices": "PASS - Shows '₹8,000 / $120' format",
+      "additional_persons_usd": "PASS - Shows '₹1500 per person / $50 per person (International)'"
+    },
+    "admin_events_page": {
+      "registrations_button": "PASS - Shows 'Registrations' button for events with registration_enabled=true",
+      "registrations_button_link": "PASS - Links to /admin/events/{eventId}/registrations"
+    },
+    "admin_event_edit_modal": {
+      "premium_hotels_tab": {
+        "room_types_usd_input": "PASS - Shows 'Room Types (INR + USD for International Delegates)'",
+        "price_and_price_usd_columns": "PASS - Two columns for INR and USD prices"
+      },
+      "accommodation_tab": {
+        "additional_person_fee_inr": "PASS - data-testid='additional-person-fee' with value 1500",
+        "additional_person_fee_usd": "PASS - data-testid='additional-person-fee-usd' with value 50"
+      }
+    },
+    "event_registrations_page": {
+      "page_loads": "PASS - /admin/events/{eventId}/registrations loads correctly",
+      "stats_summary": "PASS - Shows Total, Paid, Pending, Revenue, Need Accom, Assigned",
+      "registration_table": "PASS - Shows Name, Phone, Category, Accommodation, Room, Total, Payment, Actions",
+      "action_buttons": "PASS - View, Edit, Delete, Email, WhatsApp icons visible",
+      "export_buttons": "PASS - Excel, PDF, Accommodation, Email All buttons present",
+      "manual_add": "PASS - '+ Register Participant' button present"
+    }
+  }
+}

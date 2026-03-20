@@ -192,8 +192,9 @@ class Event(BaseModel):
     fee_tiers: List[dict] = []  # [{name, deadline, fees: {member, non_member, student, international}}]
     accommodation: dict = {}
     additional_person_fee: float = 0  # per-person fee for additional accommodation persons
+    additional_person_fee_usd: float = 0  # per-person fee in USD for international delegates
     registration_addons: List[dict] = []  # [{name, fee_inr, fee_usd, description, pdf_url}]
-    premium_hotels: List[dict] = []  # [{name, amount, tax_percent, room_types: [{type, price}], location, rating}]
+    premium_hotels: List[dict] = []  # [{name, amount, tax_percent, room_types: [{type, price, price_usd}], location, rating}]
     created_at: str = Field(default_factory=now_iso)
 
 
@@ -213,6 +214,7 @@ class EventCreate(BaseModel):
     fee_tiers: List[dict] = []
     accommodation: dict = {}
     additional_person_fee: float = 0
+    additional_person_fee_usd: float = 0
     registration_addons: List[dict] = []
     premium_hotels: List[dict] = []
 
@@ -1340,11 +1342,15 @@ async def get_event_registration_info(event_id: str):
         "date": event.get("date", ""),
         "end_date": event.get("end_date", ""),
         "venue": event.get("venue", ""),
+        "venue_map_link": event.get("venue_map_link", ""),
+        "description": event.get("description", ""),
+        "image_url": event.get("image_url", ""),
         "fee_tiers": event.get("fee_tiers", []),
         "accommodation": event.get("accommodation", {}),
         "allow_membership_registration": event.get("allow_membership_registration", False),
         "membership_plans": plans,
         "additional_person_fee": event.get("additional_person_fee", 0),
+        "additional_person_fee_usd": event.get("additional_person_fee_usd", 0),
         "registration_addons": event.get("registration_addons", []),
         "premium_hotels": event.get("premium_hotels", []),
     }

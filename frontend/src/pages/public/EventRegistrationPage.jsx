@@ -129,12 +129,13 @@ export default function EventRegistrationPage() {
     return (info?.premium_hotels || [])[selectedHotelIdx] || null;
   }, [info, selectedHotelIdx]);
 
-  // Selected room's base price
+  // Selected room's base price (USD for international, INR for others)
   const hotelRoomPrice = useMemo(() => {
     if (!selectedHotel || !selectedRoomType) return 0;
     const room = (selectedHotel.room_types || []).find(r => r.type === selectedRoomType);
-    return room?.price || 0;
-  }, [selectedHotel, selectedRoomType]);
+    if (!room) return 0;
+    return isInternational ? (room.price_usd || 0) : (room.price || 0);
+  }, [selectedHotel, selectedRoomType, isInternational]);
 
   // Hotel tax
   const hotelTaxPercent = selectedHotel?.tax_percent || 0;
@@ -150,12 +151,12 @@ export default function EventRegistrationPage() {
     return 0;
   }, [accom, accomChoice, isFreeAccom, defaultAccomFee, hotelTotal]);
 
-  // Additional persons fee
+  // Additional persons fee (USD for international)
   const addPersonFee = useMemo(() => {
-    const perPerson = info?.additional_person_fee || 0;
+    const perPerson = isInternational ? (info?.additional_person_fee_usd || 0) : (info?.additional_person_fee || 0);
     const validPersons = additionalPersons.filter(p => p.name);
     return validPersons.length * perPerson;
-  }, [info, additionalPersons]);
+  }, [info, additionalPersons, isInternational]);
 
   // Add-on fees
   const addonFee = useMemo(() => {
@@ -232,10 +233,12 @@ export default function EventRegistrationPage() {
     }
     if (registrationCategory === 'student') {
       if (!form.college) return false;
-      if (!bonafideCertUrl) return false;
+      if (!form.address_line1 || !form.address_state || !form.pincode) return false;
+      if (!bonafideCertUrl || !identityProofUrl) return false;
     }
     if (registrationCategory === 'international') {
-      if (!form.country) return false;
+      if (!form.country || !form.address_line1 || !form.pincode) return false;
+      if (!identityProofUrl) return false;
     }
     return true;
   }, [form, registrationCategory, identityProofUrl, bonafideCertUrl]);
@@ -552,7 +555,7 @@ export default function EventRegistrationPage() {
                           <div style={{ marginTop: '6px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                             {hotel.room_types.map((rt, ri) => (
                               <span key={ri} style={{ fontSize: '12px', padding: '3px 8px', background: '#e0f2fe', borderRadius: '6px', color: '#0c3c60' }}>
-                                {rt.type}: {'\u20B9'}{rt.price?.toLocaleString('en-IN')}
+                                {rt.type}: {'\u20B9'}{rt.price?.toLocaleString('en-IN')}{rt.price_usd ? ` / $${rt.price_usd}` : ''}
                               </span>
                             ))}
                           </div>
@@ -579,11 +582,13 @@ export default function EventRegistrationPage() {
               </div>
 
               {/* Additional Info */}
-              {info?.additional_person_fee > 0 && accomEnabled && (
+              {((info?.additional_person_fee > 0) || (info?.additional_person_fee_usd > 0)) && accomEnabled && (
                 <div style={{ background: 'white', borderRadius: '16px', padding: '20px 24px', boxShadow: '0 4px 12px rgba(0,0,0,0.06)', marginBottom: '20px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: '#334155' }}>
                     <Users size={16} style={{ color: '#0c3c60' }} />
-                    <span>Additional accompanying persons: <strong>{'\u20B9'}{info.additional_person_fee} per person</strong></span>
+                    <span>Additional accompanying persons: <strong>{'\u20B9'}{info.additional_person_fee} per person</strong>
+                    {info.additional_person_fee_usd > 0 && <> / <strong>${info.additional_person_fee_usd} per person (International)</strong></>}
+                    </span>
                   </div>
                 </div>
               )}
@@ -725,9 +730,6 @@ export default function EventRegistrationPage() {
                   <div className="form-group"><label className="form-label">Organization</label>
                     <input value={form.organization} onChange={e => setForm(f => ({ ...f, organization: e.target.value }))} className="form-input" />
                   </div>
-                  <div className="form-group"><label className="form-label">State</label>
-                    <input value={form.state} onChange={e => setForm(f => ({ ...f, state: e.target.value }))} className="form-input" />
-                  </div>
                 </div>
 
                 {/* Non-Member: Address + ID Proof */}
@@ -772,11 +774,11 @@ export default function EventRegistrationPage() {
                   </div>
                 )}
 
-                {/* Student: College + Bonafide */}
+                {/* Student: College + Address + Bonafide + Identity Proof */}
                 {registrationCategory === 'student' && (
                   <div style={{ background: '#ede9fe', borderRadius: '10px', padding: '20px', marginTop: '16px', border: '1px solid #c4b5fd' }}>
                     <h4 style={{ fontFamily: 'Poppins', fontSize: '14px', fontWeight: 600, color: '#5b21b6', marginBottom: '12px' }}>
-                      College/University Details (Required for Students)
+                      Student / JRF / SRF / RA / Retired - Details
                     </h4>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                       <div className="form-group"><label className="form-label">College/Institute *</label>
@@ -786,26 +788,62 @@ export default function EventRegistrationPage() {
                         <input value={form.university} onChange={e => setForm(f => ({ ...f, university: e.target.value }))} className="form-input" data-testid="university-input" />
                       </div>
                     </div>
-                    <div style={{ marginTop: '12px' }}>
-                      <label className="form-label">Bonafide Certificate (PDF) *</label>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <button onClick={() => uploadPdf('bonafide')} disabled={uploadingBon} className="btn-secondary" data-testid="upload-bonafide"
-                          style={{ fontSize: '13px', padding: '8px 14px' }}>
-                          {uploadingBon ? 'Uploading...' : <><Upload size={14} /> Upload PDF</>}
-                        </button>
-                        {bonafideCertUrl && (
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: '#1e7a4d', fontWeight: 600 }}>
-                            <CheckCircle size={14} /> Uploaded
-                            <a href={`${process.env.REACT_APP_BACKEND_URL}${bonafideCertUrl}`} target="_blank" rel="noreferrer"
-                              style={{ color: '#0c3c60', marginLeft: '4px', fontSize: '12px' }}>View</a>
-                          </span>
-                        )}
+                    <h4 style={{ fontFamily: 'Poppins', fontSize: '13px', fontWeight: 600, color: '#5b21b6', margin: '16px 0 10px' }}>Address *</h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                      <div className="form-group"><label className="form-label">Address Line 1 *</label>
+                        <input value={form.address_line1} onChange={e => setForm(f => ({ ...f, address_line1: e.target.value }))} className="form-input" data-testid="student-address-line1" />
+                      </div>
+                      <div className="form-group"><label className="form-label">Address Line 2</label>
+                        <input value={form.address_line2} onChange={e => setForm(f => ({ ...f, address_line2: e.target.value }))} className="form-input" />
+                      </div>
+                      <div className="form-group"><label className="form-label">District</label>
+                        <input value={form.district} onChange={e => setForm(f => ({ ...f, district: e.target.value }))} className="form-input" />
+                      </div>
+                      <div className="form-group"><label className="form-label">State *</label>
+                        <input value={form.address_state} onChange={e => setForm(f => ({ ...f, address_state: e.target.value }))} className="form-input" data-testid="student-state" />
+                      </div>
+                      <div className="form-group"><label className="form-label">Pincode *</label>
+                        <input value={form.pincode} onChange={e => setForm(f => ({ ...f, pincode: e.target.value }))} className="form-input" data-testid="student-pincode" />
+                      </div>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '12px' }}>
+                      <div>
+                        <label className="form-label">Bonafide Certificate (PDF) *</label>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <button onClick={() => uploadPdf('bonafide')} disabled={uploadingBon} className="btn-secondary" data-testid="upload-bonafide"
+                            style={{ fontSize: '13px', padding: '8px 14px' }}>
+                            {uploadingBon ? 'Uploading...' : <><Upload size={14} /> Upload PDF</>}
+                          </button>
+                          {bonafideCertUrl && (
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: '#1e7a4d', fontWeight: 600 }}>
+                              <CheckCircle size={14} /> Uploaded
+                              <a href={`${process.env.REACT_APP_BACKEND_URL}${bonafideCertUrl}`} target="_blank" rel="noreferrer"
+                                style={{ color: '#0c3c60', marginLeft: '4px', fontSize: '12px' }}>View</a>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="form-label">Identity Proof (PDF) *</label>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <button onClick={() => uploadPdf('identity')} disabled={uploadingId} className="btn-secondary" data-testid="upload-student-identity"
+                            style={{ fontSize: '13px', padding: '8px 14px' }}>
+                            {uploadingId ? 'Uploading...' : <><Upload size={14} /> Upload PDF</>}
+                          </button>
+                          {identityProofUrl && (
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: '#1e7a4d', fontWeight: 600 }}>
+                              <CheckCircle size={14} /> Uploaded
+                              <a href={`${process.env.REACT_APP_BACKEND_URL}${identityProofUrl}`} target="_blank" rel="noreferrer"
+                                style={{ color: '#0c3c60', marginLeft: '4px', fontSize: '12px' }}>View</a>
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
                 )}
 
-                {/* International: Country field */}
+                {/* International: Full Address + Postal Code + Identity Proof */}
                 {registrationCategory === 'international' && (
                   <div style={{ background: '#dbeafe', borderRadius: '10px', padding: '20px', marginTop: '16px', border: '1px solid #93c5fd' }}>
                     <h4 style={{ fontFamily: 'Poppins', fontSize: '14px', fontWeight: 600, color: '#1e40af', marginBottom: '12px' }}>
@@ -815,11 +853,39 @@ export default function EventRegistrationPage() {
                       <div className="form-group"><label className="form-label">Country *</label>
                         <input value={form.country} onChange={e => setForm(f => ({ ...f, country: e.target.value }))} className="form-input" data-testid="country-input" />
                       </div>
-                      <div className="form-group"><label className="form-label">Address</label>
-                        <input value={form.address_line1} onChange={e => setForm(f => ({ ...f, address_line1: e.target.value }))} className="form-input" placeholder="Your address" />
+                      <div className="form-group"><label className="form-label">Address Line 1 *</label>
+                        <input value={form.address_line1} onChange={e => setForm(f => ({ ...f, address_line1: e.target.value }))} className="form-input" data-testid="intl-address-line1" />
+                      </div>
+                      <div className="form-group"><label className="form-label">Address Line 2</label>
+                        <input value={form.address_line2} onChange={e => setForm(f => ({ ...f, address_line2: e.target.value }))} className="form-input" />
+                      </div>
+                      <div className="form-group"><label className="form-label">District / City</label>
+                        <input value={form.district} onChange={e => setForm(f => ({ ...f, district: e.target.value }))} className="form-input" />
+                      </div>
+                      <div className="form-group"><label className="form-label">State / Province</label>
+                        <input value={form.address_state} onChange={e => setForm(f => ({ ...f, address_state: e.target.value }))} className="form-input" data-testid="intl-state" />
+                      </div>
+                      <div className="form-group"><label className="form-label">Postal Code *</label>
+                        <input value={form.pincode} onChange={e => setForm(f => ({ ...f, pincode: e.target.value }))} className="form-input" data-testid="intl-postal-code" />
                       </div>
                     </div>
-                    <div style={{ marginTop: '8px', padding: '8px 12px', background: '#bfdbfe', borderRadius: '6px', fontSize: '12px', color: '#1e40af' }}>
+                    <div style={{ marginTop: '12px' }}>
+                      <label className="form-label">Identity Proof (PDF) *</label>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <button onClick={() => uploadPdf('identity')} disabled={uploadingId} className="btn-secondary" data-testid="upload-intl-identity"
+                          style={{ fontSize: '13px', padding: '8px 14px' }}>
+                          {uploadingId ? 'Uploading...' : <><Upload size={14} /> Upload PDF</>}
+                        </button>
+                        {identityProofUrl && (
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: '#1e7a4d', fontWeight: 600 }}>
+                            <CheckCircle size={14} /> Uploaded
+                            <a href={`${process.env.REACT_APP_BACKEND_URL}${identityProofUrl}`} target="_blank" rel="noreferrer"
+                              style={{ color: '#0c3c60', marginLeft: '4px', fontSize: '12px' }}>View</a>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div style={{ marginTop: '12px', padding: '8px 12px', background: '#bfdbfe', borderRadius: '6px', fontSize: '12px', color: '#1e40af' }}>
                       <Info size={12} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} />
                       Fees in USD. Payment via Razorpay only.
                     </div>
@@ -961,7 +1027,8 @@ export default function EventRegistrationPage() {
                               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '4px' }} onClick={e => e.stopPropagation()}>
                                 {hotel.room_types.map((rt, ri) => {
                                   const isRoom = selectedRoomType === rt.type;
-                                  const tax = Math.round(rt.price * (hotel.tax_percent || 0) / 100);
+                                  const roomP = isInternational ? (rt.price_usd || 0) : (rt.price || 0);
+                                  const tax = Math.round(roomP * (hotel.tax_percent || 0) / 100);
                                   return (
                                     <button key={ri} onClick={() => setSelectedRoomType(rt.type)} data-testid={`room-${idx}-${ri}`}
                                       style={{
@@ -971,9 +1038,9 @@ export default function EventRegistrationPage() {
                                       }}>
                                       <div style={{ fontSize: '13px', fontWeight: 600, color: '#111827' }}>{rt.type}</div>
                                       <div style={{ fontSize: '14px', fontWeight: 800, color: '#0c3c60', fontFamily: 'Poppins' }}>
-                                        {'\u20B9'}{rt.price?.toLocaleString('en-IN')}
+                                        {currSym}{roomP.toLocaleString('en-IN')}
                                       </div>
-                                      <div style={{ fontSize: '11px', color: '#6b7280' }}>+{'\u20B9'}{tax} tax</div>
+                                      <div style={{ fontSize: '11px', color: '#6b7280' }}>+{currSym}{tax} tax</div>
                                     </button>
                                   );
                                 })}
@@ -997,19 +1064,19 @@ export default function EventRegistrationPage() {
                           <div style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '14px', color: '#111827' }}>Self-Accommodation</div>
                           <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '2px' }}>I will arrange my own accommodation (no fee)</div>
                         </div>
-                        <div style={{ fontFamily: 'Poppins', fontWeight: 800, fontSize: '16px', color: '#6b7280' }}>{'\u20B9'}0</div>
+                        <div style={{ fontFamily: 'Poppins', fontWeight: 800, fontSize: '16px', color: '#6b7280' }}>{currSym}0</div>
                       </div>
                     </button>
                   )}
                 </div>
 
                 {/* Additional Persons */}
-                {accomChoice && accomChoice !== 'self' && (info?.additional_person_fee || 0) > 0 && (
+                {accomChoice && accomChoice !== 'self' && ((isInternational ? (info?.additional_person_fee_usd || 0) : (info?.additional_person_fee || 0)) > 0) && (
                   <div style={{ background: '#f8fafc', borderRadius: '10px', padding: '20px', marginTop: '20px', border: '1px solid #e5e7eb' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                       <h4 style={{ fontFamily: 'Poppins', fontSize: '14px', fontWeight: 600, color: '#0c3c60', margin: 0 }}>
                         <Users size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '6px' }} />
-                        Additional Persons ({'\u20B9'}{info.additional_person_fee} per person)
+                        Additional Persons ({currSym}{isInternational ? info.additional_person_fee_usd : info.additional_person_fee} per person)
                       </h4>
                       <button onClick={addPerson} data-testid="add-person-btn"
                         style={{ background: '#f0fdf4', border: '1px dashed #1e7a4d', color: '#1e7a4d', padding: '6px 14px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}>
@@ -1028,7 +1095,7 @@ export default function EventRegistrationPage() {
                     ))}
                     {additionalPersons.filter(p => p.name).length > 0 && (
                       <div style={{ fontSize: '13px', color: '#1e7a4d', fontWeight: 600, marginTop: '8px' }}>
-                        Additional fee: {'\u20B9'}{addPersonFee.toLocaleString('en-IN')} ({additionalPersons.filter(p => p.name).length} person{additionalPersons.filter(p => p.name).length > 1 ? 's' : ''})
+                        Additional fee: {currSym}{addPersonFee.toLocaleString('en-IN')} ({additionalPersons.filter(p => p.name).length} person{additionalPersons.filter(p => p.name).length > 1 ? 's' : ''})
                       </div>
                     )}
                   </div>

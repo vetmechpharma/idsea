@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Plus, Edit3, Trash2, Save, X, Calendar, MapPin, Eye, EyeOff, ChevronDown, ChevronUp, Hotel, Users, Upload, Image, FileText, ExternalLink } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Plus, Edit3, Trash2, Save, X, Calendar, MapPin, Eye, EyeOff, ChevronDown, ChevronUp, Hotel, Users, Upload, Image, FileText, ExternalLink, ClipboardList } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const emptyTier = { name: '', deadline: '', fees: { member: 0, non_member: 0, student: 0, international: 0 }, accommodation_fees: { member: 0, non_member: 0, student: 0, international: 0 } };
 const emptyAccom = { enabled: false, self_option: true, free_categories: [], hotels: [] };
 const emptyAddon = { name: '', fee_inr: 0, fee_usd: 0, description: '', pdf_url: '' };
-const emptyHotel = { name: '', amount: 0, tax_percent: 18, room_types: [{ type: 'Standard', price: 0 }], location: '', rating: '' };
+const emptyHotel = { name: '', amount: 0, tax_percent: 18, room_types: [{ type: 'Standard', price: 0, price_usd: 0 }], location: '', rating: '' };
 
 const FEE_CATEGORIES = [
   { key: 'member', label: 'IDSEA Member' },
@@ -27,7 +28,7 @@ export default function EventsAdmin() {
     brochure_url: '', status: 'upcoming', image_url: '',
     registration_enabled: false, allow_membership_registration: false,
     fee_tiers: [], accommodation: { ...emptyAccom },
-    additional_person_fee: 0, registration_addons: [], premium_hotels: []
+    additional_person_fee: 0, additional_person_fee_usd: 0, registration_addons: [], premium_hotels: []
   };
   const [form, setForm] = useState(initForm);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -61,6 +62,7 @@ export default function EventsAdmin() {
       fee_tiers: e.fee_tiers || [],
       accommodation: e.accommodation || { ...emptyAccom },
       additional_person_fee: e.additional_person_fee || 0,
+      additional_person_fee_usd: e.additional_person_fee_usd || 0,
       registration_addons: e.registration_addons || [],
       premium_hotels: e.premium_hotels || []
     });
@@ -120,7 +122,7 @@ export default function EventsAdmin() {
     setForm(f => {
       const hotels = [...f.premium_hotels];
       const rts = [...(hotels[hotelIdx].room_types || [])];
-      rts[rtIdx] = { ...rts[rtIdx], [key]: key === 'price' ? (parseFloat(val) || 0) : val };
+      rts[rtIdx] = { ...rts[rtIdx], [key]: ['price', 'price_usd'].includes(key) ? (parseFloat(val) || 0) : val };
       hotels[hotelIdx] = { ...hotels[hotelIdx], room_types: rts };
       return { ...f, premium_hotels: hotels };
     });
@@ -128,7 +130,7 @@ export default function EventsAdmin() {
   const addRoomType = (hotelIdx) => {
     setForm(f => {
       const hotels = [...f.premium_hotels];
-      hotels[hotelIdx] = { ...hotels[hotelIdx], room_types: [...(hotels[hotelIdx].room_types || []), { type: '', price: 0 }] };
+      hotels[hotelIdx] = { ...hotels[hotelIdx], room_types: [...(hotels[hotelIdx].room_types || []), { type: '', price: 0, price_usd: 0 }] };
       return { ...f, premium_hotels: hotels };
     });
   };
@@ -197,7 +199,12 @@ export default function EventsAdmin() {
                 </div>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              {e.registration_enabled && (
+                <Link to={`/admin/events/${e.id}/registrations`} className="btn-primary" data-testid={`view-registrations-${e.id}`} style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '13px', padding: '6px 14px' }}>
+                  <ClipboardList size={14} /> Registrations
+                </Link>
+              )}
               <button onClick={() => openEdit(e)} className="btn-secondary" data-testid={`edit-event-${e.id}`}><Edit3 size={14} /> Edit</button>
               <button onClick={() => deleteEvent(e.id)} style={{ background: '#fee2e2', color: '#991b1b', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}><Trash2 size={14} /></button>
             </div>
@@ -402,8 +409,17 @@ export default function EventsAdmin() {
                         </div>
                       </div>
                       <div style={{ marginBottom: '16px' }}>
-                        <label style={{ fontSize: '13px', fontWeight: 600, color: '#0c3c60', display: 'block', marginBottom: '6px' }}>Additional Person Fee (₹ per person)</label>
-                        <input type="number" value={form.additional_person_fee || 0} onChange={e => setForm(f => ({ ...f, additional_person_fee: parseFloat(e.target.value) || 0 }))} className="form-input" style={{ maxWidth: '200px' }} data-testid="additional-person-fee" />
+                        <label style={{ fontSize: '13px', fontWeight: 600, color: '#0c3c60', display: 'block', marginBottom: '6px' }}>Additional Person Fee</label>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                          <div>
+                            <label style={{ fontSize: '11px', color: '#6b7280' }}>INR (₹ per person)</label>
+                            <input type="number" value={form.additional_person_fee || 0} onChange={e => setForm(f => ({ ...f, additional_person_fee: parseFloat(e.target.value) || 0 }))} className="form-input" data-testid="additional-person-fee" />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: '11px', color: '#6b7280' }}>USD ($ per person) - International</label>
+                            <input type="number" value={form.additional_person_fee_usd || 0} onChange={e => setForm(f => ({ ...f, additional_person_fee_usd: parseFloat(e.target.value) || 0 }))} className="form-input" data-testid="additional-person-fee-usd" />
+                          </div>
+                        </div>
                         <p style={{ fontSize: '12px', color: '#6b7280', marginTop: '4px' }}>Fee for each additional accommodation person added by registrant</p>
                       </div>
                     </>
@@ -435,11 +451,12 @@ export default function EventsAdmin() {
                           </select>
                         </div>
                       </div>
-                      <label style={{ fontSize: '12px', fontWeight: 600, color: '#1e7a4d', display: 'block', marginBottom: '6px' }}>Room Types</label>
+                      <label style={{ fontSize: '12px', fontWeight: 600, color: '#1e7a4d', display: 'block', marginBottom: '6px' }}>Room Types (INR + USD for International Delegates)</label>
                       {(hotel.room_types || []).map((rt, rtIdx) => (
-                        <div key={rtIdx} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '8px', marginBottom: '6px' }}>
+                        <div key={rtIdx} style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr auto', gap: '8px', marginBottom: '6px' }}>
                           <input value={rt.type} onChange={e => updateRoomType(idx, rtIdx, 'type', e.target.value)} className="form-input" placeholder="e.g. Standard, Deluxe" />
-                          <input type="number" value={rt.price} onChange={e => updateRoomType(idx, rtIdx, 'price', e.target.value)} className="form-input" placeholder="Price (₹)" />
+                          <input type="number" value={rt.price} onChange={e => updateRoomType(idx, rtIdx, 'price', e.target.value)} className="form-input" placeholder="Price INR (₹)" />
+                          <input type="number" value={rt.price_usd || 0} onChange={e => updateRoomType(idx, rtIdx, 'price_usd', e.target.value)} className="form-input" placeholder="Price USD ($)" />
                           <button onClick={() => removeRoomType(idx, rtIdx)} style={{ background: '#fee2e2', color: '#991b1b', border: 'none', padding: '6px', borderRadius: '4px', cursor: 'pointer' }}><X size={14} /></button>
                         </div>
                       ))}
