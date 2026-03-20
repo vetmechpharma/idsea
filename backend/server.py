@@ -2804,7 +2804,7 @@ async def admin_delete_slider(slider_id: str, admin=Depends(get_current_admin)):
 
 # =================== WHATSAPP (AK NEXUS) SERVICE ===================
 
-AKNEXUS_BASE_URL = "https://app.aknexus.in/api/v2"
+AKNEXUS_BASE_URL = "https://app.aknexus.in/api"
 
 
 async def get_whatsapp_settings():
@@ -2812,63 +2812,84 @@ async def get_whatsapp_settings():
     return settings or {}
 
 
-async def aknexus_request(method: str, path: str, json_data: dict = None, params: dict = None):
+async def aknexus_request(endpoint: str, extra_params: dict = None):
+    """Make request to AK Nexus v1 API using query parameters for auth."""
     settings = await get_whatsapp_settings()
     token = settings.get("access_token", "")
+    iid = settings.get("instance_id", "")
     if not token:
-        return {"error": "WhatsApp access token not configured"}
-    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
-    url = f"{AKNEXUS_BASE_URL}{path}"
-    async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
+        return {"status": "error", "message": "WhatsApp access token not configured"}
+    params = {"access_token": token}
+    if iid:
+        params["instance_id"] = iid
+    if extra_params:
+        params.update(extra_params)
+    url = f"{AKNEXUS_BASE_URL}/{endpoint}"
+    async with httpx.AsyncClient(timeout=30, follow_redirects=False) as client:
         try:
-            if method == "GET":
-                resp = await client.get(url, headers=headers, params=params)
-            elif method == "POST":
-                resp = await client.post(url, headers=headers, json=json_data or {})
-            elif method == "PUT":
-                resp = await client.put(url, headers=headers, json=json_data or {})
-            elif method == "DELETE":
-                resp = await client.delete(url, headers=headers)
-            else:
-                return {"error": f"Unsupported method: {method}"}
-            logging.info(f"AK Nexus {method} {path} -> {resp.status_code}")
-            if resp.status_code >= 400:
-                try:
-                    return {"error": resp.json().get("message", resp.text[:200]), "status_code": resp.status_code}
-                except Exception:
-                    return {"error": f"HTTP {resp.status_code}: {resp.text[:200]}", "status_code": resp.status_code}
+            resp = await client.get(url, params=params)
+            logging.info(f"AK Nexus {endpoint} -> HTTP {resp.status_code}")
+            if resp.status_code == 302:
+                return {"status": "error", "message": "Authentication failed. Check access token."}
             try:
-                return resp.json()
+                data = resp.json()
+                return data
             except Exception:
-                return {"raw_response": resp.text[:500], "status_code": resp.status_code}
+                return {"status": "error", "message": f"Invalid response: {resp.text[:200]}"}
         except httpx.TimeoutException:
-            return {"error": "Request timed out"}
+            return {"status": "error", "message": "Request timed out"}
         except Exception as e:
             logging.error(f"AK Nexus API error: {e}")
-            return {"error": str(e)}
+            return {"status": "error", "message": str(e)}
 
 
 async def send_whatsapp_message(phone: str, message: str, instance_id: str = None):
+    """Send a WhatsApp text message via AK Nexus /api/send endpoint."""
     settings = await get_whatsapp_settings()
     if not settings.get("enabled", False):
         return False
+    token = settings.get("access_token", "")
     iid = instance_id or settings.get("instance_id", "")
-    if not iid:
+    if not iid or not token:
         return False
     phone = phone.strip().replace("+", "").replace(" ", "").replace("-", "")
     if len(phone) == 10:
         phone = "91" + phone
-    result = await aknexus_request("POST", "/whatsapp/send/text", {
-        "instance_id": iid, "to": phone, "message": message
-    })
-    if result.get("error"):
-        logging.warning(f"WhatsApp send failed to {phone}: {result['error']}")
-        return False
-    await db.whatsapp_logs.insert_one({
-        "id": str(uuid.uuid4()), "phone": phone, "message": message[:200],
-        "instance_id": iid, "status": "sent", "response": str(result)[:500], "sent_at": now_iso()
-    })
-    return True
+    url = f"{AKNEXUS_BASE_URL}/send"
+    params = {
+        "number": phone, "type": "text", "message": message,
+        "instance_id": iid, "access_token": token,
+    }
+    async with httpx.AsyncClient(timeout=30, follow_redirects=False) as client:
+        try:
+            resp = await client.get(url, params=params)
+            if resp.status_code == 302:
+                logging.warning(f"WhatsApp send auth failed for {phone}")
+                await db.whatsapp_logs.insert_one({
+                    "id": str(uuid.uuid4()), "phone": phone, "message": message[:200],
+                    "instance_id": iid, "status": "failed", "response": "Auth failed (302)", "sent_at": now_iso()
+                })
+                return False
+            try:
+                result = resp.json()
+            except Exception:
+                result = {"status": "error", "message": resp.text[:200]}
+            is_success = result.get("status") == "success"
+            await db.whatsapp_logs.insert_one({
+                "id": str(uuid.uuid4()), "phone": phone, "message": message[:200],
+                "instance_id": iid, "status": "sent" if is_success else "failed",
+                "response": str(result)[:500], "sent_at": now_iso()
+            })
+            if not is_success:
+                logging.warning(f"WhatsApp send to {phone}: {result.get('message', 'unknown error')}")
+            return is_success
+        except Exception as e:
+            logging.error(f"WhatsApp send error: {e}")
+            await db.whatsapp_logs.insert_one({
+                "id": str(uuid.uuid4()), "phone": phone, "message": message[:200],
+                "instance_id": iid, "status": "failed", "response": str(e)[:500], "sent_at": now_iso()
+            })
+            return False
 
 
 async def send_whatsapp_notification(phone: str, notification_type: str, variables: dict):
@@ -2927,16 +2948,16 @@ async def admin_update_whatsapp_settings(data: dict, admin=Depends(get_current_a
 @api_router.post("/admin/whatsapp/connect")
 async def admin_whatsapp_connect(data: dict, admin=Depends(get_current_admin)):
     custom_id = data.get("instance_id", "")
-    payload = {}
+    extra = {}
     if custom_id:
-        payload["instance_id"] = custom_id
-    result = await aknexus_request("POST", "/whatsapp/instance/connect", payload)
-    if result.get("error"):
-        return {"status": "error", "message": result["error"], "result": result}
-    iid = result.get("instance_id") or result.get("data", {}).get("instance_id") or custom_id
+        extra["instance_id"] = custom_id
+    result = await aknexus_request("create_instance", extra)
+    if result.get("status") == "error":
+        return result
+    iid = result.get("instance_id") or custom_id
     if iid:
         await db.whatsapp_settings.update_one({}, {"$set": {"instance_id": iid, "updated_at": now_iso()}}, upsert=True)
-    return {"status": "success", "instance_id": iid, "result": result}
+    return result
 
 
 @api_router.get("/admin/whatsapp/status")
@@ -2945,7 +2966,7 @@ async def admin_whatsapp_status(admin=Depends(get_current_admin)):
     iid = settings.get("instance_id", "")
     if not iid:
         return {"status": "not_configured", "instance_id": ""}
-    result = await aknexus_request("GET", f"/whatsapp/instance/status/{iid}")
+    result = await aknexus_request("reboot")
     return {"instance_id": iid, **result}
 
 
@@ -2955,7 +2976,7 @@ async def admin_whatsapp_qr(admin=Depends(get_current_admin)):
     iid = settings.get("instance_id", "")
     if not iid:
         raise HTTPException(status_code=400, detail="No instance configured. Connect first.")
-    result = await aknexus_request("GET", f"/whatsapp/instance/qr/{iid}")
+    result = await aknexus_request("get_qrcode")
     return result
 
 
@@ -2965,13 +2986,13 @@ async def admin_whatsapp_disconnect(admin=Depends(get_current_admin)):
     iid = settings.get("instance_id", "")
     if not iid:
         raise HTTPException(status_code=400, detail="No instance configured")
-    result = await aknexus_request("POST", "/whatsapp/instance/disconnect", {"instance_id": iid})
+    result = await aknexus_request("reset_instance")
     return result
 
 
 @api_router.get("/admin/whatsapp/instances")
 async def admin_whatsapp_instances(admin=Depends(get_current_admin)):
-    result = await aknexus_request("GET", "/whatsapp/instances")
+    result = await aknexus_request("get_qrcode")
     return result
 
 
@@ -2983,16 +3004,18 @@ async def admin_whatsapp_send_test(data: dict, admin=Depends(get_current_admin))
         raise HTTPException(status_code=400, detail="Phone number required")
     settings = await get_whatsapp_settings()
     iid = settings.get("instance_id", "")
+    token = settings.get("access_token", "")
     if not iid:
         raise HTTPException(status_code=400, detail="No WhatsApp instance configured")
-    result = await aknexus_request("POST", "/whatsapp/send/text", {
-        "instance_id": iid,
-        "to": phone.strip().replace("+", "").replace(" ", "").replace("-", ""),
-        "message": message
+    phone_clean = phone.strip().replace("+", "").replace(" ", "").replace("-", "")
+    if len(phone_clean) == 10:
+        phone_clean = "91" + phone_clean
+    result = await aknexus_request("send", {
+        "number": phone_clean, "type": "text", "message": message,
     })
-    if result.get("error"):
-        raise HTTPException(status_code=400, detail=result["error"])
-    return {"message": "Test message sent", "result": result}
+    if result.get("status") == "error":
+        return {"status": "error", "message": result.get("message", "Send failed"), "result": result}
+    return {"status": "success", "message": "Test message sent", "result": result}
 
 
 @api_router.post("/admin/whatsapp/send-bulk")

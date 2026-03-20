@@ -88,7 +88,13 @@ export default function WhatsappAdmin() {
       if (r.data.instance_id) {
         setSettings(s => ({ ...s, instance_id: r.data.instance_id }));
       }
-      showToast(r.data.status === 'error' ? (r.data.message || 'Connection issue') : 'Instance connected', r.data.status === 'error' ? 'error' : 'success');
+      if (r.data.status === 'success') {
+        showToast('Instance created! Now scan the QR code to activate.');
+        // Auto-fetch QR after connecting
+        setTimeout(() => fetchQR(), 500);
+      } else {
+        showToast(r.data.message || 'Connection issue', 'error');
+      }
       await fetchStatus();
     } catch (e) {
       showToast(e.response?.data?.detail || 'Connection failed', 'error');
@@ -119,11 +125,15 @@ export default function WhatsappAdmin() {
     if (!testPhone) return showToast('Enter phone number', 'error');
     setSendingTest(true);
     try {
-      await axios.post(`${API}/admin/whatsapp/send-test`, { phone: testPhone, message: testMessage }, { headers });
-      showToast('Test message sent!');
+      const r = await axios.post(`${API}/admin/whatsapp/send-test`, { phone: testPhone, message: testMessage }, { headers });
+      if (r.data.status === 'error') {
+        showToast(r.data.message || 'Send failed', 'error');
+      } else {
+        showToast('Test message sent!');
+      }
       fetchLogs();
     } catch (e) {
-      showToast(e.response?.data?.detail || 'Send failed', 'error');
+      showToast(e.response?.data?.detail || e.response?.data?.message || 'Send failed', 'error');
     }
     setSendingTest(false);
   };
@@ -151,7 +161,8 @@ export default function WhatsappAdmin() {
     }));
   };
 
-  const isConnected = status && (status.status === 'connected' || status.connected === true || (status.data && status.data.status === 'connected'));
+  const isConnected = status && (status.status === 'connected' || status.connected === true || (status.data && status.data.status === 'connected') || status.message === 'Instance is active and connected');
+  const isActivated = status && status.status !== 'not_configured' && status.message !== 'This instance ID has not been activated yet';
 
   if (loading) return (
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
@@ -211,11 +222,16 @@ export default function WhatsappAdmin() {
           {isConnected ? <Wifi size={20} style={{ color: '#1e7a4d' }} /> : <WifiOff size={20} style={{ color: '#ca8a04' }} />}
           <div>
             <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 600, fontSize: '14px', color: isConnected ? '#166534' : '#854d0e' }}>
-              {isConnected ? 'WhatsApp Connected' : status?.instance_id ? 'Awaiting Connection' : 'Not Configured'}
+              {isConnected ? 'WhatsApp Connected' : settings.instance_id ? (isActivated ? 'Awaiting Connection' : 'Not Activated - Scan QR Code') : 'Not Configured'}
             </div>
             {settings.instance_id && (
               <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
                 Instance: {settings.instance_id}
+              </div>
+            )}
+            {status?.message && status.message !== 'Instance is active and connected' && (
+              <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', color: '#b45309', marginTop: '2px' }}>
+                {status.message}
               </div>
             )}
           </div>
@@ -317,13 +333,19 @@ export default function WhatsappAdmin() {
               </div>
               {qrData && (
                 <div style={{ textAlign: 'center', padding: '20px' }}>
-                  {qrData.qr_code || qrData.qr || qrData.data?.qr ? (
+                  {qrData.base64 || qrData.qr_code || qrData.qr ? (
                     <div>
-                      <img src={qrData.qr_code || qrData.qr || qrData.data?.qr} alt="WhatsApp QR Code"
+                      <img src={qrData.base64 || qrData.qr_code || qrData.qr}
+                        alt="WhatsApp QR Code"
                         style={{ maxWidth: '280px', border: '4px solid #e2e8f0', borderRadius: '12px' }} data-testid="qr-code-image" />
                       <p style={{ fontFamily: 'Inter', fontSize: '13px', color: '#64748b', marginTop: '12px' }}>
                         Scan this QR code with WhatsApp to link your account
                       </p>
+                      {qrData.expires_in && (
+                        <p style={{ fontFamily: 'Inter', fontSize: '12px', color: '#ca8a04', marginTop: '4px' }}>
+                          Expires in {Math.round(qrData.expires_in / 60)} minutes
+                        </p>
+                      )}
                     </div>
                   ) : (
                     <div style={{ padding: '20px', background: '#fefce8', borderRadius: '8px', border: '1px solid #fef08a' }}>
