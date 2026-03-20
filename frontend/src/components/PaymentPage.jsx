@@ -4,7 +4,7 @@ import { CreditCard, QrCode, Building2, Copy, CheckCircle, Loader2, AlertCircle 
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
-export default function PaymentPage({ amount, name, email, phone, purpose, memberId, eventRegistrationId, membershipType, onSuccess, onCancel, currency = 'INR', isInternational = false }) {
+export default function PaymentPage({ amount, name, email, phone, purpose, memberId, eventRegistrationId, membershipType, onSuccess, onCancel, isInternational = false }) {
   const [paySettings, setPaySettings] = useState(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('');
@@ -17,7 +17,7 @@ export default function PaymentPage({ amount, name, email, phone, purpose, membe
   const [error, setError] = useState('');
   const [rzpLoading, setRzpLoading] = useState(false);
 
-  const currSym = currency === 'USD' ? '$' : '\u20B9';
+  const currSym = '\u20B9';
 
   useEffect(() => {
     axios.get(`${API}/public/payment-settings`).then(r => {
@@ -50,7 +50,7 @@ export default function PaymentPage({ amount, name, email, phone, purpose, membe
     setRzpLoading(true); setError('');
     try {
       const res = await axios.post(`${API}/payments/create-order`, {
-        amount, currency: currency || 'INR', member_id: memberId || '', member_name: name, member_email: email,
+        amount, currency: 'INR', member_id: memberId || '', member_name: name, member_email: email,
         membership_type: membershipType || '', event_registration_id: eventRegistrationId || '', purpose: purpose || 'membership'
       });
       const { payment_id, razorpay_order_id, key_id } = res.data;
@@ -60,7 +60,7 @@ export default function PaymentPage({ amount, name, email, phone, purpose, membe
       if (!loaded) { setError('Failed to load Razorpay. Please try again.'); setRzpLoading(false); return; }
 
       const options = {
-        key: key_id, amount: amount * 100, currency: currency || 'INR', name: 'IDSEA',
+        key: key_id, amount: amount * 100, currency: 'INR', name: 'IDSEA',
         description: purpose === 'event_registration' ? 'Event Registration' : 'Membership Payment',
         order_id: razorpay_order_id,
         prefill: { name, email, contact: phone },
@@ -147,7 +147,7 @@ export default function PaymentPage({ amount, name, email, phone, purpose, membe
         </div>
         {isInternational && (
           <div style={{ fontSize: '12px', color: '#1e40af', background: '#dbeafe', display: 'inline-block', padding: '4px 12px', borderRadius: '6px', marginTop: '6px', fontWeight: 600 }}>
-            Payment in {currency} via Razorpay
+            International Delegate - Razorpay Payment Only
           </div>
         )}
         <div style={{ fontSize: '12px', color: '#9ca3af', marginTop: '4px' }}>{name} | {purpose === 'event_registration' ? 'Event Registration' : 'Membership'}</div>
