@@ -13,35 +13,35 @@ Build a full-stack website for IDSEA with public-facing website and comprehensiv
 
 ## Implemented Features
 
-### Event Registration System V2 - COMPLETE (March 2026)
-- **4 Participant Categories:** Member (phone lookup), Non-Member, Student/JRF/SRF/RA/Retired, International Delegate
-- **All non-member categories** require full address (Line 1, Line 2, District, State, Pincode/Postal Code) + Identity Proof PDF upload
+### Event Registration System V2 - COMPLETE
+- **4 Participant Categories:** Member, Non-Member, Student/JRF/SRF/RA/Retired, International Delegate
+- **All non-member categories** require full address + Identity Proof PDF
 - **Student** additionally requires College/University + Bonafide Certificate PDF
-- **International** fees in USD, Razorpay only, full address with country + postal code
+- **International** fees in USD, full address with country + postal code
 - **Fee Tiers:** Early Bird & Regular with per-category fees
-- **Accommodation:** Default (per-category fees), Self (no fee), Premium Hotels (room types with INR + USD prices, tax %)
-- **Free Accommodation:** Admin configurable per category
-- **Additional Persons:** Name, age, mobile; INR + USD per-person fees
-- **Optional Add-ons:** Admin-created with INR/USD fees and downloadable PDFs
+- **Accommodation:** Default, Self, Premium Hotels (INR + USD room prices, tax %)
+- **Additional Persons:** INR + USD per-person fees
+- **Optional Add-ons:** INR/USD fees, downloadable PDFs
 - **Become a Member:** Available for Non-Members, Students & International Delegates
-- **Venue Map Link:** Google Maps URL in events - shown in public pages, emails, WhatsApp
 
-### Admin Event Management - COMPLETE (March 2026)
-- **EventsAdmin:** 5-tab modal (Basic, Fees, Accommodation, Hotels, Add-ons)
-- **Event Image Upload:** Upload images for events, thumbnail in admin list
-- **Event Brochure Upload:** PDF upload with "Download Brochure" button on public page
-- **Premium Hotels Admin:** Room types with both INR and USD prices + tax %
-- **View Registrations Button:** Links to full registration management page
-- **EventRegistrations Page:** View/Edit/Delete registrations, Manual registration, Excel/PDF export, Room allotment, WhatsApp/Email messaging
+### Payment System - COMPLETE
+- **International Delegates:** Razorpay ONLY, amount in USD ($), "Payment in USD via Razorpay" badge
+- **Domestic (Member/Non-Member/Student):** UPI QR as PRIMARY default, Razorpay + Bank Transfer as secondary
+- **Tab bar hidden** when only 1 payment option available
+- **Currency-aware:** Backend passes correct currency to Razorpay orders
+
+### Admin Event Management - COMPLETE
+- Event Image Upload + Brochure PDF Upload/Download
+- Premium Hotels with INR + USD room prices + tax %
+- Additional Person Fee in INR + USD
+- Venue Google Maps Link in events, emails, WhatsApp
+- View Registrations button → full management page (view/edit/delete, manual registration, export, room allotment, WhatsApp)
 
 ### Membership Plans - Dynamic Management
-- Admin CRUD at /admin/membership-plans
-- Plans: Academic, Entrepreneur, Corporate, International (with INR + USD fees)
-
 ### WhatsApp Integration (AK Nexus) - WORKING
-### Payment System - Multi-method | Membership System | Admin Panel (18+ sections)
+### Admin Panel (18+ sections)
 
-## Testing: iterations 1-18 all pass
+## Testing: iterations 1-19 all pass
 
 ## Backlog
 - P1: Member Directory (public), News & Contact pages
