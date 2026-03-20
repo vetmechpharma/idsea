@@ -14,7 +14,7 @@ import os
 import random
 import string
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://dairy-reg.preview.emergentagent.com').rstrip('/')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://registration-manager.preview.emergentagent.com').rstrip('/')
 EVENT_ID = "435435f4-774f-4a0f-95e1-1e423493c196"
 
 
