@@ -10,6 +10,7 @@ import {
 const navItems = [
   { path: '/admin/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { path: '/admin/members', icon: Users, label: 'Members' },
+  { path: '/admin/membership-plans', icon: Crown, label: 'Membership Plans' },
   { path: '/admin/payments', icon: CreditCard, label: 'Payments' },
   { path: '/admin/events', icon: Calendar, label: 'Events' },
   { path: '/admin/news', icon: Newspaper, label: 'News' },
@@ -23,7 +24,6 @@ const navItems = [
   { path: '/admin/cms', icon: Settings, label: 'CMS Settings' },
   { path: '/admin/sliders', icon: SlidersHorizontal, label: 'Slider Management' },
   { path: '/admin/payment-settings', icon: CreditCard, label: 'Payment Settings' },
-  { path: '/admin/membership-plans', icon: Crown, label: 'Membership Plans' },
   { path: '/admin/whatsapp', icon: MessageSquare, label: 'WhatsApp' },
   { path: '/admin/roles', icon: Shield, label: 'Admin Roles' },
 ];
