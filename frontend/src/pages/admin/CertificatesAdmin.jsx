@@ -163,9 +163,14 @@ export default function CertificatesAdmin() {
                 {/* Info */}
                 <div style={{ padding: '14px 16px' }}>
                   <h3 style={{ fontFamily: 'Poppins', fontSize: '14px', fontWeight: 700, color: '#111827', margin: '0 0 4px', lineHeight: 1.3 }}>{t.name}</h3>
-                  <div style={{ fontSize: '11px', color: '#9ca3af', marginBottom: '12px' }}>
+                  <div style={{ fontSize: '11px', color: '#9ca3af', marginBottom: '8px' }}>
                     {t.elements?.length || 0} elements &middot; {t.orientation} &middot; Updated {new Date(t.updated_at).toLocaleDateString()}
                   </div>
+                  {t.linked_membership_type && (
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '6px', padding: '3px 8px', fontSize: '10px', fontWeight: 700, color: '#1e40af', marginBottom: '8px', textTransform: 'capitalize' }}>
+                      Linked: {t.linked_membership_type} Plan
+                    </div>
+                  )}
 
                   {/* Actions */}
                   <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>

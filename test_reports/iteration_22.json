@@ -1,0 +1,115 @@
+{
+  "summary": "Iteration 22 - Certificate Designer Bug Fixes & New Features testing complete. All backend APIs (19/19 tests passed) and frontend UI functionality verified. Key fixes: 1) Text content now uses textarea for multi-line editing, 2) PDF text rendering uses Paragraph with wrapping, 3) Added opacity slider (10-100%), 4) Added zoom controls (+/-/reset), 5) Added plan linking dropdown with 4 membership types, 6) Template cards show 'Linked: {plan} Plan' badge.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_certificate_designer_v2.py",
+    "/app/test_reports/pytest/pytest_cert_designer_v2.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "CertificateDesigner.jsx: Text content property now uses <textarea> with minHeight 60px and resize:vertical for multi-line editing",
+    "CertificateDesigner.jsx: Canvas text elements use pre-wrap and word-break:break-word for proper text wrapping",
+    "CertificateDesigner.jsx: Opacity property added with range slider (10-100%) and applied via CSS opacity",
+    "CertificateDesigner.jsx: Zoom controls (+/-/reset) with scale range 0.3-1.5, displayed as percentage",
+    "CertificateDesigner.jsx: Link Plan dropdown with 5 options (Not Linked, Academic, Entrepreneur, Corporate, International)",
+    "CertificateDesigner.jsx: handleLinkPlan calls PUT /link-plan endpoint and shows toast notification",
+    "CertificatesAdmin.jsx: Template cards show 'Linked: {plan} Plan' badge when linked_membership_type is set",
+    "Backend server.py: generate_template_pdf uses reportlab Paragraph with ParagraphStyle for text wrapping",
+    "Backend server.py: PUT /link-plan endpoint unlinks existing template for plan before linking new one",
+    "Backend server.py: GET /by-plan/{type} returns template linked to specific membership type"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_certificate_designer_v2.py"
+  ],
+  "success_rate": {
+    "backend": "100% (19/19 tests passed)",
+    "frontend": "100% (All UI elements and interactions verified)"
+  },
+  "test_credentials": {
+    "admin_email": "admin@idsea.org",
+    "admin_password": "Admin@123",
+    "template_with_elements": "d372adf1-d2f4-45ea-ba5d-14396ffc1021"
+  },
+  "seed_data_creation": "Test templates created and cleaned up during backend tests",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Certificate Designer module fully functional with bug fixes and new features. Key features tested: 1) Textarea for multi-line text content editing, 2) Opacity slider (10-100%) in properties panel, 3) Zoom controls (+/-/reset) in toolbar, 4) Link Plan dropdown to assign template to membership type (academic/entrepreneur/corporate/international), 5) Template cards show 'Linked: {plan} Plan' badge, 6) PDF generation uses Paragraph for text wrapping. All CRUD operations, preview, clone, generate-member, generate-event endpoints working.",
+  "features_tested": {
+    "backend_apis": {
+      "PUT /api/admin/certificate-templates/{id}/link-plan": "PASS - Links template to membership type, unlinks existing",
+      "GET /api/admin/certificate-templates/by-plan/{type}": "PASS - Returns template linked to plan, 404 if none",
+      "POST /api/admin/certificate-templates/{id}/preview": "PASS - Returns PDF with text wrapping via Paragraph",
+      "Opacity property in elements": "PASS - Stored and retrieved correctly",
+      "Multi-line text content": "PASS - Newlines preserved in content field"
+    },
+    "frontend_ui": {
+      "certificate_designer": {
+        "toolbar": "PASS - Template name, type, orientation, Link Plan, element buttons, zoom, Preview PDF, Save",
+        "link_plan_dropdown": "PASS - Shows 5 options (Not Linked, Academic, Entrepreneur, Corporate, International)",
+        "link_plan_functionality": "PASS - Button text updates, toast shows, API called",
+        "zoom_controls": "PASS - +/- buttons and reset, displays percentage (78%)",
+        "add_text_button": "PASS - Adds new text element with 'New Text' content",
+        "add_placeholder_button": "PASS - Shows dropdown with 17 placeholder options",
+        "canvas": "PASS - Renders all 8 elements with proper styling",
+        "properties_panel_text": "PASS - Shows textarea for content, opacity slider, font controls, style toggles",
+        "properties_panel_placeholder": "PASS - Shows Dynamic Field dropdown, opacity slider, font controls",
+        "opacity_slider": "PASS - Range 10-100%, updates element opacity",
+        "bold_italic_underline": "PASS - Toggle buttons for text styling",
+        "text_alignment": "PASS - Left/Center/Right alignment buttons",
+        "layer_order": "PASS - Bring Forward/Send Back buttons"
+      },
+      "certificates_list": {
+        "linked_badge": "PASS - Shows 'Linked: {plan} Plan' badge on template cards",
+        "template_cards": "PASS - Edit, Preview, Generate, Clone, Delete buttons"
+      }
+    }
+  },
+  "ui_verification": {
+    "designer_toolbar_elements": [
+      "Back button",
+      "Template name input",
+      "Type dropdown (Membership/Event/Custom)",
+      "Orientation dropdown (Landscape/Portrait)",
+      "Link Plan button with dropdown",
+      "Text button",
+      "Field button with placeholder dropdown",
+      "Image button",
+      "Sign button",
+      "Line button",
+      "Zoom out button",
+      "Zoom percentage display",
+      "Zoom in button",
+      "Reset zoom button",
+      "Preview PDF button",
+      "Save button"
+    ],
+    "properties_panel_for_text": [
+      "Position (X, Y, W, H)",
+      "Opacity slider (10-100%)",
+      "Content textarea (multi-line)",
+      "Font Family dropdown",
+      "Font Size input",
+      "Color picker",
+      "Bold/Italic/Underline toggles",
+      "Text alignment (Left/Center/Right)",
+      "Layer Order (Bring Forward/Send Back)",
+      "Duplicate button",
+      "Delete button"
+    ],
+    "link_plan_options": [
+      "Not Linked",
+      "Academic Member",
+      "Entrepreneur Member",
+      "Corporate Member",
+      "International Delegate"
+    ]
+  }
+}

@@ -2607,6 +2607,10 @@ def _resolve_img_path(url_or_path: str) -> str:
 
 
 def generate_template_pdf(template: dict, data: dict) -> bytes:
+    from reportlab.platypus import Paragraph as RLParagraph
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
+
     pw = template.get("page_width", 1000)
     ph = template.get("page_height", 707)
     orient = template.get("orientation", "landscape")
@@ -2638,6 +2642,7 @@ def generate_template_pdf(template: dict, data: dict) -> bytes:
         eh = el.get("height", 30) * sy
         ey = pdf_h - (el.get("y", 0) * sy) - eh
         clr = el.get("color", "#000000")
+        opacity = el.get("opacity", 100) / 100.0
         fs = max(6, el.get("font_size", 16) * sy)
 
         if etype in ("text", "placeholder"):
@@ -2648,24 +2653,27 @@ def generate_template_pdf(template: dict, data: dict) -> bytes:
             if not content:
                 continue
             ff = el.get("font_family", "Helvetica")
-            fw = el.get("font_weight", "normal")
+            fw_val = el.get("font_weight", "normal")
             fi = el.get("font_style", "normal")
             ta = el.get("text_align", "left")
             td = el.get("text_decoration", "none")
-            fn = _map_font(ff, fw, fi)
-            c.setFillColor(colors.HexColor(clr))
-            c.setFont(fn, fs)
-            ty = ey + eh - fs - 2
-            if ta == "center":
-                c.drawCentredString(ex + ew / 2, ty, content)
-            elif ta == "right":
-                c.drawRightString(ex + ew, ty, content)
-            else:
-                c.drawString(ex, ty, content)
+            fn = _map_font(ff, fw_val, fi)
+
+            # Use Paragraph for multi-line text wrapping
+            align_map = {"left": TA_LEFT, "center": TA_CENTER, "right": TA_RIGHT}
+            style = ParagraphStyle(
+                name='el', fontName=fn, fontSize=fs,
+                leading=fs * 1.25, textColor=colors.HexColor(clr),
+                alignment=align_map.get(ta, TA_LEFT),
+            )
+            content_clean = content.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
             if td == "underline":
-                c.setStrokeColor(colors.HexColor(clr))
-                c.setLineWidth(0.8)
-                c.line(ex, ty - 2, ex + ew, ty - 2)
+                content_clean = f"<u>{content_clean}</u>"
+            para = RLParagraph(content_clean, style)
+            para_w, para_h = para.wrap(ew, eh)
+            # Vertically center if single line, top-align if multi-line
+            y_offset = ey + (eh - para_h) / 2 if para_h <= fs * 2 else ey + eh - para_h
+            para.drawOn(c, ex, max(ey, y_offset))
 
         elif etype == "image":
             ip = _resolve_img_path(el.get("image_url", ""))
@@ -2677,7 +2685,7 @@ def generate_template_pdf(template: dict, data: dict) -> bytes:
 
         elif etype == "signature_block":
             sn = el.get("signer_name", "")
-            st = el.get("signer_title", "")
+            st_val = el.get("signer_title", "")
             si = _resolve_img_path(el.get("signature_image_url", ""))
             c.setFillColor(colors.HexColor(clr))
             if si:
@@ -2692,13 +2700,13 @@ def generate_template_pdf(template: dict, data: dict) -> bytes:
             c.setFont("Helvetica-Bold", max(6, fs * 0.85))
             c.drawCentredString(ex + ew / 2, ey + eh * 0.22, sn)
             c.setFont("Helvetica", max(6, fs * 0.7))
-            c.drawCentredString(ex + ew / 2, ey + eh * 0.06, st)
+            c.drawCentredString(ex + ew / 2, ey + eh * 0.06, st_val)
 
         elif etype == "line":
             lc = el.get("line_color", "#000000")
-            lw = max(0.5, el.get("line_width", 2) * sx)
+            lw_val = max(0.5, el.get("line_width", 2) * sx)
             c.setStrokeColor(colors.HexColor(lc))
-            c.setLineWidth(lw)
+            c.setLineWidth(lw_val)
             c.line(ex, ey + eh / 2, ex + ew, ey + eh / 2)
 
     c.showPage()
@@ -2725,6 +2733,7 @@ async def create_cert_template(request: Request, admin=Depends(get_current_admin
         "page_height": 707 if orient == "landscape" else 1000,
         "background_color": data.get("background_color", "#ffffff"),
         "background_image_url": data.get("background_image_url", ""),
+        "linked_membership_type": data.get("linked_membership_type", ""),
         "elements": data.get("elements", []),
         "created_at": now_iso(),
         "updated_at": now_iso(),
@@ -2775,6 +2784,33 @@ async def clone_cert_template(tpl_id: str, admin=Depends(get_current_admin)):
     await db.certificate_templates.insert_one(t)
     t.pop("_id", None)
     return t
+
+
+@api_router.put("/admin/certificate-templates/{tpl_id}/link-plan")
+async def link_template_to_plan(tpl_id: str, request: Request, admin=Depends(get_current_admin)):
+    data = await request.json()
+    mtype = data.get("membership_type", "")
+    # Unlink any existing template for this plan
+    if mtype:
+        await db.certificate_templates.update_many(
+            {"linked_membership_type": mtype},
+            {"$set": {"linked_membership_type": ""}}
+        )
+    await db.certificate_templates.update_one(
+        {"id": tpl_id},
+        {"$set": {"linked_membership_type": mtype, "updated_at": now_iso()}}
+    )
+    return {"message": f"Template linked to {mtype}" if mtype else "Template unlinked"}
+
+
+@api_router.get("/admin/certificate-templates/by-plan/{membership_type}")
+async def get_template_by_plan(membership_type: str, admin=Depends(get_current_admin)):
+    t = await db.certificate_templates.find_one({"linked_membership_type": membership_type}, {"_id": 0})
+    if not t:
+        raise HTTPException(404, f"No template linked to {membership_type}")
+    return t
+
+
 
 
 @api_router.post("/admin/certificate-templates/{tpl_id}/preview")
