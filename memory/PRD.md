@@ -14,46 +14,50 @@ Build a full-stack website for IDSEA with public-facing website and comprehensiv
 ## Implemented Features
 
 ### Event Registration System V2 - COMPLETE
-- **4 Participant Categories:** Member, Non-Member, Student/JRF/SRF/RA/Retired, International Delegate
-- **All non-member categories** require full address + Identity Proof PDF
-- **Student** additionally requires College/University + Bonafide Certificate PDF
-- **International** fees in USD, full address with country + postal code
-- **Fee Tiers:** Early Bird & Regular with per-category fees
-- **Accommodation:** Default, Self, Premium Hotels (INR + USD room prices, tax %)
-- **Additional Persons:** INR + USD per-person fees
-- **Optional Add-ons:** INR/USD fees, downloadable PDFs
-- **Become a Member:** Available for Non-Members, Students & International Delegates
+- 4 Participant Categories: Member, Non-Member, Student/JRF/SRF/RA/Retired, International Delegate
+- Fee Tiers (Early Bird & Regular), Accommodation (Default/Self/Premium Hotels INR+USD)
+- Additional Persons, Optional Add-ons, Membership option for non-members
+- File uploads: ID proof, bonafide certificate
 
 ### Payment System - COMPLETE
-- **International Delegates:** Razorpay ONLY, amount in USD ($), "Payment in USD via Razorpay" badge
-- **Domestic (Member/Non-Member/Student):** UPI QR as PRIMARY default, Razorpay + Bank Transfer as secondary
-- **Tab bar hidden** when only 1 payment option available
-- **Currency-aware:** Backend passes correct currency to Razorpay orders
+- International: Razorpay only in USD | Domestic: UPI QR default, Razorpay + Bank Transfer
+- Currency-aware backend
 
 ### Admin Event Management - COMPLETE
-- Event Image Upload + Brochure PDF Upload/Download
-- Premium Hotels with INR + USD room prices + tax %
-- Additional Person Fee in INR + USD
-- Venue Google Maps Link in events, emails, WhatsApp
-- View Registrations button -> full management page
+- Event CRUD with image/brochure uploads, premium hotels, venue map link
 
-### Admin Event Registrations Page - COMPLETE (Feb 2026)
-- **Stats dashboard:** Total, Paid, Pending, Revenue, by Category, Need Accom, Room Assigned
-- **Multi-filter system:** Search (name/email/phone/member_id), Category, Payment Status, Accommodation, Room Status
-- **Detail modal:** All V2 fields - Personal Info, Address, College/University, Uploaded Documents (PDF links), Accommodation, Additional Persons, Add-ons, Membership, Fee Breakdown, Assigned Accommodation
-- **Edit modal:** All V2 fields editable - personal info, address, category, accommodation, fees, payment status/mode
-- **Manual Registration:** Member search, all V2 fields, fee inputs, auto-total calculation
-- **Data Export:** Excel (40 columns with all V2 fields), PDF (12-column summary), Accommodation Report
-- **Room Assignment:** Location type, name, room number, Google Maps link
-- **Notifications:** Email and WhatsApp per-registration and bulk
+### Admin Event Registrations - COMPLETE (Feb 2026)
+- Stats dashboard, multi-filter system, detail/edit modals, manual registration
+- Excel (40 columns), PDF export, accommodation reports
 
-### Membership Plans - Dynamic Management
-### WhatsApp Integration (AK Nexus) - WORKING
-### Admin Panel (18+ sections)
+### Membership Registration - COMPLETE (Mar 2026)
+- 4 dynamic plans from API: Academic, Entrepreneur, Corporate, International Delegates
+- International Delegates: USD $100, Razorpay only, Country/Postal Code address, Identity Proof + Photo required
+- Membership ID: INT/IDSEA/2026/XXXX format with year continuation
 
-## Testing: iterations 1-20 all pass
+### Certificate Design Module - COMPLETE (Apr 2026)
+- **Visual Template Designer:** Drag-drop canvas editor for certificate layout design
+- **5 Element Types:** Text, Placeholder Fields (17 dynamic fields), Image/Logo, Signature Block, Lines
+- **Properties Panel:** Font family/size/color, bold/italic/underline, alignment, layer order
+- **Background:** Upload custom background image or set solid color
+- **Template Types:** Membership, Event/Conference, Custom
+- **Orientation:** Landscape or Portrait (A4)
+- **Template Management:** Create, Edit, Clone, Delete, Preview (PDF)
+- **Generate Certificates:**
+  - Single member: Select member -> Download PDF
+  - Bulk event: Select event -> Download ZIP with all paid registrations
+- **PDF Generation Engine:** Reportlab-based with font mapping, coordinate conversion, image support
+- **17 Placeholder Fields:** name, membership_id, date, year, email, phone, qualification, specialization, organization, membership_type, state, country, event_title, event_date, event_venue, registration_id, paper_title
+
+### Other Completed Features
+- Membership Plans dynamic management
+- WhatsApp Integration (AK Nexus)
+- Admin Panel (18+ sections)
+- SMTP email system with templates
+
+## Testing: iterations 1-21 all pass
 
 ## Backlog
 - P1: Member Directory (public), News & Contact pages
 - P2: Admin Roles, Member renewal reminders
-- P3: Mobile responsive, Backend modularization (server.py > 3300 lines)
+- P3: Mobile responsive, Backend modularization (server.py > 3600 lines)
