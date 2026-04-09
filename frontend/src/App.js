@@ -34,6 +34,7 @@ import EventRegistrations from './pages/admin/EventRegistrations';
 import PaymentSettings from './pages/admin/PaymentSettings';
 import WhatsappAdmin from './pages/admin/WhatsappAdmin';
 import MembershipAdmin from './pages/admin/MembershipAdmin';
+import CertificateDesigner from './pages/admin/CertificateDesigner';
 
 const ProtectedRoute = ({ children }) => {
   const { admin } = useAuth();
@@ -70,6 +71,7 @@ function App() {
             <Route path="email-templates" element={<EmailTemplatesAdmin />} />
             <Route path="executive" element={<ExecutiveAdmin />} />
             <Route path="certificates" element={<CertificatesAdmin />} />
+            <Route path="certificates/design/:id" element={<CertificateDesigner />} />
             <Route path="reports" element={<ReportsAdmin />} />
             <Route path="cms" element={<CMSAdmin />} />
             <Route path="sliders" element={<SliderAdmin />} />

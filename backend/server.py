@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, BackgroundTasks, UploadFile, File, Query
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, BackgroundTasks, UploadFile, File, Query, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -2577,6 +2577,278 @@ async def download_certificate_pdf(cert_id: str, admin=Depends(get_current_admin
     buf.seek(0)
     filename = f"IDSEA_Certificate_{cert_id}.pdf"
     return StreamingResponse(buf, media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename={filename}"})
+
+
+# ============ CERTIFICATE TEMPLATE DESIGNER ============
+
+def _map_font(family, weight="normal", style="normal"):
+    fm = {
+        ("Helvetica","normal","normal"): "Helvetica", ("Helvetica","bold","normal"): "Helvetica-Bold",
+        ("Helvetica","normal","italic"): "Helvetica-Oblique", ("Helvetica","bold","italic"): "Helvetica-BoldOblique",
+        ("Times-Roman","normal","normal"): "Times-Roman", ("Times-Roman","bold","normal"): "Times-Bold",
+        ("Times-Roman","normal","italic"): "Times-Italic", ("Times-Roman","bold","italic"): "Times-BoldItalic",
+        ("Courier","normal","normal"): "Courier", ("Courier","bold","normal"): "Courier-Bold",
+        ("Courier","normal","italic"): "Courier-Oblique", ("Courier","bold","italic"): "Courier-BoldOblique",
+    }
+    return fm.get((family, weight, style), "Helvetica")
+
+
+def _resolve_img_path(url_or_path: str) -> str:
+    if not url_or_path:
+        return ""
+    p = url_or_path
+    if p.startswith("/api/"):
+        p = p.replace("/api/", "backend/", 1)
+    elif p.startswith("/"):
+        p = p.lstrip("/")
+    if not p.startswith("backend/"):
+        p = "backend/" + p if not os.path.exists(p) else p
+    return p if os.path.exists(p) else ""
+
+
+def generate_template_pdf(template: dict, data: dict) -> bytes:
+    pw = template.get("page_width", 1000)
+    ph = template.get("page_height", 707)
+    orient = template.get("orientation", "landscape")
+    if orient == "landscape":
+        pdf_w, pdf_h = landscape(A4)
+    else:
+        pdf_w, pdf_h = A4
+    sx, sy = pdf_w / pw, pdf_h / ph
+
+    buf = io.BytesIO()
+    c = canvas.Canvas(buf, pagesize=(pdf_w, pdf_h))
+
+    bg_color = template.get("background_color", "#ffffff")
+    if bg_color and bg_color.lower() != "#ffffff":
+        c.setFillColor(colors.HexColor(bg_color))
+        c.rect(0, 0, pdf_w, pdf_h, fill=1, stroke=0)
+
+    bg_img = _resolve_img_path(template.get("background_image_url", ""))
+    if bg_img:
+        try:
+            c.drawImage(bg_img, 0, 0, width=pdf_w, height=pdf_h, preserveAspectRatio=False)
+        except Exception:
+            pass
+
+    for el in template.get("elements", []):
+        etype = el.get("type", "text")
+        ex = el.get("x", 0) * sx
+        ew = el.get("width", 200) * sx
+        eh = el.get("height", 30) * sy
+        ey = pdf_h - (el.get("y", 0) * sy) - eh
+        clr = el.get("color", "#000000")
+        fs = max(6, el.get("font_size", 16) * sy)
+
+        if etype in ("text", "placeholder"):
+            content = el.get("content", "")
+            if etype == "placeholder":
+                key = el.get("placeholder_key", "")
+                content = str(data.get(key, f"{{{{{key}}}}}"))
+            if not content:
+                continue
+            ff = el.get("font_family", "Helvetica")
+            fw = el.get("font_weight", "normal")
+            fi = el.get("font_style", "normal")
+            ta = el.get("text_align", "left")
+            td = el.get("text_decoration", "none")
+            fn = _map_font(ff, fw, fi)
+            c.setFillColor(colors.HexColor(clr))
+            c.setFont(fn, fs)
+            ty = ey + eh - fs - 2
+            if ta == "center":
+                c.drawCentredString(ex + ew / 2, ty, content)
+            elif ta == "right":
+                c.drawRightString(ex + ew, ty, content)
+            else:
+                c.drawString(ex, ty, content)
+            if td == "underline":
+                c.setStrokeColor(colors.HexColor(clr))
+                c.setLineWidth(0.8)
+                c.line(ex, ty - 2, ex + ew, ty - 2)
+
+        elif etype == "image":
+            ip = _resolve_img_path(el.get("image_url", ""))
+            if ip:
+                try:
+                    c.drawImage(ip, ex, ey, width=ew, height=eh, preserveAspectRatio=True, mask='auto')
+                except Exception:
+                    pass
+
+        elif etype == "signature_block":
+            sn = el.get("signer_name", "")
+            st = el.get("signer_title", "")
+            si = _resolve_img_path(el.get("signature_image_url", ""))
+            c.setFillColor(colors.HexColor(clr))
+            if si:
+                try:
+                    sig_h = eh * 0.45
+                    c.drawImage(si, ex + ew * 0.1, ey + eh * 0.5, width=ew * 0.8, height=sig_h, preserveAspectRatio=True, mask='auto')
+                except Exception:
+                    pass
+            c.setStrokeColor(colors.HexColor("#999999"))
+            c.setLineWidth(0.6)
+            c.line(ex + 8, ey + eh * 0.42, ex + ew - 8, ey + eh * 0.42)
+            c.setFont("Helvetica-Bold", max(6, fs * 0.85))
+            c.drawCentredString(ex + ew / 2, ey + eh * 0.22, sn)
+            c.setFont("Helvetica", max(6, fs * 0.7))
+            c.drawCentredString(ex + ew / 2, ey + eh * 0.06, st)
+
+        elif etype == "line":
+            lc = el.get("line_color", "#000000")
+            lw = max(0.5, el.get("line_width", 2) * sx)
+            c.setStrokeColor(colors.HexColor(lc))
+            c.setLineWidth(lw)
+            c.line(ex, ey + eh / 2, ex + ew, ey + eh / 2)
+
+    c.showPage()
+    c.save()
+    buf.seek(0)
+    return buf.getvalue()
+
+
+@api_router.get("/admin/certificate-templates")
+async def list_cert_templates(admin=Depends(get_current_admin)):
+    return await db.certificate_templates.find({}, {"_id": 0}).sort("updated_at", -1).to_list(100)
+
+
+@api_router.post("/admin/certificate-templates")
+async def create_cert_template(request: Request, admin=Depends(get_current_admin)):
+    data = await request.json()
+    orient = data.get("orientation", "landscape")
+    tpl = {
+        "id": str(uuid.uuid4()),
+        "name": data.get("name", "Untitled Template"),
+        "type": data.get("type", "custom"),
+        "orientation": orient,
+        "page_width": 1000 if orient == "landscape" else 707,
+        "page_height": 707 if orient == "landscape" else 1000,
+        "background_color": data.get("background_color", "#ffffff"),
+        "background_image_url": data.get("background_image_url", ""),
+        "elements": data.get("elements", []),
+        "created_at": now_iso(),
+        "updated_at": now_iso(),
+    }
+    await db.certificate_templates.insert_one(tpl)
+    tpl.pop("_id", None)
+    return tpl
+
+
+@api_router.get("/admin/certificate-templates/{tpl_id}")
+async def get_cert_template(tpl_id: str, admin=Depends(get_current_admin)):
+    t = await db.certificate_templates.find_one({"id": tpl_id}, {"_id": 0})
+    if not t:
+        raise HTTPException(404, "Template not found")
+    return t
+
+
+@api_router.put("/admin/certificate-templates/{tpl_id}")
+async def update_cert_template(tpl_id: str, request: Request, admin=Depends(get_current_admin)):
+    data = await request.json()
+    data["updated_at"] = now_iso()
+    data.pop("id", None)
+    data.pop("_id", None)
+    data.pop("created_at", None)
+    r = await db.certificate_templates.update_one({"id": tpl_id}, {"$set": data})
+    if r.matched_count == 0:
+        raise HTTPException(404, "Template not found")
+    return await db.certificate_templates.find_one({"id": tpl_id}, {"_id": 0})
+
+
+@api_router.delete("/admin/certificate-templates/{tpl_id}")
+async def delete_cert_template(tpl_id: str, admin=Depends(get_current_admin)):
+    r = await db.certificate_templates.delete_one({"id": tpl_id})
+    if r.deleted_count == 0:
+        raise HTTPException(404, "Template not found")
+    return {"message": "Template deleted"}
+
+
+@api_router.post("/admin/certificate-templates/{tpl_id}/clone")
+async def clone_cert_template(tpl_id: str, admin=Depends(get_current_admin)):
+    t = await db.certificate_templates.find_one({"id": tpl_id}, {"_id": 0})
+    if not t:
+        raise HTTPException(404, "Template not found")
+    t["id"] = str(uuid.uuid4())
+    t["name"] = t.get("name", "") + " (Copy)"
+    t["created_at"] = now_iso()
+    t["updated_at"] = now_iso()
+    await db.certificate_templates.insert_one(t)
+    t.pop("_id", None)
+    return t
+
+
+@api_router.post("/admin/certificate-templates/{tpl_id}/preview")
+async def preview_cert_template(tpl_id: str, request: Request, admin=Depends(get_current_admin)):
+    t = await db.certificate_templates.find_one({"id": tpl_id}, {"_id": 0})
+    if not t:
+        raise HTTPException(404, "Template not found")
+    sample = {
+        "name": "Dr. Sample Person", "membership_id": "ACD/IDSEA/2026/0001",
+        "date": datetime.now().strftime("%d.%m.%Y"), "year": str(datetime.now().year),
+        "email": "sample@example.com", "phone": "+91 98765 43210",
+        "qualification": "Ph.D. in Dairy Science", "organization": "IDSEA Research Institute",
+        "membership_type": "Academic Member", "state": "Tamil Nadu",
+        "event_title": "IDSEA Annual Conference 2026", "event_date": "20-22 March 2026",
+        "event_venue": "VCRI, Namakkal", "registration_id": "REG-2026-0001",
+        "paper_title": "Advances in Dairy Processing", "specialization": "Dairy Technology",
+    }
+    body = await request.json() if request.headers.get("content-length") and int(request.headers.get("content-length", 0)) > 0 else {}
+    if body.get("data"):
+        sample.update(body["data"])
+    pdf = generate_template_pdf(t, sample)
+    return StreamingResponse(io.BytesIO(pdf), media_type="application/pdf",
+                             headers={"Content-Disposition": f'inline; filename="preview.pdf"'})
+
+
+@api_router.post("/admin/certificate-templates/{tpl_id}/generate-member/{member_id}")
+async def gen_cert_member(tpl_id: str, member_id: str, admin=Depends(get_current_admin)):
+    t = await db.certificate_templates.find_one({"id": tpl_id}, {"_id": 0})
+    m = await db.members.find_one({"id": member_id}, {"_id": 0})
+    if not t or not m:
+        raise HTTPException(404, "Not found")
+    data = {
+        "name": f"{m.get('prefix','')} {m.get('name','')}".strip(),
+        "membership_id": m.get("membership_id", ""),
+        "date": datetime.now().strftime("%d.%m.%Y"), "year": str(datetime.now().year),
+        "email": m.get("email", ""), "phone": m.get("phone", ""),
+        "qualification": m.get("qualification", ""), "specialization": m.get("specialization", ""),
+        "organization": m.get("organization", ""), "membership_type": m.get("membership_type", ""),
+        "state": m.get("state", ""), "country": m.get("country", "India"),
+    }
+    pdf = generate_template_pdf(t, data)
+    fn = f"certificate_{m.get('name','member').replace(' ','_')}.pdf"
+    return StreamingResponse(io.BytesIO(pdf), media_type="application/pdf",
+                             headers={"Content-Disposition": f'attachment; filename="{fn}"'})
+
+
+@api_router.post("/admin/certificate-templates/{tpl_id}/generate-event/{event_id}")
+async def gen_cert_event_bulk(tpl_id: str, event_id: str, admin=Depends(get_current_admin)):
+    import zipfile as zf
+    t = await db.certificate_templates.find_one({"id": tpl_id}, {"_id": 0})
+    ev = await db.events.find_one({"id": event_id}, {"_id": 0})
+    if not t or not ev:
+        raise HTTPException(404, "Not found")
+    regs = await db.event_registrations.find({"event_id": event_id, "payment_status": "paid"}, {"_id": 0}).to_list(5000)
+    zbuf = io.BytesIO()
+    with zf.ZipFile(zbuf, 'w', zf.ZIP_DEFLATED) as z:
+        for r in regs:
+            data = {
+                "name": r.get("name", ""), "email": r.get("email", ""),
+                "phone": r.get("phone", ""), "qualification": r.get("qualification", ""),
+                "organization": r.get("organization", ""), "state": r.get("state", ""),
+                "event_title": ev.get("title", ""), "event_venue": ev.get("venue", ""),
+                "event_date": f"{ev.get('start_date','')} to {ev.get('end_date','')}",
+                "registration_id": r.get("id", ""),
+                "date": datetime.now().strftime("%d.%m.%Y"), "year": str(datetime.now().year),
+            }
+            pdf = generate_template_pdf(t, data)
+            sn = r.get("name", "p").replace(" ", "_")[:40]
+            z.writestr(f"certificate_{sn}.pdf", pdf)
+    zbuf.seek(0)
+    fn = f"certificates_{ev.get('title','event').replace(' ','_')[:30]}.zip"
+    return StreamingResponse(zbuf, media_type="application/zip",
+                             headers={"Content-Disposition": f'attachment; filename="{fn}"'})
+
 
 
 # =================== MEMBER EXPORT ===================
