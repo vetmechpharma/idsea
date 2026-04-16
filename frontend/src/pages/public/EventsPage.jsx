@@ -12,9 +12,11 @@ export default function EventsPage() {
   const [events, setEvents] = useState([]);
   const [filter, setFilter] = useState('all');
   const [loading, setLoading] = useState(true);
+  const [pc, setPc] = useState({});
 
   useEffect(() => {
     axios.get(`${API}/public/events`).then(r => { setEvents(r.data); setLoading(false); }).catch(() => setLoading(false));
+    axios.get(`${API}/public/page-content/events`).then(r => setPc(r.data)).catch(() => {});
   }, []);
 
   const filtered = filter === 'all' ? events : events.filter(e => e.status === filter);
@@ -24,8 +26,8 @@ export default function EventsPage() {
       <PublicNavbar />
       <div style={{ paddingTop: '170px' }}>
         <div style={{ background: '#0c3c60', padding: '60px 24px', textAlign: 'center', color: 'white' }}>
-          <h1 style={{ fontFamily: 'Poppins, sans-serif', fontSize: 'clamp(24px,4vw,40px)', fontWeight: 800, marginBottom: '12px' }}>Events & Conferences</h1>
-          <p style={{ fontSize: '15px', opacity: 0.8, fontFamily: 'Inter, sans-serif' }}>Dairy science conferences, workshops, and seminars</p>
+          <h1 style={{ fontFamily: 'Poppins, sans-serif', fontSize: 'clamp(24px,4vw,40px)', fontWeight: 800, marginBottom: '12px' }}>{pc.hero_title || 'Events & Conferences'}</h1>
+          <p style={{ fontSize: '15px', opacity: 0.8, fontFamily: 'Inter, sans-serif' }}>{pc.hero_subtitle || 'Dairy science conferences, workshops, and seminars'}</p>
         </div>
 
         <div style={{ background: 'white', padding: '16px 24px', boxShadow: '0 2px 6px rgba(0,0,0,0.05)' }}>

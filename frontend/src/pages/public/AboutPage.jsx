@@ -8,15 +8,18 @@ export default function AboutPage() {
   const [cms, setCms] = useState({});
   const [founders, setFounders] = useState([]);
   const [council, setCouncil] = useState([]);
+  const [pc, setPc] = useState({});
 
   useEffect(() => {
     axios.get(`${API}/public/cms`).then(r => setCms(r.data)).catch(() => {});
     axios.get(`${API}/public/founders`).then(r => setFounders(r.data)).catch(() => {});
     axios.get(`${API}/public/executive`).then(r => setCouncil(r.data)).catch(() => {});
+    axios.get(`${API}/public/page-content/about`).then(r => setPc(r.data)).catch(() => {});
   }, []);
 
   const officers = council.filter(m => !['EC Member'].includes(m.designation));
   const ecMembers = council.filter(m => m.designation === 'EC Member');
+  const objectives = (pc.objectives || '').split('\n').filter(o => o.trim());
 
   return (
     <div style={{ background: 'white' }}>
@@ -24,9 +27,9 @@ export default function AboutPage() {
       <div style={{ paddingTop: '170px' }}>
         {/* Hero */}
         <div style={{ background: '#0c3c60', padding: '80px 24px', textAlign: 'center', color: 'white' }}>
-          <h1 style={{ fontFamily: 'Poppins, sans-serif', fontSize: 'clamp(28px,4vw,42px)', fontWeight: 800, marginBottom: '16px' }}>About IDSEA</h1>
+          <h1 style={{ fontFamily: 'Poppins, sans-serif', fontSize: 'clamp(28px,4vw,42px)', fontWeight: 800, marginBottom: '16px' }}>{pc.hero_title || 'About IDSEA'}</h1>
           <p style={{ fontSize: '15px', opacity: 0.8, maxWidth: '640px', margin: '0 auto', lineHeight: 1.7, fontFamily: 'Inter, sans-serif' }}>
-            Indian Dairy Scientists and Entrepreneurs Association — bridging dairy science with industry since our founding.
+            {pc.hero_subtitle || 'Indian Dairy Scientists and Entrepreneurs Association — bridging dairy science with industry since our founding.'}
           </p>
         </div>
 
@@ -62,26 +65,19 @@ export default function AboutPage() {
             </div>
 
             {/* Objectives */}
-            <div style={{ marginBottom: '60px' }}>
-              <h2 style={{ fontFamily: 'Poppins, sans-serif', fontSize: '24px', fontWeight: 700, color: '#0c3c60', marginBottom: '24px' }}>Our Objectives</h2>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
-                {[
-                  'Promote advancement and dissemination of knowledge in dairy science and entrepreneurship',
-                  'Provide a common national platform for dairy scientists, academicians, and entrepreneurs',
-                  'Support dairy startups, MSMEs, cooperatives, FPOs through knowledge sharing',
-                  'Organize conferences, seminars, workshops, training programs, and exhibitions',
-                  'Facilitate academia-industry-startup collaboration for innovation and technology transfer',
-                  'Publish journals, proceedings, newsletters, reports, and technical bulletins',
-                  'Collaborate with universities, research institutes, and international organizations',
-                  'Recognize excellence through awards, fellowships, and professional recognitions',
-                ].map((obj, i) => (
-                  <div key={i} style={{ display: 'flex', gap: '12px', padding: '16px', background: 'white', borderRadius: '10px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', border: '1px solid #e5e7eb' }}>
-                    <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#1e7a4d', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700, fontFamily: 'Poppins', flexShrink: 0 }}>{i + 1}</div>
-                    <p style={{ fontSize: '13px', color: '#4b5563', lineHeight: 1.6, margin: 0, fontFamily: 'Inter, sans-serif' }}>{obj}</p>
-                  </div>
-                ))}
+            {objectives.length > 0 && (
+              <div style={{ marginBottom: '60px' }}>
+                <h2 style={{ fontFamily: 'Poppins, sans-serif', fontSize: '24px', fontWeight: 700, color: '#0c3c60', marginBottom: '24px' }}>Our Objectives</h2>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
+                  {objectives.map((obj, i) => (
+                    <div key={i} style={{ display: 'flex', gap: '12px', padding: '16px', background: 'white', borderRadius: '10px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', border: '1px solid #e5e7eb' }}>
+                      <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#1e7a4d', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700, fontFamily: 'Poppins', flexShrink: 0 }}>{i + 1}</div>
+                      <p style={{ fontSize: '13px', color: '#4b5563', lineHeight: 1.6, margin: 0, fontFamily: 'Inter, sans-serif' }}>{obj}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </section>
 
@@ -90,8 +86,8 @@ export default function AboutPage() {
           <section style={{ background: '#f0f9ff', padding: '80px 24px' }} data-testid="founders-section">
             <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
               <div style={{ textAlign: 'center', marginBottom: '48px' }}>
-                <h2 style={{ fontFamily: 'Poppins, sans-serif', fontSize: 'clamp(22px,3vw,32px)', fontWeight: 800, color: '#0c3c60', marginBottom: '8px' }}>Patron / Founders</h2>
-                <p style={{ fontSize: '15px', color: '#6b7280', fontFamily: 'Inter, sans-serif' }}>The visionaries who established IDSEA</p>
+                <h2 style={{ fontFamily: 'Poppins, sans-serif', fontSize: 'clamp(22px,3vw,32px)', fontWeight: 800, color: '#0c3c60', marginBottom: '8px' }}>{pc.founders_title || 'Patron / Founders'}</h2>
+                <p style={{ fontSize: '15px', color: '#6b7280', fontFamily: 'Inter, sans-serif' }}>{pc.founders_subtitle || 'The visionaries who established IDSEA'}</p>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
                 {founders.map(f => (
@@ -124,11 +120,10 @@ export default function AboutPage() {
           <section style={{ background: '#f8fafc', padding: '80px 24px' }} data-testid="executive-council-section">
             <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
               <div style={{ textAlign: 'center', marginBottom: '48px' }}>
-                <h2 style={{ fontFamily: 'Poppins, sans-serif', fontSize: 'clamp(22px,3vw,32px)', fontWeight: 800, color: '#0c3c60', marginBottom: '8px' }}>IDSEA Executive Council</h2>
-                <p style={{ fontSize: '15px', color: '#6b7280', fontFamily: 'Inter, sans-serif' }}>Term: 3 years</p>
+                <h2 style={{ fontFamily: 'Poppins, sans-serif', fontSize: 'clamp(22px,3vw,32px)', fontWeight: 800, color: '#0c3c60', marginBottom: '8px' }}>{pc.council_title || 'IDSEA Executive Council'}</h2>
+                <p style={{ fontSize: '15px', color: '#6b7280', fontFamily: 'Inter, sans-serif' }}>{pc.council_subtitle || 'Term: 3 years'}</p>
               </div>
 
-              {/* Officers */}
               {officers.length > 0 && (
                 <div style={{ marginBottom: '48px' }}>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '20px' }}>
@@ -157,7 +152,6 @@ export default function AboutPage() {
                 </div>
               )}
 
-              {/* EC Members Table */}
               {ecMembers.length > 0 && (
                 <div>
                   <h3 style={{ fontFamily: 'Poppins, sans-serif', fontSize: '18px', fontWeight: 700, color: '#0c3c60', marginBottom: '20px' }}>EC Members</h3>
@@ -199,7 +193,7 @@ export default function AboutPage() {
         {/* Headquarters */}
         <section style={{ padding: '80px 24px' }}>
           <div style={{ maxWidth: '700px', margin: '0 auto', textAlign: 'center' }}>
-            <h2 style={{ fontFamily: 'Poppins, sans-serif', fontSize: 'clamp(22px,3vw,32px)', fontWeight: 800, color: '#0c3c60', marginBottom: '24px' }}>Headquarters</h2>
+            <h2 style={{ fontFamily: 'Poppins, sans-serif', fontSize: 'clamp(22px,3vw,32px)', fontWeight: 800, color: '#0c3c60', marginBottom: '24px' }}>{pc.hq_title || 'Headquarters'}</h2>
             <div style={{ background: '#0c3c60', borderRadius: '16px', padding: '36px', color: 'white' }}>
               <div style={{ fontSize: '15px', lineHeight: 1.8, fontFamily: 'Inter, sans-serif', opacity: 0.9 }}>
                 {cms.contact_address || 'Department of Livestock Products Technology (Dairy Science), Veterinary College and Research Institute (VCRI), Namakkal - 637002, Tamil Nadu, India'}

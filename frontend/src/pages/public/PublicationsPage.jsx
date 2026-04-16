@@ -9,6 +9,11 @@ export default function PublicationsPage() {
   const [publications, setPublications] = useState([]);
   const [category, setCategory] = useState('all');
   const [loading, setLoading] = useState(true);
+  const [pc, setPc] = useState({});
+
+  useEffect(() => {
+    axios.get(`${API}/public/page-content/publications`).then(r => setPc(r.data)).catch(() => {});
+  }, []);
 
   useEffect(() => {
     const params = category !== 'all' ? { category } : {};
@@ -20,8 +25,8 @@ export default function PublicationsPage() {
       <PublicNavbar />
       <div style={{ paddingTop: '170px' }}>
         <div style={{ background: '#0c3c60', padding: '60px 24px', textAlign: 'center', color: 'white' }}>
-          <h1 style={{ fontFamily: 'Poppins, sans-serif', fontSize: 'clamp(24px,4vw,40px)', fontWeight: 800, marginBottom: '12px' }}>Publications & Research</h1>
-          <p style={{ fontSize: '15px', opacity: 0.8, fontFamily: 'Inter, sans-serif' }}>Research papers, journals, and technical articles by our members</p>
+          <h1 style={{ fontFamily: 'Poppins, sans-serif', fontSize: 'clamp(24px,4vw,40px)', fontWeight: 800, marginBottom: '12px' }}>{pc.hero_title || 'Publications & Research'}</h1>
+          <p style={{ fontSize: '15px', opacity: 0.8, fontFamily: 'Inter, sans-serif' }}>{pc.hero_subtitle || 'Research papers, journals, and technical articles by our members'}</p>
         </div>
 
         <div style={{ background: 'white', padding: '16px 24px', boxShadow: '0 2px 6px rgba(0,0,0,0.05)' }}>

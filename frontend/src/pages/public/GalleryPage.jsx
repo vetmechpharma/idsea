@@ -10,9 +10,11 @@ export default function GalleryPage() {
   const [selectedAlbum, setSelectedAlbum] = useState(null);
   const [lightboxImg, setLightboxImg] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [pc, setPc] = useState({});
 
   useEffect(() => {
     axios.get(`${API}/public/gallery`).then(r => { setAlbums(r.data); setLoading(false); }).catch(() => setLoading(false));
+    axios.get(`${API}/public/page-content/gallery`).then(r => setPc(r.data)).catch(() => {});
   }, []);
 
   return (
@@ -20,8 +22,8 @@ export default function GalleryPage() {
       <PublicNavbar />
       <div style={{ paddingTop: '170px' }}>
         <div style={{ background: '#0c3c60', padding: '60px 24px', textAlign: 'center', color: 'white' }}>
-          <h1 style={{ fontFamily: 'Poppins, sans-serif', fontSize: 'clamp(24px,4vw,40px)', fontWeight: 800, marginBottom: '12px' }}>Photo Gallery</h1>
-          <p style={{ fontSize: '15px', opacity: 0.8, fontFamily: 'Inter, sans-serif' }}>Conferences, field visits, workshops, and research events</p>
+          <h1 style={{ fontFamily: 'Poppins, sans-serif', fontSize: 'clamp(24px,4vw,40px)', fontWeight: 800, marginBottom: '12px' }}>{pc.hero_title || 'Photo Gallery'}</h1>
+          <p style={{ fontSize: '15px', opacity: 0.8, fontFamily: 'Inter, sans-serif' }}>{pc.hero_subtitle || 'Conferences, field visits, workshops, and research events'}</p>
         </div>
 
         <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '32px 24px' }}>
@@ -33,7 +35,7 @@ export default function GalleryPage() {
                   {selectedAlbum.description && <p style={{ color: '#6b7280', margin: 0, fontSize: '14px' }}>{selectedAlbum.description}</p>}
                 </div>
                 <button onClick={() => setSelectedAlbum(null)} style={{ background: '#f1f5f9', border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontFamily: 'Poppins, sans-serif', fontWeight: 600, color: '#374151' }}>
-                  ← Back to Albums
+                  &larr; Back to Albums
                 </button>
               </div>
               {selectedAlbum.photos?.length === 0 ? (
@@ -93,7 +95,6 @@ export default function GalleryPage() {
         </div>
       </div>
 
-      {/* Lightbox */}
       {lightboxImg && (
         <div onClick={() => setLightboxImg(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' }}>
           <button onClick={() => setLightboxImg(null)} style={{ position: 'absolute', top: '20px', right: '20px', background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', borderRadius: '50%', width: '40px', height: '40px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

@@ -1055,6 +1055,12 @@ async def get_public_cms():
     return settings or {}
 
 
+@api_router.get("/public/page-content/{page}")
+async def get_public_page_content(page: str):
+    doc = await db.page_contents.find_one({"page": page}, {"_id": 0})
+    return doc.get("content", {}) if doc else {}
+
+
 # =================== ADMIN MEMBER ROUTES ===================
 
 @api_router.get("/admin/members")
@@ -2432,6 +2438,22 @@ async def admin_update_cms(data: CMSSettings, admin=Depends(get_current_admin)):
     return {"message": "CMS updated"}
 
 
+@api_router.get("/admin/page-content/{page}")
+async def admin_get_page_content(page: str, admin=Depends(get_current_admin)):
+    doc = await db.page_contents.find_one({"page": page}, {"_id": 0})
+    return doc.get("content", {}) if doc else {}
+
+
+@api_router.put("/admin/page-content/{page}")
+async def admin_update_page_content(page: str, data: dict, admin=Depends(get_current_admin)):
+    await db.page_contents.update_one(
+        {"page": page},
+        {"$set": {"page": page, "content": data, "updated_at": now_iso()}},
+        upsert=True
+    )
+    return {"message": f"Page content for '{page}' updated"}
+
+
 # =================== ADMIN USER MANAGEMENT ===================
 
 @api_router.get("/admin/users")
@@ -2643,7 +2665,7 @@ def generate_template_pdf(template: dict, data: dict) -> bytes:
         ey = pdf_h - (el.get("y", 0) * sy) - eh
         clr = el.get("color", "#000000")
         opacity = el.get("opacity", 100) / 100.0
-        fs = max(6, el.get("font_size", 16) * sy)
+        fs = max(6, el.get("font_size", 16) * min(sx, sy))
 
         if etype in ("text", "placeholder"):
             content = el.get("content", "")
@@ -2661,18 +2683,22 @@ def generate_template_pdf(template: dict, data: dict) -> bytes:
 
             # Use Paragraph for multi-line text wrapping
             align_map = {"left": TA_LEFT, "center": TA_CENTER, "right": TA_RIGHT}
+            leading = fs * 1.3
             style = ParagraphStyle(
                 name='el', fontName=fn, fontSize=fs,
-                leading=fs * 1.25, textColor=colors.HexColor(clr),
+                leading=leading, textColor=colors.HexColor(clr),
                 alignment=align_map.get(ta, TA_LEFT),
+                spaceBefore=0, spaceAfter=0,
             )
+            # Handle multi-line content (newlines from textarea)
             content_clean = content.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+            content_clean = content_clean.replace("\n", "<br/>")
             if td == "underline":
                 content_clean = f"<u>{content_clean}</u>"
             para = RLParagraph(content_clean, style)
-            para_w, para_h = para.wrap(ew, eh)
-            # Vertically center if single line, top-align if multi-line
-            y_offset = ey + (eh - para_h) / 2 if para_h <= fs * 2 else ey + eh - para_h
+            para_w, para_h = para.wrap(ew, max(eh, fs * 10))
+            # Top-align text within the element box (matches CSS flex align-items: flex-start)
+            y_offset = ey + eh - min(para_h, eh)
             para.drawOn(c, ex, max(ey, y_offset))
 
         elif etype == "image":
@@ -3875,6 +3901,73 @@ async def startup_event():
             "updated_at": now_iso()
         })
 
+    # Seed default page contents
+    default_pages = {
+        "home": {
+            "about_title": "About IDSEA",
+            "about_subtitle": "A Platform for Dairy Science & Entrepreneurship",
+            "about_description": "IDSEA is a national professional and scientific body that bridges the gap between dairy scientists and industry professionals. We bring together academicians, technologists, entrepreneurs, and students under one umbrella.",
+            "about_description2": "Headquartered at VCRI, Namakkal, Tamil Nadu, we operate with an all-India mandate to foster innovation, research, and sustainable growth.",
+            "about_image": "https://images.unsplash.com/photo-1532094349884-543559059a6d?w=600&q=80",
+            "membership_title": "Membership Types",
+            "membership_subtitle": "Join IDSEA and be part of India's premier dairy science community",
+            "events_title": "Upcoming Events",
+            "events_subtitle": "Conferences, workshops, and seminars",
+            "news_title": "Latest News",
+            "news_subtitle": "Scientific updates and announcements",
+            "cta_title": "Join the IDSEA Community Today",
+            "cta_description": "Become part of India's premier dairy science and entrepreneurship network. Connect, collaborate, and grow.",
+            "cta_button_text": "Apply for Membership",
+            "cta_button_link": "/apply",
+        },
+        "about": {
+            "hero_title": "About IDSEA",
+            "hero_subtitle": "Indian Dairy Scientists and Entrepreneurs Association - bridging dairy science with industry since our founding.",
+            "objectives": "Promote advancement and dissemination of knowledge in dairy science and entrepreneurship\nProvide a common national platform for dairy scientists, academicians, and entrepreneurs\nSupport dairy startups, MSMEs, cooperatives, FPOs through knowledge sharing\nOrganize conferences, seminars, workshops, training programs, and exhibitions\nFacilitate academia-industry-startup collaboration for innovation and technology transfer\nPublish journals, proceedings, newsletters, reports, and technical bulletins\nCollaborate with universities, research institutes, and international organizations\nRecognize excellence through awards, fellowships, and professional recognitions",
+            "hq_title": "Headquarters",
+            "council_title": "IDSEA Executive Council",
+            "council_subtitle": "Term: 3 years",
+            "founders_title": "Patron / Founders",
+            "founders_subtitle": "The visionaries who established IDSEA",
+        },
+        "events": {
+            "hero_title": "Events & Conferences",
+            "hero_subtitle": "Dairy science conferences, workshops, and seminars",
+        },
+        "gallery": {
+            "hero_title": "Photo Gallery",
+            "hero_subtitle": "Conferences, field visits, workshops, and research events",
+        },
+        "publications": {
+            "hero_title": "Publications & Research",
+            "hero_subtitle": "Research papers, journals, and technical articles by our members",
+        },
+        "members": {
+            "hero_title": "Member Directory",
+            "hero_subtitle": "Search and discover IDSEA members across India",
+        },
+        "contact": {
+            "hero_title": "Contact Us",
+            "hero_subtitle": "Get in touch with IDSEA",
+            "form_title": "Send Message",
+            "form_success_title": "Message Sent!",
+            "form_success_message": "Thank you for contacting IDSEA. We'll get back to you soon.",
+            "membership_cta_title": "Become a Member",
+            "membership_cta_description": "Join IDSEA to connect with dairy scientists and entrepreneurs across India.",
+        },
+        "navbar": {
+            "org_name": "Indian Dairy Scientists and Entrepreneurs Association",
+            "org_short": "(IDSEA)",
+        },
+        "footer": {
+            "description": "Bridging dairy science, innovation & entrepreneurship for the sustainable growth of the Indian dairy sector.",
+            "copyright_text": "Indian Dairy Scientists and Entrepreneurs Association (IDSEA). All rights reserved.",
+        },
+    }
+    for page_key, content in default_pages.items():
+        if await db.page_contents.count_documents({"page": page_key}) == 0:
+            await db.page_contents.insert_one({"page": page_key, "content": content, "updated_at": now_iso()})
+    logger.info("Page contents seeded")
 
 
 @app.on_event("shutdown")

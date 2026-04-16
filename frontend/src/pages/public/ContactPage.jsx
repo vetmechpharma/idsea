@@ -7,11 +7,13 @@ import { API } from '../../contexts/AuthContext';
 
 export default function ContactPage() {
   const [cms, setCms] = useState({});
+  const [pc, setPc] = useState({});
   const [form, setForm] = useState({ name: '', email: '', subject: '', message: '' });
   const [sent, setSent] = useState(false);
 
   useEffect(() => {
     axios.get(`${API}/public/cms`).then(r => setCms(r.data)).catch(() => {});
+    axios.get(`${API}/public/page-content/contact`).then(r => setPc(r.data)).catch(() => {});
   }, []);
 
   const handleSubmit = (e) => {
@@ -24,8 +26,8 @@ export default function ContactPage() {
       <PublicNavbar />
       <div style={{ paddingTop: '170px' }}>
         <div style={{ background: '#0c3c60', padding: '60px 24px', textAlign: 'center', color: 'white' }}>
-          <h1 style={{ fontFamily: 'Poppins, sans-serif', fontSize: 'clamp(24px,4vw,40px)', fontWeight: 800, marginBottom: '12px' }}>Contact Us</h1>
-          <p style={{ fontSize: '15px', opacity: 0.8, fontFamily: 'Inter, sans-serif' }}>Get in touch with IDSEA</p>
+          <h1 style={{ fontFamily: 'Poppins, sans-serif', fontSize: 'clamp(24px,4vw,40px)', fontWeight: 800, marginBottom: '12px' }}>{pc.hero_title || 'Contact Us'}</h1>
+          <p style={{ fontSize: '15px', opacity: 0.8, fontFamily: 'Inter, sans-serif' }}>{pc.hero_subtitle || 'Get in touch with IDSEA'}</p>
         </div>
 
         <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '60px 24px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '40px' }}>
@@ -51,9 +53,9 @@ export default function ContactPage() {
             </div>
 
             <div style={{ marginTop: '32px', background: '#0c3c60', borderRadius: '12px', padding: '24px', color: 'white' }}>
-              <h3 style={{ fontFamily: 'Poppins, sans-serif', fontSize: '16px', fontWeight: 700, marginBottom: '12px' }}>Become a Member</h3>
+              <h3 style={{ fontFamily: 'Poppins, sans-serif', fontSize: '16px', fontWeight: 700, marginBottom: '12px' }}>{pc.membership_cta_title || 'Become a Member'}</h3>
               <p style={{ fontSize: '13px', opacity: 0.85, lineHeight: 1.6, margin: '0 0 16px', fontFamily: 'Inter, sans-serif' }}>
-                Join IDSEA to connect with dairy scientists and entrepreneurs across India.
+                {pc.membership_cta_description || 'Join IDSEA to connect with dairy scientists and entrepreneurs across India.'}
               </p>
               <a href="/apply" style={{ background: '#1e7a4d', color: 'white', textDecoration: 'none', padding: '10px 20px', borderRadius: '8px', fontSize: '13px', fontWeight: 700, fontFamily: 'Poppins, sans-serif', display: 'inline-block' }}>Apply Now</a>
             </div>
@@ -61,14 +63,14 @@ export default function ContactPage() {
 
           {/* Contact Form */}
           <div style={{ background: 'white', borderRadius: '16px', padding: '32px', boxShadow: '0 4px 12px rgba(0,0,0,0.06)', border: '1px solid #e5e7eb' }}>
-            <h2 style={{ fontFamily: 'Poppins, sans-serif', fontSize: '20px', fontWeight: 700, color: '#0c3c60', marginBottom: '24px' }}>Send Message</h2>
+            <h2 style={{ fontFamily: 'Poppins, sans-serif', fontSize: '20px', fontWeight: 700, color: '#0c3c60', marginBottom: '24px' }}>{pc.form_title || 'Send Message'}</h2>
             {sent ? (
               <div style={{ textAlign: 'center', padding: '40px 0' }}>
                 <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: '#d1fae5', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
                   <Send size={24} style={{ color: '#1e7a4d' }} />
                 </div>
-                <h3 style={{ fontFamily: 'Poppins, sans-serif', color: '#1e7a4d', marginBottom: '8px' }}>Message Sent!</h3>
-                <p style={{ color: '#6b7280', fontSize: '14px', fontFamily: 'Inter, sans-serif' }}>Thank you for contacting IDSEA. We'll get back to you soon.</p>
+                <h3 style={{ fontFamily: 'Poppins, sans-serif', color: '#1e7a4d', marginBottom: '8px' }}>{pc.form_success_title || 'Message Sent!'}</h3>
+                <p style={{ color: '#6b7280', fontSize: '14px', fontFamily: 'Inter, sans-serif' }}>{pc.form_success_message || "Thank you for contacting IDSEA. We'll get back to you soon."}</p>
                 <button onClick={() => setSent(false)} style={{ marginTop: '16px', background: '#1e7a4d', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', fontFamily: 'Poppins, sans-serif', fontWeight: 600 }}>Send Another</button>
               </div>
             ) : (

@@ -13,6 +13,11 @@ export default function MembersPage() {
   const [search, setSearch] = useState('');
   const [state, setState] = useState('All States');
   const [type, setType] = useState('all');
+  const [pc, setPc] = useState({});
+
+  useEffect(() => {
+    axios.get(`${API}/public/page-content/members`).then(r => setPc(r.data)).catch(() => {});
+  }, []);
 
   useEffect(() => {
     loadMembers();
@@ -41,8 +46,8 @@ export default function MembersPage() {
       <PublicNavbar />
       <div style={{ paddingTop: '170px' }}>
         <div style={{ background: '#0c3c60', padding: '60px 24px', textAlign: 'center', color: 'white' }}>
-          <h1 style={{ fontFamily: 'Poppins, sans-serif', fontSize: 'clamp(24px,4vw,40px)', fontWeight: 800, marginBottom: '12px' }}>Member Directory</h1>
-          <p style={{ fontSize: '15px', opacity: 0.8, margin: '0 auto', fontFamily: 'Inter, sans-serif' }}>Search and discover IDSEA members across India</p>
+          <h1 style={{ fontFamily: 'Poppins, sans-serif', fontSize: 'clamp(24px,4vw,40px)', fontWeight: 800, marginBottom: '12px' }}>{pc.hero_title || 'Member Directory'}</h1>
+          <p style={{ fontSize: '15px', opacity: 0.8, margin: '0 auto', fontFamily: 'Inter, sans-serif' }}>{pc.hero_subtitle || 'Search and discover IDSEA members across India'}</p>
         </div>
 
         {/* Filters */}
@@ -63,6 +68,7 @@ export default function MembersPage() {
               <option value="academic">Academic</option>
               <option value="entrepreneur">Entrepreneur</option>
               <option value="corporate">Corporate</option>
+              <option value="international">International</option>
             </select>
           </div>
         </div>
