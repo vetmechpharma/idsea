@@ -12,6 +12,7 @@ import GalleryPage from './pages/public/GalleryPage';
 import ContactPage from './pages/public/ContactPage';
 import MembershipApplyPage from './pages/public/MembershipApplyPage';
 import EventRegistrationPage from './pages/public/EventRegistrationPage';
+import ECMembersPage from './pages/public/ECMembersPage';
 
 import LoginPage from './pages/admin/LoginPage';
 import AdminLayout from './components/admin/AdminLayout';
@@ -55,6 +56,7 @@ function App() {
           <Route path="/gallery" element={<GalleryPage />} />
           <Route path="/contact" element={<ContactPage />} />
           <Route path="/apply" element={<MembershipApplyPage />} />
+          <Route path="/ec-members" element={<ECMembersPage />} />
           <Route path="/events/:eventId/register" element={<EventRegistrationPage />} />
           <Route path="/admin/login" element={<LoginPage />} />
           <Route path="/admin" element={<ProtectedRoute><AdminLayout /></ProtectedRoute>}>
