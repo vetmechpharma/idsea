@@ -2619,13 +2619,29 @@ def _resolve_img_path(url_or_path: str) -> str:
     if not url_or_path:
         return ""
     p = url_or_path
+    # Handle full HTTP URLs - download to temp file
+    if p.startswith("http://") or p.startswith("https://"):
+        try:
+            import urllib.request, tempfile
+            suffix = os.path.splitext(p.split("?")[0])[-1] or ".png"
+            tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+            urllib.request.urlretrieve(p, tmp.name)
+            return tmp.name
+        except Exception:
+            return ""
+    # Handle /api/uploads/... paths (strip /api prefix)
     if p.startswith("/api/"):
-        p = p.replace("/api/", "backend/", 1)
+        p = p[5:]  # Remove "/api/" -> "uploads/..."
     elif p.startswith("/"):
         p = p.lstrip("/")
-    if not p.startswith("backend/"):
-        p = "backend/" + p if not os.path.exists(p) else p
-    return p if os.path.exists(p) else ""
+    # Try relative path first (CWD is /app/backend)
+    if os.path.exists(p):
+        return p
+    # Try absolute path
+    abs_path = os.path.join("/app/backend", p)
+    if os.path.exists(abs_path):
+        return abs_path
+    return ""
 
 
 def generate_template_pdf(template: dict, data: dict) -> bytes:

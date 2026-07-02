@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
 import PublicNavbar from '../../components/public/PublicNavbar';
@@ -10,9 +10,99 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const PREFIXES = ['Dr.', 'Mr.', 'Mrs.', 'Ms.', 'Prof.', 'Shri', 'Smt.'];
 const INDIAN_STATES = ['Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 'Delhi', 'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka', 'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal'];
-const PREFIX_MAP = { academic: 'ACD', entrepreneur: 'ENT', corporate: 'COP', international: 'INT' };
 
+const STATE_DISTRICTS = {
+  'Tamil Nadu': ['Ariyalur','Chengalpattu','Chennai','Coimbatore','Cuddalore','Dharmapuri','Dindigul','Erode','Kallakurichi','Kancheepuram','Karur','Krishnagiri','Madurai','Mayiladuthurai','Nagapattinam','Namakkal','Nilgiris','Perambalur','Pudukkottai','Ramanathapuram','Ranipet','Salem','Sivaganga','Tenkasi','Thanjavur','Theni','Thoothukudi','Tiruchirappalli','Tirunelveli','Tirupattur','Tirupur','Tiruvallur','Tiruvannamalai','Tiruvarur','Vellore','Viluppuram','Virudhunagar'],
+  'Maharashtra': ['Ahmednagar','Akola','Amravati','Aurangabad','Beed','Bhandara','Buldhana','Chandrapur','Dhule','Gadchiroli','Gondia','Hingoli','Jalgaon','Jalna','Kolhapur','Latur','Mumbai City','Mumbai Suburban','Nagpur','Nanded','Nandurbar','Nashik','Osmanabad','Palghar','Parbhani','Pune','Raigad','Ratnagiri','Sangli','Satara','Sindhudurg','Solapur','Thane','Wardha','Washim','Yavatmal'],
+  'Karnataka': ['Bagalkot','Bangalore Rural','Bangalore Urban','Belgaum','Bellary','Bidar','Chamarajanagar','Chikballapur','Chikmagalur','Chitradurga','Dakshina Kannada','Davanagere','Dharwad','Gadag','Gulbarga','Hassan','Haveri','Kodagu','Kolar','Koppal','Mandya','Mysore','Raichur','Ramanagara','Shimoga','Tumkur','Udupi','Uttara Kannada','Yadgir'],
+  'Kerala': ['Alappuzha','Ernakulam','Idukki','Kannur','Kasaragod','Kollam','Kottayam','Kozhikode','Malappuram','Palakkad','Pathanamthitta','Thiruvananthapuram','Thrissur','Wayanad'],
+  'Andhra Pradesh': ['Anantapur','Chittoor','East Godavari','Guntur','Kadapa','Krishna','Kurnool','Nellore','Prakasam','Srikakulam','Visakhapatnam','Vizianagaram','West Godavari'],
+  'Telangana': ['Adilabad','Bhadradri Kothagudem','Hyderabad','Jagtial','Jangaon','Jayashankar Bhupalpally','Jogulamba Gadwal','Kamareddy','Karimnagar','Khammam','Komaram Bheem','Mahabubabad','Mahbubnagar','Mancherial','Medak','Medchal Malkajgiri','Mulugu','Nagarkurnool','Nalgonda','Narayanpet','Nirmal','Nizamabad','Peddapalli','Rajanna Sircilla','Rangareddy','Sangareddy','Siddipet','Suryapet','Vikarabad','Wanaparthy','Warangal Rural','Warangal Urban','Yadadri Bhuvanagiri'],
+  'Gujarat': ['Ahmedabad','Amreli','Anand','Aravalli','Banaskantha','Bharuch','Bhavnagar','Botad','Chhota Udaipur','Dahod','Dang','Devbhoomi Dwarka','Gandhinagar','Gir Somnath','Jamnagar','Junagadh','Kutch','Kheda','Mahisagar','Mehsana','Morbi','Narmada','Navsari','Panchmahal','Patan','Porbandar','Rajkot','Sabarkantha','Surat','Surendranagar','Tapi','Vadodara','Valsad'],
+  'Rajasthan': ['Ajmer','Alwar','Banswara','Baran','Barmer','Bharatpur','Bhilwara','Bikaner','Bundi','Chittorgarh','Churu','Dausa','Dholpur','Dungarpur','Hanumangarh','Jaipur','Jaisalmer','Jalore','Jhalawar','Jhunjhunu','Jodhpur','Karauli','Kota','Nagaur','Pali','Pratapgarh','Rajsamand','Sawai Madhopur','Sikar','Sirohi','Sri Ganganagar','Tonk','Udaipur'],
+  'Uttar Pradesh': ['Agra','Aligarh','Ambedkar Nagar','Amethi','Amroha','Auraiya','Ayodhya','Azamgarh','Baghpat','Bahraich','Ballia','Balrampur','Banda','Barabanki','Bareilly','Basti','Bhadohi','Bijnor','Budaun','Bulandshahr','Chandauli','Chitrakoot','Deoria','Etah','Etawah','Farrukhabad','Fatehpur','Firozabad','Gautam Buddh Nagar','Ghaziabad','Ghazipur','Gonda','Gorakhpur','Hamirpur','Hapur','Hardoi','Hathras','Jalaun','Jaunpur','Jhansi','Kannauj','Kanpur Dehat','Kanpur Nagar','Kasganj','Kaushambi','Kushinagar','Lakhimpur Kheri','Lalitpur','Lucknow','Maharajganj','Mahoba','Mainpuri','Mathura','Mau','Meerut','Mirzapur','Moradabad','Muzaffarnagar','Pilibhit','Pratapgarh','Prayagraj','Rae Bareli','Rampur','Saharanpur','Sambhal','Sant Kabir Nagar','Shahjahanpur','Shamli','Shravasti','Siddharthnagar','Sitapur','Sonbhadra','Sultanpur','Unnao','Varanasi'],
+  'Punjab': ['Amritsar','Barnala','Bathinda','Faridkot','Fatehgarh Sahib','Fazilka','Ferozepur','Gurdaspur','Hoshiarpur','Jalandhar','Kapurthala','Ludhiana','Mansa','Moga','Mohali','Muktsar','Nawanshahr','Pathankot','Patiala','Rupnagar','Sangrur','Tarn Taran'],
+  'Haryana': ['Ambala','Bhiwani','Charkhi Dadri','Faridabad','Fatehabad','Gurugram','Hisar','Jhajjar','Jind','Kaithal','Karnal','Kurukshetra','Mahendragarh','Nuh','Palwal','Panchkula','Panipat','Rewari','Rohtak','Sirsa','Sonipat','Yamunanagar'],
+  'West Bengal': ['Alipurduar','Bankura','Birbhum','Cooch Behar','Dakshin Dinajpur','Darjeeling','Hooghly','Howrah','Jalpaiguri','Jhargram','Kalimpong','Kolkata','Malda','Murshidabad','Nadia','North 24 Parganas','Paschim Bardhaman','Paschim Medinipur','Purba Bardhaman','Purba Medinipur','Purulia','South 24 Parganas','Uttar Dinajpur'],
+  'Bihar': ['Araria','Arwal','Aurangabad','Banka','Begusarai','Bhagalpur','Bhojpur','Buxar','Darbhanga','East Champaran','Gaya','Gopalganj','Jamui','Jehanabad','Kaimur','Katihar','Khagaria','Kishanganj','Lakhisarai','Madhepura','Madhubani','Munger','Muzaffarpur','Nalanda','Nawada','Patna','Purnia','Rohtas','Saharsa','Samastipur','Saran','Sheikhpura','Sheohar','Sitamarhi','Siwan','Supaul','Vaishali','West Champaran'],
+  'Madhya Pradesh': ['Agar Malwa','Alirajpur','Anuppur','Ashoknagar','Balaghat','Barwani','Betul','Bhind','Bhopal','Burhanpur','Chhatarpur','Chhindwara','Damoh','Datia','Dewas','Dhar','Dindori','Guna','Gwalior','Harda','Hoshangabad','Indore','Jabalpur','Jhabua','Katni','Khandwa','Khargone','Mandla','Mandsaur','Morena','Narsinghpur','Neemuch','Panna','Raisen','Rajgarh','Ratlam','Rewa','Sagar','Satna','Sehore','Seoni','Shahdol','Shajapur','Sheopur','Shivpuri','Sidhi','Singrauli','Tikamgarh','Ujjain','Umaria','Vidisha'],
+  'Assam': ['Baksa','Barpeta','Biswanath','Bongaigaon','Cachar','Charaideo','Chirang','Darrang','Dhemaji','Dhubri','Dibrugarh','Dima Hasao','Goalpara','Golaghat','Hailakandi','Hojai','Jorhat','Kamrup','Kamrup Metropolitan','Karbi Anglong','Karimganj','Kokrajhar','Lakhimpur','Majuli','Morigaon','Nagaon','Nalbari','Sivasagar','Sonitpur','South Salmara-Mankachar','Tinsukia','Udalguri','West Karbi Anglong'],
+  'Odisha': ['Angul','Balangir','Balasore','Bargarh','Bhadrak','Boudh','Cuttack','Deogarh','Dhenkanal','Gajapati','Ganjam','Jagatsinghpur','Jajpur','Jharsuguda','Kalahandi','Kandhamal','Kendrapara','Kendujhar','Khordha','Koraput','Malkangiri','Mayurbhanj','Nabarangpur','Nayagarh','Nuapada','Puri','Rayagada','Sambalpur','Subarnapur','Sundargarh'],
+  'Jharkhand': ['Bokaro','Chatra','Deoghar','Dhanbad','Dumka','East Singhbhum','Garhwa','Giridih','Godda','Gumla','Hazaribagh','Jamtara','Khunti','Koderma','Latehar','Lohardaga','Pakur','Palamu','Ramgarh','Ranchi','Sahebganj','Seraikela Kharsawan','Simdega','West Singhbhum'],
+  'Chhattisgarh': ['Balod','Baloda Bazar','Balrampur','Bastar','Bemetara','Bijapur','Bilaspur','Dantewada','Dhamtari','Durg','Gariaband','Janjgir-Champa','Jashpur','Kabirdham','Kanker','Kondagaon','Korba','Koriya','Mahasamund','Mungeli','Narayanpur','Raigarh','Raipur','Rajnandgaon','Sukma','Surajpur','Surguja'],
+};
+const PREFIX_MAP = { academic: 'ACD', entrepreneur: 'ENT', corporate: 'COP', international: 'INT' };
 const emptyAddr = { line1: '', line2: '', line3: '', state: '', district: '', pincode: '', country: '' };
+
+// Separate components to prevent remount on parent re-render
+function IndianAddressFields({ addr, which, onChange }) {
+  const districts = STATE_DISTRICTS[addr.state] || [];
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+      <div className="form-group" style={{ margin: 0, gridColumn: '1 / -1' }}>
+        <label className="form-label">Address Line 1 *</label>
+        <input value={addr.line1} onChange={e => onChange(which, 'line1', e.target.value)} className="form-input" placeholder="House/Flat No, Building Name" required data-testid={`${which}-line1`} />
+      </div>
+      <div className="form-group" style={{ margin: 0, gridColumn: '1 / -1' }}>
+        <label className="form-label">Address Line 2 *</label>
+        <input value={addr.line2} onChange={e => onChange(which, 'line2', e.target.value)} className="form-input" placeholder="Street, Area, Locality" required data-testid={`${which}-line2`} />
+      </div>
+      <div className="form-group" style={{ margin: 0, gridColumn: '1 / -1' }}>
+        <label className="form-label">Address Line 3 *</label>
+        <input value={addr.line3} onChange={e => onChange(which, 'line3', e.target.value)} className="form-input" placeholder="Landmark, Village, Town" required data-testid={`${which}-line3`} />
+      </div>
+      <div className="form-group" style={{ margin: 0 }}>
+        <label className="form-label">State *</label>
+        <select value={addr.state} onChange={e => { onChange(which, 'state', e.target.value); onChange(which, 'district', ''); }} className="form-select" required data-testid={`${which}-state`}>
+          <option value="">Select State</option>
+          {INDIAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
+      </div>
+      <div className="form-group" style={{ margin: 0 }}>
+        <label className="form-label">District *</label>
+        {districts.length > 0 ? (
+          <select value={addr.district} onChange={e => onChange(which, 'district', e.target.value)} className="form-select" required data-testid={`${which}-district`}>
+            <option value="">Select District</option>
+            {districts.map(d => <option key={d} value={d}>{d}</option>)}
+          </select>
+        ) : (
+          <input value={addr.district} onChange={e => onChange(which, 'district', e.target.value)} className="form-input" placeholder="Enter district" required data-testid={`${which}-district`} />
+        )}
+      </div>
+      <div className="form-group" style={{ margin: 0 }}>
+        <label className="form-label">Pincode *</label>
+        <input value={addr.pincode} onChange={e => { const v = e.target.value.replace(/\D/g, '').slice(0, 6); onChange(which, 'pincode', v); }} className="form-input" placeholder="6-digit pincode" inputMode="numeric" pattern="[0-9]{6}" required data-testid={`${which}-pincode`} />
+      </div>
+    </div>
+  );
+}
+
+function InternationalAddressFields({ addr, which, onChange }) {
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+      <div className="form-group" style={{ margin: 0, gridColumn: '1 / -1' }}>
+        <label className="form-label">Address Line 1 *</label>
+        <input value={addr.line1} onChange={e => onChange(which, 'line1', e.target.value)} className="form-input" placeholder="Street address" required data-testid={`${which}-line1`} />
+      </div>
+      <div className="form-group" style={{ margin: 0, gridColumn: '1 / -1' }}>
+        <label className="form-label">Address Line 2 *</label>
+        <input value={addr.line2} onChange={e => onChange(which, 'line2', e.target.value)} className="form-input" placeholder="Apartment, suite, unit, etc." required data-testid={`${which}-line2`} />
+      </div>
+      <div className="form-group" style={{ margin: 0 }}>
+        <label className="form-label">City / State *</label>
+        <input value={addr.state} onChange={e => onChange(which, 'state', e.target.value)} className="form-input" placeholder="City, State/Province" required data-testid={`${which}-state`} />
+      </div>
+      <div className="form-group" style={{ margin: 0 }}>
+        <label className="form-label">Country *</label>
+        <input value={addr.country} onChange={e => onChange(which, 'country', e.target.value)} className="form-input" placeholder="Country" required data-testid={`${which}-country`} />
+      </div>
+      <div className="form-group" style={{ margin: 0 }}>
+        <label className="form-label">Postal / ZIP Code *</label>
+        <input value={addr.pincode} onChange={e => onChange(which, 'pincode', e.target.value)} className="form-input" placeholder="Postal / ZIP code" required data-testid={`${which}-pincode`} />
+      </div>
+    </div>
+  );
+}
 
 export default function MembershipApplyPage() {
   const [step, setStep] = useState('form');
@@ -48,7 +138,10 @@ export default function MembershipApplyPage() {
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
-  const updateAddr = (which, key, val) => setForm(f => ({ ...f, [which]: { ...f[which], [key]: val } }));
+  const updateAddr = useCallback((which, key, val) => {
+    setForm(f => ({ ...f, [which]: { ...f[which], [key]: val } }));
+  }, []);
+
   const toggleSameAddress = (checked) => {
     setForm(f => ({ ...f, contact_same_as_permanent: checked, ...(checked ? { contact_address: { ...f.permanent_address } } : {}) }));
   };
@@ -87,9 +180,31 @@ export default function MembershipApplyPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.name || !form.email) { setError('Name and email are required'); return; }
-    if (isInternational && !form.identity_proof_url) { setError('Identity proof (PDF) is required for international delegates'); return; }
-    if (isInternational && !form.photo_url) { setError('Profile photo is required for international delegates'); return; }
+    // Validate required fields
+    const missing = [];
+    if (!form.name) missing.push('Full Name');
+    if (!form.email) missing.push('Email');
+    if (!form.phone) missing.push('Phone');
+    if (!form.qualification) missing.push('Qualification');
+    if (!form.organization) missing.push('Organization');
+    if (!form.photo_url) missing.push('Profile Photo');
+    if (!form.permanent_address?.line1) missing.push('Address Line 1');
+    if (!form.permanent_address?.line2) missing.push('Address Line 2');
+    if (!form.permanent_address?.line3 && !isInternational) missing.push('Address Line 3');
+    if (isInternational) {
+      if (!form.identity_proof_url) missing.push('Identity Proof');
+      if (!form.permanent_address?.country) missing.push('Country');
+    } else {
+      if (!form.permanent_address?.state) missing.push('State');
+      if (!form.permanent_address?.district) missing.push('District');
+    }
+    if (!form.permanent_address?.pincode) missing.push('Pincode');
+
+    if (missing.length > 0) {
+      setError(`Please fill required fields: ${missing.join(', ')}`);
+      return;
+    }
+
     setLoading(true); setError('');
     try {
       const payload = { ...form };
@@ -115,44 +230,6 @@ export default function MembershipApplyPage() {
   const handlePaymentSkip = () => { setPaymentStatus('pending'); setStep('success'); };
 
   const photoUrl = form.photo_url ? (form.photo_url.startsWith('/api') ? `${API.replace('/api', '')}${form.photo_url}` : form.photo_url) : '';
-
-  // International address section
-  const InternationalAddressSection = ({ which, label }) => (
-    <div style={{ background: '#f0f9ff', borderRadius: '12px', padding: '20px', border: '1px solid #bae6fd' }}>
-      <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: '14px', color: '#0c3c60', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <Globe size={16} style={{ color: '#1e40af' }} /> {label}
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
-        <div className="form-group" style={{ margin: 0, gridColumn: '1 / -1' }}><label className="form-label">Address Line 1 *</label><input value={form[which]?.line1 || ''} onChange={e => updateAddr(which, 'line1', e.target.value)} className="form-input" placeholder="Street address" required={which === 'permanent_address'} /></div>
-        <div className="form-group" style={{ margin: 0, gridColumn: '1 / -1' }}><label className="form-label">Address Line 2</label><input value={form[which]?.line2 || ''} onChange={e => updateAddr(which, 'line2', e.target.value)} className="form-input" placeholder="Apartment, suite, unit, etc." /></div>
-        <div className="form-group" style={{ margin: 0 }}><label className="form-label">City / State *</label><input value={form[which]?.state || ''} onChange={e => updateAddr(which, 'state', e.target.value)} className="form-input" placeholder="City, State/Province" required={which === 'permanent_address'} /></div>
-        <div className="form-group" style={{ margin: 0 }}><label className="form-label">Country *</label><input value={form[which]?.country || ''} onChange={e => updateAddr(which, 'country', e.target.value)} className="form-input" placeholder="Country" required={which === 'permanent_address'} /></div>
-        <div className="form-group" style={{ margin: 0 }}><label className="form-label">Postal / ZIP Code *</label><input value={form[which]?.pincode || ''} onChange={e => updateAddr(which, 'pincode', e.target.value)} className="form-input" placeholder="Postal / ZIP code" required={which === 'permanent_address'} /></div>
-      </div>
-    </div>
-  );
-
-  // Indian address section
-  const IndianAddressSection = ({ which, label }) => (
-    <div style={{ background: '#f8fafc', borderRadius: '12px', padding: '20px', border: '1px solid #e5e7eb' }}>
-      <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: '14px', color: '#0c3c60', marginBottom: '14px' }}>{label}</div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
-        <div className="form-group" style={{ margin: 0, gridColumn: '1 / -1' }}><label className="form-label">Address Line 1 *</label><input value={form[which]?.line1 || ''} onChange={e => updateAddr(which, 'line1', e.target.value)} className="form-input" placeholder="House/Flat No, Building Name" required={which === 'permanent_address'} /></div>
-        <div className="form-group" style={{ margin: 0, gridColumn: '1 / -1' }}><label className="form-label">Address Line 2</label><input value={form[which]?.line2 || ''} onChange={e => updateAddr(which, 'line2', e.target.value)} className="form-input" placeholder="Street, Area, Locality" /></div>
-        <div className="form-group" style={{ margin: 0, gridColumn: '1 / -1' }}><label className="form-label">Address Line 3</label><input value={form[which]?.line3 || ''} onChange={e => updateAddr(which, 'line3', e.target.value)} className="form-input" placeholder="Landmark (optional)" /></div>
-        <div className="form-group" style={{ margin: 0 }}><label className="form-label">State *</label>
-          <select value={form[which]?.state || ''} onChange={e => updateAddr(which, 'state', e.target.value)} className="form-select" required={which === 'permanent_address'}>
-            <option value="">Select State</option>
-            {INDIAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
-        </div>
-        <div className="form-group" style={{ margin: 0 }}><label className="form-label">District *</label><input value={form[which]?.district || ''} onChange={e => updateAddr(which, 'district', e.target.value)} className="form-input" placeholder="District" required={which === 'permanent_address'} /></div>
-        <div className="form-group" style={{ margin: 0 }}><label className="form-label">Pincode *</label><input value={form[which]?.pincode || ''} onChange={e => updateAddr(which, 'pincode', e.target.value)} className="form-input" placeholder="6-digit pincode" maxLength={6} required={which === 'permanent_address'} /></div>
-      </div>
-    </div>
-  );
-
-  const AddressSection = isInternational ? InternationalAddressSection : IndianAddressSection;
 
   if (step === 'success') {
     return (
@@ -198,19 +275,10 @@ export default function MembershipApplyPage() {
           </div>
           <div style={{ maxWidth: '600px', margin: '0 auto', padding: '32px 24px' }}>
             <div style={{ background: 'white', borderRadius: '16px', padding: '32px', boxShadow: '0 4px 12px rgba(0,0,0,0.06)' }} data-testid="membership-payment-step">
-              <PaymentPage
-                amount={fee}
-                name={`${form.prefix} ${form.name}`.trim()}
-                email={form.email}
-                phone={form.phone}
-                purpose="membership"
-                memberId={memberId}
-                membershipType={form.membership_type}
-                onSuccess={handlePaymentSuccess}
-                onCancel={handlePaymentSkip}
-                currency={isInternational ? 'USD' : 'INR'}
-                isInternational={isInternational}
-              />
+              <PaymentPage amount={fee} name={`${form.prefix} ${form.name}`.trim()} email={form.email} phone={form.phone}
+                purpose="membership" memberId={memberId} membershipType={form.membership_type}
+                onSuccess={handlePaymentSuccess} onCancel={handlePaymentSkip}
+                currency={isInternational ? 'USD' : 'INR'} isInternational={isInternational} />
             </div>
           </div>
         </div>
@@ -288,19 +356,34 @@ export default function MembershipApplyPage() {
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
-                <div className="form-group" style={{ margin: 0 }}><label className="form-label">Email *</label><input type="email" name="email" value={form.email} onChange={handleChange} className="form-input" placeholder="your@email.com" required data-testid="apply-email" /></div>
-                <div className="form-group" style={{ margin: 0 }}><label className="form-label">Phone</label><input name="phone" value={form.phone} onChange={handleChange} className="form-input" placeholder={isInternational ? '+1 234 567 8900' : '+91 9XXXXXXXXX'} data-testid="apply-phone" /></div>
-                <div className="form-group" style={{ margin: 0 }}><label className="form-label">Qualification</label><input name="qualification" value={form.qualification} onChange={handleChange} className="form-input" placeholder="Ph.D., M.V.Sc., B.Tech..." /></div>
-                <div className="form-group" style={{ margin: 0 }}><label className="form-label">Specialization</label><input name="specialization" value={form.specialization} onChange={handleChange} className="form-input" placeholder="Dairy Technology, Dairy Science..." /></div>
-                <div className="form-group" style={{ margin: 0, gridColumn: '1 / -1' }}><label className="form-label">Organization / Institution</label><input name="organization" value={form.organization} onChange={handleChange} className="form-input" placeholder="University / Company name" /></div>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label">Email *</label>
+                  <input type="email" name="email" value={form.email} onChange={handleChange} className="form-input" placeholder="your@email.com" required data-testid="apply-email" />
+                </div>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label">Phone (with country code) *</label>
+                  <input name="phone" value={form.phone} onChange={handleChange} className="form-input" placeholder={isInternational ? '12345678900' : '919XXXXXXXXX'} required data-testid="apply-phone" />
+                  <span style={{ fontSize: '11px', color: '#9ca3af', marginTop: '2px', display: 'block' }}>Enter without + or spaces (e.g. 919876543210)</span>
+                </div>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label">Qualification *</label>
+                  <input name="qualification" value={form.qualification} onChange={handleChange} className="form-input" placeholder="Ph.D., M.V.Sc., B.Tech..." required data-testid="apply-qualification" />
+                </div>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label">Specialization</label>
+                  <input name="specialization" value={form.specialization} onChange={handleChange} className="form-input" placeholder="Dairy Technology, Dairy Science..." data-testid="apply-specialization" />
+                </div>
+                <div className="form-group" style={{ margin: 0, gridColumn: '1 / -1' }}>
+                  <label className="form-label">Organization / Institution *</label>
+                  <input name="organization" value={form.organization} onChange={handleChange} className="form-input" placeholder="University / Company name" required data-testid="apply-organization" />
+                </div>
               </div>
 
               {/* Photo Upload */}
               <div style={{ margin: '16px 0' }}>
-                <label className="form-label">Passport Size Photo {isInternational ? '*' : ''}</label>
+                <label className="form-label">Passport Size Photo *</label>
                 <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-                  <div
-                    onClick={() => !photoUploading && fileInputRef.current?.click()}
+                  <div onClick={() => !photoUploading && fileInputRef.current?.click()}
                     style={{
                       width: '100px', height: '100px', borderRadius: '12px',
                       border: photoUrl ? 'none' : `2px dashed ${isInternational ? '#93c5fd' : '#d1d5db'}`,
@@ -327,8 +410,8 @@ export default function MembershipApplyPage() {
                   <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handlePhotoUpload} style={{ display: 'none' }} data-testid="photo-file-input" />
                   <div style={{ fontSize: '12px', color: '#9ca3af', lineHeight: 1.6 }}>
                     Upload a passport-size photo<br />
-                    Formats: JPG, PNG, WebP (Max 5MB)
-                    {isInternational && <><br /><span style={{ color: '#1e40af', fontWeight: 600 }}>Required for international delegates</span></>}
+                    Formats: JPG, PNG, WebP (Max 5MB)<br />
+                    <span style={{ color: '#dc2626', fontWeight: 600 }}>Required for all applicants</span>
                   </div>
                 </div>
               </div>
@@ -359,7 +442,17 @@ export default function MembershipApplyPage() {
 
               {/* Permanent Address */}
               <div style={{ marginTop: '20px' }}>
-                <AddressSection which="permanent_address" label={isInternational ? 'Address' : 'Permanent Address'} />
+                <div style={{ background: isInternational ? '#f0f9ff' : '#f8fafc', borderRadius: '12px', padding: '20px', border: isInternational ? '1px solid #bae6fd' : '1px solid #e5e7eb' }}>
+                  <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: '14px', color: '#0c3c60', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {isInternational && <Globe size={16} style={{ color: '#1e40af' }} />}
+                    {isInternational ? 'Address' : 'Permanent Address'}
+                  </div>
+                  {isInternational ? (
+                    <InternationalAddressFields addr={form.permanent_address} which="permanent_address" onChange={updateAddr} />
+                  ) : (
+                    <IndianAddressFields addr={form.permanent_address} which="permanent_address" onChange={updateAddr} />
+                  )}
+                </div>
               </div>
 
               {/* Same Address Checkbox - domestic only */}
@@ -371,7 +464,10 @@ export default function MembershipApplyPage() {
                     <span style={{ fontWeight: 600 }}>Contact address is same as permanent address</span>
                   </label>
                   {!form.contact_same_as_permanent && (
-                    <AddressSection which="contact_address" label="Contact Address" />
+                    <div style={{ background: '#f8fafc', borderRadius: '12px', padding: '20px', border: '1px solid #e5e7eb' }}>
+                      <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: '14px', color: '#0c3c60', marginBottom: '14px' }}>Contact Address</div>
+                      <IndianAddressFields addr={form.contact_address} which="contact_address" onChange={updateAddr} />
+                    </div>
                   )}
                 </>
               )}
