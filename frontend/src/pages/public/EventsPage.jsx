@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import PublicNavbar from '../../components/public/PublicNavbar';
 import PublicFooter from '../../components/public/PublicFooter';
 import { Calendar, MapPin, IndianRupee, ArrowRight, Download, ExternalLink } from 'lucide-react';
+import SEOHead from '../../components/SEOHead';
 import { API } from '../../contexts/AuthContext';
 
 const STATUS_COLORS = { upcoming: '#1e7a4d', ongoing: '#d97706', completed: '#6b7280' };
@@ -23,6 +24,7 @@ export default function EventsPage() {
 
   return (
     <div style={{ background: '#f8fafc' }}>
+      <SEOHead page="events" fallback={{ title: 'IDSEA Events & Conferences', description: 'Upcoming dairy science conferences, workshops and seminars by IDSEA.' }} />
       <PublicNavbar />
       <div style={{ paddingTop: '170px' }}>
         <div style={{ background: '#0c3c60', padding: '60px 24px', textAlign: 'center', color: 'white' }}>

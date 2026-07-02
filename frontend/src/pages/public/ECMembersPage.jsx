@@ -4,6 +4,7 @@ import PublicNavbar from '../../components/public/PublicNavbar';
 import PublicFooter from '../../components/public/PublicFooter';
 import { API } from '../../contexts/AuthContext';
 import { Award, Users, Crown, Shield } from 'lucide-react';
+import SEOHead from '../../components/SEOHead';
 
 const ROLE_COLORS = {
   'President': { bg: '#fffbeb', border: '#fcd34d', badge: '#d97706', ring: '#fbbf24', icon: Crown },
@@ -39,6 +40,7 @@ export default function ECMembersPage() {
 
   return (
     <div style={{ background: '#fafbfc' }}>
+      <SEOHead page="about" fallback={{ title: 'IDSEA Executive Council - Office Bearers & EC Members', description: 'Meet the executive council, office bearers and committee members leading IDSEA.' }} />
       <PublicNavbar />
       <div style={{ paddingTop: '170px' }}>
 

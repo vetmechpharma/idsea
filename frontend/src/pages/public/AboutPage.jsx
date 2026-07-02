@@ -5,6 +5,7 @@ import PublicFooter from '../../components/public/PublicFooter';
 import { API } from '../../contexts/AuthContext';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Target, Compass, Award, MapPin, Mail, Phone, ShieldCheck, FileCheck } from 'lucide-react';
+import SEOHead from '../../components/SEOHead';
 
 const ACCENT_COLORS = [
   { border: '#d97706', bg: '#fffbeb', badge: '#fbbf24', ring: '#fcd34d' },
@@ -31,6 +32,7 @@ export default function AboutPage() {
 
   return (
     <div style={{ background: '#fafbfc' }}>
+      <SEOHead page="about" fallback={{ title: 'About IDSEA - Vision, Mission & Objectives', description: 'Learn about IDSEA - our vision, mission, objectives, founders and registration details.' }} />
       <PublicNavbar />
       <div style={{ paddingTop: '170px' }}>
 

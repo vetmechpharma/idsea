@@ -3,6 +3,7 @@ import axios from 'axios';
 import PublicNavbar from '../../components/public/PublicNavbar';
 import PublicFooter from '../../components/public/PublicFooter';
 import { Image, X } from 'lucide-react';
+import SEOHead from '../../components/SEOHead';
 import { API } from '../../contexts/AuthContext';
 
 export default function GalleryPage() {
@@ -19,6 +20,7 @@ export default function GalleryPage() {
 
   return (
     <div style={{ background: '#f8fafc' }}>
+      <SEOHead page="gallery" fallback={{ title: 'IDSEA Photo Gallery', description: 'Browse photos from IDSEA conferences, field visits, workshops and events.' }} />
       <PublicNavbar />
       <div style={{ paddingTop: '170px' }}>
         <div style={{ background: '#0c3c60', padding: '60px 24px', textAlign: 'center', color: 'white' }}>

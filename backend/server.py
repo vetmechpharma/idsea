@@ -1065,6 +1065,45 @@ async def get_public_page_content(page: str):
     return doc.get("content", {}) if doc else {}
 
 
+@api_router.get("/public/robots.txt")
+async def get_robots_txt():
+    from fastapi.responses import PlainTextResponse
+    base_url = "https://idsea.org"
+    robots = f"""User-agent: *
+Allow: /
+Sitemap: {base_url}/api/public/sitemap.xml
+"""
+    return PlainTextResponse(content=robots, media_type="text/plain")
+
+
+@api_router.get("/public/sitemap.xml")
+async def get_sitemap_xml():
+    from fastapi.responses import Response
+    base_url = "https://idsea.org"
+    pages = [
+        {"loc": "/", "priority": "1.0", "changefreq": "weekly"},
+        {"loc": "/about", "priority": "0.9", "changefreq": "monthly"},
+        {"loc": "/ec-members", "priority": "0.8", "changefreq": "monthly"},
+        {"loc": "/members", "priority": "0.8", "changefreq": "weekly"},
+        {"loc": "/events", "priority": "0.9", "changefreq": "weekly"},
+        {"loc": "/publications", "priority": "0.7", "changefreq": "monthly"},
+        {"loc": "/gallery", "priority": "0.6", "changefreq": "monthly"},
+        {"loc": "/contact", "priority": "0.7", "changefreq": "yearly"},
+        {"loc": "/apply", "priority": "0.8", "changefreq": "monthly"},
+    ]
+    urls = ""
+    for p in pages:
+        urls += f"""  <url>
+    <loc>{base_url}{p['loc']}</loc>
+    <changefreq>{p['changefreq']}</changefreq>
+    <priority>{p['priority']}</priority>
+  </url>\n"""
+    xml = f"""<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+{urls}</urlset>"""
+    return Response(content=xml, media_type="application/xml")
+
+
 # =================== ADMIN MEMBER ROUTES ===================
 
 @api_router.get("/admin/members")
@@ -3939,6 +3978,9 @@ async def startup_event():
             "cta_description": "Become part of India's premier dairy science and entrepreneurship network. Connect, collaborate, and grow.",
             "cta_button_text": "Apply for Membership",
             "cta_button_link": "/apply",
+            "seo_title": "IDSEA - Indian Dairy Scientists and Entrepreneurs Association",
+            "seo_description": "IDSEA is India's premier platform for dairy scientists, academicians, technologists and entrepreneurs. Join us for conferences, research and networking.",
+            "seo_keywords": "IDSEA, dairy science, dairy entrepreneurs, India dairy, veterinary science, dairy technology, dairy research, membership",
         },
         "about": {
             "hero_title": "About IDSEA",

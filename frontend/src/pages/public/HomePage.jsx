@@ -7,6 +7,7 @@ import 'slick-carousel/slick/slick-theme.css';
 import PublicNavbar from '../../components/public/PublicNavbar';
 import PublicFooter from '../../components/public/PublicFooter';
 import { Calendar, Users, BookOpen, ArrowRight, Award, FlaskConical, ChevronLeft, ChevronRight } from 'lucide-react';
+import SEOHead from '../../components/SEOHead';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -133,6 +134,7 @@ export default function HomePage() {
 
   return (
     <div style={{ background: 'white' }}>
+      <SEOHead page="home" fallback={{ title: 'IDSEA - Indian Dairy Scientists and Entrepreneurs Association', description: 'Join IDSEA - India\'s premier platform for dairy scientists, academicians, technologists and entrepreneurs.' }} />
       <PublicNavbar />
       {renderHero()}
 

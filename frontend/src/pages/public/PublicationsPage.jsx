@@ -3,6 +3,7 @@ import axios from 'axios';
 import PublicNavbar from '../../components/public/PublicNavbar';
 import PublicFooter from '../../components/public/PublicFooter';
 import { BookOpen, ExternalLink } from 'lucide-react';
+import SEOHead from '../../components/SEOHead';
 import { API } from '../../contexts/AuthContext';
 
 export default function PublicationsPage() {
@@ -22,6 +23,7 @@ export default function PublicationsPage() {
 
   return (
     <div style={{ background: '#f8fafc' }}>
+      <SEOHead page="publications" fallback={{ title: 'IDSEA Publications & Research', description: 'Research papers, journals and technical articles by IDSEA members.' }} />
       <PublicNavbar />
       <div style={{ paddingTop: '170px' }}>
         <div style={{ background: '#0c3c60', padding: '60px 24px', textAlign: 'center', color: 'white' }}>

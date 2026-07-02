@@ -3,6 +3,7 @@ import axios from 'axios';
 import PublicNavbar from '../../components/public/PublicNavbar';
 import PublicFooter from '../../components/public/PublicFooter';
 import { Search, Filter } from 'lucide-react';
+import SEOHead from '../../components/SEOHead';
 import { API } from '../../contexts/AuthContext';
 
 const STATES = ['All States', 'Tamil Nadu', 'Maharashtra', 'Karnataka', 'Kerala', 'Andhra Pradesh', 'Telangana', 'Gujarat', 'Rajasthan', 'Uttar Pradesh', 'Punjab', 'Haryana', 'West Bengal', 'Assam', 'Madhya Pradesh'];
@@ -43,6 +44,7 @@ export default function MembersPage() {
 
   return (
     <div style={{ background: '#f8fafc' }}>
+      <SEOHead page="members" fallback={{ title: 'IDSEA Member Directory', description: 'Search and discover IDSEA members - dairy scientists and entrepreneurs across India.' }} />
       <PublicNavbar />
       <div style={{ paddingTop: '170px' }}>
         <div style={{ background: '#0c3c60', padding: '60px 24px', textAlign: 'center', color: 'white' }}>

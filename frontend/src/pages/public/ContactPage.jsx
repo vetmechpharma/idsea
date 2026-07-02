@@ -3,6 +3,7 @@ import axios from 'axios';
 import PublicNavbar from '../../components/public/PublicNavbar';
 import PublicFooter from '../../components/public/PublicFooter';
 import { Mail, Phone, MapPin, Send } from 'lucide-react';
+import SEOHead from '../../components/SEOHead';
 import { API } from '../../contexts/AuthContext';
 
 export default function ContactPage() {

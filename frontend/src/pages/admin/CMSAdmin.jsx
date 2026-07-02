@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Save, Globe, Home, Info, Calendar, Image, BookOpen, Users, Phone, Navigation, Footprints, Loader2 } from 'lucide-react';
+import { Save, Globe, Home, Info, Calendar, Image, BookOpen, Users, Phone, Navigation, Footprints, Loader2, Search } from 'lucide-react';
 import { API } from '../../contexts/AuthContext';
 import { FileUpload } from '../../components/admin/FileUpload';
 
 const PAGES = [
   { key: 'global', label: 'Branding & Global', icon: Globe },
+  { key: 'seo', label: 'SEO & Indexing', icon: Search },
   { key: 'home', label: 'Home Page', icon: Home },
   { key: 'about', label: 'About Page', icon: Info },
   { key: 'events', label: 'Events Page', icon: Calendar },
@@ -30,13 +31,14 @@ export default function CMSAdmin() {
   useEffect(() => {
     const loadAll = async () => {
       try {
+        const contentPages = PAGES.filter(p => p.key !== 'global' && p.key !== 'seo');
         const [cmsRes, ...pageRes] = await Promise.all([
           axios.get(`${API}/admin/cms`),
-          ...PAGES.filter(p => p.key !== 'global').map(p => axios.get(`${API}/admin/page-content/${p.key}`))
+          ...contentPages.map(p => axios.get(`${API}/admin/page-content/${p.key}`))
         ]);
         setCmsForm(cmsRes.data || {});
         const contents = {};
-        PAGES.filter(p => p.key !== 'global').forEach((p, i) => {
+        contentPages.forEach((p, i) => {
           contents[p.key] = pageRes[i].data || {};
         });
         setPageContents(contents);
@@ -50,6 +52,12 @@ export default function CMSAdmin() {
     setSaving(true);
     try {
       if (activeTab === 'global') {
+        await axios.put(`${API}/admin/cms`, cmsForm);
+      } else if (activeTab === 'seo') {
+        // Save SEO fields for all pages
+        const seoPages = ['home', 'about', 'events', 'gallery', 'publications', 'members', 'contact'];
+        await Promise.all(seoPages.map(p => axios.put(`${API}/admin/page-content/${p}`, pageContents[p] || {})));
+        // Save favicon to CMS
         await axios.put(`${API}/admin/cms`, cmsForm);
       } else {
         await axios.put(`${API}/admin/page-content/${activeTab}`, pageContents[activeTab] || {});
@@ -267,9 +275,63 @@ export default function CMSAdmin() {
     </>
   );
 
+  const updateSeoPage = (pageName, field, value) => {
+    setPageContents(prev => ({
+      ...prev,
+      [pageName]: { ...prev[pageName], [field]: value }
+    }));
+  };
+
+  const SEO_PAGES = [
+    { key: 'home', label: 'Home Page', path: '/' },
+    { key: 'about', label: 'About Page', path: '/about' },
+    { key: 'events', label: 'Events Page', path: '/events' },
+    { key: 'gallery', label: 'Gallery Page', path: '/gallery' },
+    { key: 'publications', label: 'Publications Page', path: '/publications' },
+    { key: 'members', label: 'Members Page', path: '/members' },
+    { key: 'contact', label: 'Contact Page', path: '/contact' },
+  ];
+
+  const renderSeo = () => (
+    <>
+      <Section title="Website Favicon">
+        <div className="form-group">
+          <label className="form-label">Favicon Image</label>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            {cmsForm.favicon_url && <img src={cmsForm.favicon_url?.startsWith('/') ? `${window.location.origin}${cmsForm.favicon_url}` : cmsForm.favicon_url} alt="Favicon" style={{ width: 32, height: 32, objectFit: 'contain', borderRadius: '4px', border: '1px solid #e5e7eb' }} />}
+            <div style={{ flex: 1 }}>
+              <FileUpload accept="image/png,image/x-icon,image/svg+xml" label="Upload Favicon" onUpload={(url) => updateCms('favicon_url', url)} />
+              <input type="url" value={cmsForm.favicon_url || ''} onChange={e => updateCms('favicon_url', e.target.value)} className="form-input" placeholder="Or paste favicon URL" style={{ marginTop: '6px' }} />
+            </div>
+          </div>
+          <p style={{ fontSize: '11px', color: '#9ca3af', marginTop: '4px' }}>Recommended: 32x32px or 64x64px PNG. Used as browser tab icon.</p>
+        </div>
+      </Section>
+
+      <div style={{ background: '#f0f9ff', borderRadius: '10px', padding: '14px 18px', marginBottom: '20px', border: '1px solid #bae6fd' }}>
+        <div style={{ fontSize: '13px', color: '#0369a1', fontWeight: 600, fontFamily: 'Poppins, sans-serif', marginBottom: '4px' }}>Google Indexing & SEO</div>
+        <div style={{ fontSize: '12px', color: '#6b7280', lineHeight: 1.5 }}>
+          All pages include meta robots "index, follow" tags, Open Graph, and Twitter card tags. A <code>sitemap.xml</code> and <code>robots.txt</code> are auto-generated. Submit your sitemap URL to Google Search Console for faster indexing.
+        </div>
+      </div>
+
+      {SEO_PAGES.map(sp => {
+        const pg = pageContents[sp.key] || {};
+        return (
+          <Section key={sp.key} title={`${sp.label} SEO (${sp.path})`}>
+            <Field label="Meta Title" value={pg.seo_title} onChange={v => updateSeoPage(sp.key, 'seo_title', v)} placeholder={`${sp.label} | IDSEA`} />
+            <Field label="Meta Description" value={pg.seo_description} onChange={v => updateSeoPage(sp.key, 'seo_description', v)} type="textarea" rows={2} placeholder="Brief description for search engines (150-160 chars)" />
+            <Field label="Meta Keywords" value={pg.seo_keywords} onChange={v => updateSeoPage(sp.key, 'seo_keywords', v)} placeholder="keyword1, keyword2, keyword3..." />
+          </Section>
+        );
+      })}
+    </>
+  );
+
   const renderContent = () => {
     switch (activeTab) {
       case 'global': return renderGlobal();
+      case 'seo': return renderSeo();
       case 'home': return renderHome();
       case 'about': return renderAbout();
       case 'events': return renderSimpleHero('Events');
