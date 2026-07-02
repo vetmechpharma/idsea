@@ -3945,6 +3945,12 @@ async def startup_event():
             "council_subtitle": "Term: 3 years",
             "founders_title": "Patron / Founders",
             "founders_subtitle": "The visionaries who established IDSEA",
+            "cert_title": "Registration Certificate",
+            "cert_subtitle": "Officially registered under the Tamil Nadu Societies Registration Act",
+            "cert_org_name": "Indian Dairy Scientists and Entrepreneurs Association (IDSEA)",
+            "cert_reg_number": "",
+            "cert_act": "Tamil Nadu Societies Registration Act, 1975 (Tamil Nadu Act 27 of 1975)",
+            "cert_image_url": "",
         },
         "events": {
             "hero_title": "Events & Conferences",

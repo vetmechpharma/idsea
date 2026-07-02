@@ -200,6 +200,24 @@ export default function CMSAdmin() {
         <Field label="Founders Subtitle" value={pc.founders_subtitle} onChange={v => updatePage('founders_subtitle', v)} />
       </Section>
 
+      <Section title="Registration Certificate">
+        <Field label="Section Title" value={pc.cert_title} onChange={v => updatePage('cert_title', v)} placeholder="Registration Certificate" />
+        <Field label="Section Subtitle" value={pc.cert_subtitle} onChange={v => updatePage('cert_subtitle', v)} placeholder="Official registration details" />
+        <Field label="Organization Name on Certificate" value={pc.cert_org_name} onChange={v => updatePage('cert_org_name', v)} />
+        <Field label="Registration Number" value={pc.cert_reg_number} onChange={v => updatePage('cert_reg_number', v)} placeholder="e.g. SRG/Namakkal/1/2025" />
+        <Field label="Registration Act" value={pc.cert_act} onChange={v => updatePage('cert_act', v)} placeholder="Tamil Nadu Societies Registration Act, 1975" />
+        <div className="form-group">
+          <label className="form-label">Certificate Image</label>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+            {pc.cert_image_url && <img src={pc.cert_image_url?.startsWith('/') ? `${window.location.origin}${pc.cert_image_url}` : pc.cert_image_url} alt="Certificate" style={{ width: '120px', height: '80px', objectFit: 'contain', borderRadius: '8px', border: '1px solid #e5e7eb' }} />}
+            <div style={{ flex: 1 }}>
+              <FileUpload accept="image/*,.pdf" label="Upload Certificate" onUpload={(url) => updatePage('cert_image_url', url)} />
+              <input type="url" value={pc.cert_image_url || ''} onChange={e => updatePage('cert_image_url', e.target.value)} className="form-input" placeholder="Or paste image URL" style={{ marginTop: '6px' }} />
+            </div>
+          </div>
+        </div>
+      </Section>
+
       <Section title="Headquarters Section">
         <Field label="Section Title" value={pc.hq_title} onChange={v => updatePage('hq_title', v)} />
       </Section>
