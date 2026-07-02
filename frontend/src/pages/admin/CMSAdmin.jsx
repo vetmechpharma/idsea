@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Save, Globe, Home, Info, Calendar, Image, BookOpen, Users, Phone, Navigation, Footprints, Loader2, Search } from 'lucide-react';
+import { Save, Globe, Home, Info, Calendar, Image, BookOpen, Users, Phone, Navigation, Footprints, Loader2, Search, Code } from 'lucide-react';
 import { API } from '../../contexts/AuthContext';
 import { FileUpload } from '../../components/admin/FileUpload';
 
 const PAGES = [
   { key: 'global', label: 'Branding & Global', icon: Globe },
   { key: 'seo', label: 'SEO & Indexing', icon: Search },
+  { key: 'scripts', label: 'Custom Scripts', icon: Code },
   { key: 'home', label: 'Home Page', icon: Home },
   { key: 'about', label: 'About Page', icon: Info },
   { key: 'events', label: 'Events Page', icon: Calendar },
@@ -31,7 +32,7 @@ export default function CMSAdmin() {
   useEffect(() => {
     const loadAll = async () => {
       try {
-        const contentPages = PAGES.filter(p => p.key !== 'global' && p.key !== 'seo');
+        const contentPages = PAGES.filter(p => p.key !== 'global' && p.key !== 'seo' && p.key !== 'scripts');
         const [cmsRes, ...pageRes] = await Promise.all([
           axios.get(`${API}/admin/cms`),
           ...contentPages.map(p => axios.get(`${API}/admin/page-content/${p.key}`))
@@ -52,6 +53,8 @@ export default function CMSAdmin() {
     setSaving(true);
     try {
       if (activeTab === 'global') {
+        await axios.put(`${API}/admin/cms`, cmsForm);
+      } else if (activeTab === 'scripts') {
         await axios.put(`${API}/admin/cms`, cmsForm);
       } else if (activeTab === 'seo') {
         // Save SEO fields for all pages
@@ -328,10 +331,70 @@ export default function CMSAdmin() {
     </>
   );
 
+  const renderScripts = () => (
+    <>
+      <div style={{ background: '#fef3c7', borderRadius: '10px', padding: '14px 18px', marginBottom: '20px', border: '1px solid #fcd34d' }}>
+        <div style={{ fontSize: '13px', color: '#92400e', fontWeight: 600, fontFamily: 'Poppins, sans-serif', marginBottom: '4px' }}>Custom HTML / Scripts</div>
+        <div style={{ fontSize: '12px', color: '#78716c', lineHeight: 1.5 }}>
+          Add custom HTML, JavaScript, or third-party widget scripts. These will be injected into every public page. Use this for Google Analytics, Tag Manager, chat widgets, pixel tracking, custom CSS, etc.
+        </div>
+      </div>
+
+      <Section title="Head Scripts (inside <head>)">
+        <div className="form-group">
+          <label className="form-label">Custom &lt;head&gt; HTML / Scripts</label>
+          <textarea
+            value={cmsForm.custom_head_scripts || ''}
+            onChange={e => updateCms('custom_head_scripts', e.target.value)}
+            className="form-textarea"
+            rows={8}
+            placeholder={'<!-- Google Analytics -->\n<script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXX"></script>\n<script>\n  window.dataLayer = window.dataLayer || [];\n  function gtag(){dataLayer.push(arguments);}\n  gtag("js", new Date());\n  gtag("config", "G-XXXXXXX");\n</script>'}
+            style={{ fontFamily: '"Courier New", Courier, monospace', fontSize: '12px', lineHeight: '1.5', background: '#1e293b', color: '#e2e8f0', border: '1px solid #334155', borderRadius: '8px' }}
+            data-testid="custom-head-scripts"
+          />
+          <p style={{ fontSize: '11px', color: '#9ca3af', marginTop: '4px' }}>Injected inside &lt;head&gt; tag. Use for meta tags, analytics, stylesheets, fonts, Google Tag Manager head snippet, etc.</p>
+        </div>
+      </Section>
+
+      <Section title="Body Start Scripts (after <body>)">
+        <div className="form-group">
+          <label className="form-label">Custom HTML after &lt;body&gt; open</label>
+          <textarea
+            value={cmsForm.custom_body_start_scripts || ''}
+            onChange={e => updateCms('custom_body_start_scripts', e.target.value)}
+            className="form-textarea"
+            rows={6}
+            placeholder={'<!-- Google Tag Manager (noscript) -->\n<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-XXXXXXX" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>'}
+            style={{ fontFamily: '"Courier New", Courier, monospace', fontSize: '12px', lineHeight: '1.5', background: '#1e293b', color: '#e2e8f0', border: '1px solid #334155', borderRadius: '8px' }}
+            data-testid="custom-body-start-scripts"
+          />
+          <p style={{ fontSize: '11px', color: '#9ca3af', marginTop: '4px' }}>Injected right after &lt;body&gt; tag. Use for GTM noscript fallback, chat widgets that need early loading, etc.</p>
+        </div>
+      </Section>
+
+      <Section title="Body End Scripts (before </body>)">
+        <div className="form-group">
+          <label className="form-label">Custom HTML before &lt;/body&gt; close</label>
+          <textarea
+            value={cmsForm.custom_body_end_scripts || ''}
+            onChange={e => updateCms('custom_body_end_scripts', e.target.value)}
+            className="form-textarea"
+            rows={8}
+            placeholder={'<!-- Tawk.to Chat Widget -->\n<script type="text/javascript">\nvar Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();\n(function(){\nvar s1=document.createElement("script"),s0=document.getElementsByTagName("script")[0];\ns1.async=true;\ns1.src="https://embed.tawk.to/XXXXXXX/default";\ns1.charset="UTF-8";\ns0.parentNode.insertBefore(s1,s0);\n})();\n</script>\n\n<!-- Facebook Pixel -->\n<!-- WhatsApp Chat Button -->\n<!-- Any other widgets -->'}
+            style={{ fontFamily: '"Courier New", Courier, monospace', fontSize: '12px', lineHeight: '1.5', background: '#1e293b', color: '#e2e8f0', border: '1px solid #334155', borderRadius: '8px' }}
+            data-testid="custom-body-end-scripts"
+          />
+          <p style={{ fontSize: '11px', color: '#9ca3af', marginTop: '4px' }}>Injected before &lt;/body&gt; close tag. Use for chat widgets, pixel scripts, third-party integrations, WhatsApp buttons, etc.</p>
+        </div>
+      </Section>
+    </>
+  );
+
   const renderContent = () => {
     switch (activeTab) {
       case 'global': return renderGlobal();
       case 'seo': return renderSeo();
+      case 'scripts': return renderScripts();
       case 'home': return renderHome();
       case 'about': return renderAbout();
       case 'events': return renderSimpleHero('Events');

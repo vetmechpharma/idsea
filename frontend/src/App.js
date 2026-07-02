@@ -14,6 +14,7 @@ import ContactPage from './pages/public/ContactPage';
 import MembershipApplyPage from './pages/public/MembershipApplyPage';
 import EventRegistrationPage from './pages/public/EventRegistrationPage';
 import ECMembersPage from './pages/public/ECMembersPage';
+import CustomScripts from './components/CustomScripts';
 
 import LoginPage from './pages/admin/LoginPage';
 import AdminLayout from './components/admin/AdminLayout';
@@ -49,6 +50,7 @@ function App() {
     <HelmetProvider>
     <AuthProvider>
       <BrowserRouter>
+        <CustomScripts />
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/about" element={<AboutPage />} />

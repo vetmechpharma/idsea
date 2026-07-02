@@ -471,6 +471,10 @@ class CMSSettings(BaseModel):
     logo_url: Optional[str] = ""
     hero_title: Optional[str] = ""
     hero_subtitle: Optional[str] = ""
+    favicon_url: Optional[str] = ""
+    custom_head_scripts: Optional[str] = ""
+    custom_body_start_scripts: Optional[str] = ""
+    custom_body_end_scripts: Optional[str] = ""
 
 
 # =================== AUTH UTILS ===================
