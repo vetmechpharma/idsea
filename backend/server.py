@@ -357,6 +357,8 @@ class ExecutiveCommittee(BaseModel):
     member_id: Optional[str] = ""
     name: str
     designation: str
+    sub_division: Optional[str] = ""
+    frontend_section: Optional[str] = "office_bearers"
     affiliation: Optional[str] = ""
     profile: Optional[str] = ""
     photo_url: Optional[str] = ""
@@ -371,6 +373,8 @@ class ExecutiveCreate(BaseModel):
     member_id: Optional[str] = ""
     name: str
     designation: str
+    sub_division: Optional[str] = ""
+    frontend_section: Optional[str] = "office_bearers"
     affiliation: Optional[str] = ""
     profile: Optional[str] = ""
     photo_url: Optional[str] = ""
