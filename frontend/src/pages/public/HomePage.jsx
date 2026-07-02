@@ -204,17 +204,17 @@ export default function HomePage() {
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '24px' }}>
             {(plans.length > 0 ? plans : [
-              { name: 'Academic Member', fee: 3100, currency: 'INR', description: 'For scientists, researchers, academicians, and educators', features: ['Regular newsletters', 'Event discounts', 'Journal access', 'Technical sessions'] },
-              { name: 'Entrepreneur Member', fee: 5100, currency: 'INR', description: 'For dairy entrepreneurs, startups, MSMEs, and FPOs', features: ['All Academic benefits', 'Business networking', 'Industry interactions', 'Capacity building'] },
-              { name: 'Corporate Member', fee: 25100, currency: 'INR', description: 'For dairy corporates, cooperatives, and institutional bodies', features: ['All Entrepreneur benefits', 'Priority participation', 'Advisory committee seat', 'Sponsor events'] },
+              { label: 'Academic Member', key: 'academic', fee_inr: 3100, fee_usd: 50, description: 'For scientists, researchers, academicians, and educators', features: ['Regular newsletters', 'Event discounts', 'Journal access', 'Technical sessions'] },
+              { label: 'Entrepreneur Member', key: 'entrepreneur', fee_inr: 5100, fee_usd: 75, description: 'For dairy entrepreneurs, startups, MSMEs, and FPOs', features: ['All Academic benefits', 'Business networking', 'Industry interactions', 'Capacity building'] },
+              { label: 'Corporate Member', key: 'corporate', fee_inr: 25100, fee_usd: 200, description: 'For dairy corporates, cooperatives, and institutional bodies', features: ['All Entrepreneur benefits', 'Priority participation', 'Advisory committee seat', 'Sponsor events'] },
             ]).map((plan, idx) => {
               const color = PLAN_COLORS[idx % PLAN_COLORS.length];
               const bg = PLAN_BGS[idx % PLAN_BGS.length];
               const popular = idx === 1;
-              const feeStr = plan.currency === 'USD' ? `$${plan.fee}` : `\u20B9${plan.fee?.toLocaleString()}`;
+              const feeStr = plan.key === 'international' ? `$${plan.fee_usd}` : `\u20B9${(plan.fee_inr || 0).toLocaleString()}`;
               const features = plan.features || [];
               return (
-                <div key={plan.name} style={{
+                <div key={plan.key || plan.label} style={{
                   background: 'white', borderRadius: '16px', padding: '28px',
                   boxShadow: popular ? '0 8px 32px rgba(30,122,77,0.15)' : '0 4px 12px rgba(0,0,0,0.06)',
                   border: popular ? '2px solid #1e7a4d' : '1px solid #e5e7eb',
@@ -227,7 +227,7 @@ export default function HomePage() {
                   <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
                     <FlaskConical size={22} style={{ color }} />
                   </div>
-                  <h3 style={{ fontFamily: 'Poppins, sans-serif', fontSize: '17px', fontWeight: 700, color: '#111827', marginBottom: '8px' }}>{plan.name}</h3>
+                  <h3 style={{ fontFamily: 'Poppins, sans-serif', fontSize: '17px', fontWeight: 700, color: '#111827', marginBottom: '8px' }}>{plan.label || plan.name}</h3>
                   <div style={{ fontSize: '2rem', fontWeight: 800, color, fontFamily: 'Poppins, sans-serif', marginBottom: '8px' }}>{feeStr}</div>
                   <p style={{ fontSize: '13px', color: '#6b7280', lineHeight: 1.6, marginBottom: '20px', fontFamily: 'Inter, sans-serif' }}>{plan.description}</p>
                   {features.length > 0 && (

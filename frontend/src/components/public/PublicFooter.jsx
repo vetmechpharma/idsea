@@ -61,12 +61,12 @@ export default function PublicFooter() {
             <h4 style={{ fontFamily: 'Poppins, sans-serif', fontSize: '14px', fontWeight: 600, marginBottom: '16px', color: 'white', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Membership</h4>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {(plans.length > 0 ? plans : [
-                { name: 'Academic Member', fee: 3100, currency: 'INR' },
-                { name: 'Entrepreneur Member', fee: 5100, currency: 'INR' },
-                { name: 'Corporate Member', fee: 25100, currency: 'INR' },
+                { label: 'Academic Member', fee_inr: 3100, key: 'academic' },
+                { label: 'Entrepreneur Member', fee_inr: 5100, key: 'entrepreneur' },
+                { label: 'Corporate Member', fee_inr: 25100, key: 'corporate' },
               ]).map(plan => (
-                <span key={plan.name} style={{ color: 'rgba(255,255,255,0.7)', fontSize: '13px' }}>
-                  {plan.name} - {plan.currency === 'USD' ? `$${plan.fee}` : `\u20B9${plan.fee?.toLocaleString()}`}
+                <span key={plan.key || plan.label} style={{ color: 'rgba(255,255,255,0.7)', fontSize: '13px' }}>
+                  {plan.label || plan.name} - {plan.key === 'international' ? `$${plan.fee_usd}` : `\u20B9${(plan.fee_inr || 0).toLocaleString()}`}
                 </span>
               ))}
               <Link to="/apply" style={{ marginTop: '8px', background: '#1e7a4d', color: 'white', textDecoration: 'none', padding: '8px 16px', borderRadius: '6px', fontSize: '13px', fontWeight: 600, fontFamily: 'Poppins, sans-serif', display: 'inline-block', textAlign: 'center', transition: 'background 0.2s ease' }}
