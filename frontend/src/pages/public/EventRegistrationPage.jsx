@@ -385,9 +385,9 @@ export default function EventRegistrationPage() {
         @media (min-width: 641px) { .fee-cards-mobile { display: none !important; } }
       `}</style>
 
-      <div style={{ paddingTop: '170px' }}>
+      <div>
         {/* Event Header */}
-        <div style={{ background: '#0c3c60', padding: '40px 24px', color: 'white', textAlign: 'center' }}>
+        <div style={{ background: '#0c3c60', padding: '170px 24px 30px', color: 'white', textAlign: 'center' }}>
           <h1 style={{ fontFamily: 'Poppins', fontSize: 'clamp(20px,3vw,32px)', fontWeight: 800, marginBottom: '8px' }}>Event Registration</h1>
           <h2 style={{ fontFamily: 'Poppins', fontSize: '16px', fontWeight: 500, opacity: 0.9, marginBottom: '8px' }}>{info?.title}</h2>
           <p style={{ fontSize: '14px', opacity: 0.7 }}>{info?.date}{info?.end_date ? ` - ${info.end_date}` : ''} | {info?.venue}</p>

@@ -266,6 +266,8 @@ export default function CMSAdmin() {
     <Section title="Navigation Bar">
       <Field label="Organization Name" value={pc.org_name} onChange={v => updatePage('org_name', v)} />
       <Field label="Short Name / Abbreviation" value={pc.org_short} onChange={v => updatePage('org_short', v)} placeholder="(IDSEA)" />
+      <Field label="Registration Number" value={pc.registration_number} onChange={v => updatePage('registration_number', v)} placeholder="e.g. SRG/Namakkal/1/2025" />
+      <p style={{ fontSize: '11px', color: '#9ca3af', marginTop: '4px' }}>Displayed below the org name in the header on all pages.</p>
     </Section>
   );
 

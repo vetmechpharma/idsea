@@ -407,11 +407,61 @@ h1, h2, h3, h4, h5, h6 {
 ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
 
-/* Public Navbar - Association Style Header */
-.desktop-nav { display: flex; }
-.mobile-menu-btn { display: none !important; }
+/* ============================================ */
+/* PUBLIC NAVBAR - RESPONSIVE HEADER            */
+/* ============================================ */
+.public-header { position: fixed; top: 0; left: 0; right: 0; z-index: 100; background: white; }
+.header-brand { background: white; border-bottom: 1px solid #e5e7eb; }
+.header-brand-inner { max-width: 1280px; margin: 0 auto; padding: 10px 24px; display: flex; align-items: center; gap: 16px; }
+.header-logo-link { text-decoration: none; flex-shrink: 0; }
+.header-logo-img { height: 72px; width: 72px; object-fit: contain; }
+.header-logo-fallback { width: 72px; height: 72px; border-radius: 50%; background: #0c3c60; display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 20px; font-family: Poppins, sans-serif; }
+.header-org-info { flex: 1; min-width: 0; }
+.header-org-name { font-family: Poppins, sans-serif; font-size: clamp(14px, 2.2vw, 24px); font-weight: 800; color: #0c3c60; margin: 0; line-height: 1.2; letter-spacing: 0.5px; text-transform: uppercase; }
+.header-org-sub { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 2px; }
+.header-org-short { font-family: Inter, sans-serif; font-size: clamp(10px, 1.3vw, 13px); color: #6b7280; font-style: italic; }
+.header-reg-number { font-family: Poppins, sans-serif; font-size: 10px; color: #1e7a4d; font-weight: 600; background: #d1fae5; padding: 1px 8px; border-radius: 10px; white-space: nowrap; }
 
+.desktop-nav { display: flex; background: #0c3c60; }
+.nav-inner { max-width: 1280px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; justify-content: center; gap: 0; flex-wrap: wrap; width: 100%; }
+.nav-dropdown-wrap { position: relative; }
+.nav-dropdown-trigger { color: white; background: transparent; border: none; cursor: pointer; padding: 13px 16px; font-size: 13px; font-family: Poppins, sans-serif; font-weight: 500; display: flex; align-items: center; gap: 4px; white-space: nowrap; transition: background 0.2s ease; }
+.nav-dropdown-trigger:hover { background: rgba(255,255,255,0.1); }
+.nav-dropdown-menu { position: absolute; top: 100%; left: 0; background: #0c3c60; border-radius: 0 0 8px 8px; box-shadow: 0 8px 20px rgba(0,0,0,0.25); min-width: 200px; overflow: hidden; z-index: 200; border: 1px solid rgba(255,255,255,0.1); border-top: none; }
+.nav-dropdown-item { color: white; text-decoration: none; padding: 12px 20px; font-size: 13px; font-family: Poppins, sans-serif; display: block; white-space: nowrap; transition: background 0.15s ease; }
+.nav-dropdown-item:hover { background: rgba(255,255,255,0.1); }
+.nav-admin-link { color: rgba(255,255,255,0.6); text-decoration: none; padding: 13px 16px; font-size: 13px; font-family: Poppins, sans-serif; font-weight: 500; transition: color 0.2s ease; white-space: nowrap; margin-left: auto; }
+.nav-admin-link:hover { color: white; }
+
+.mobile-menu-btn { display: none !important; background: none; border: none; cursor: pointer; color: #0c3c60; padding: 4px; }
+.mobile-nav { background: #0c3c60; padding: 8px 16px 16px; display: flex; flex-direction: column; gap: 0; box-shadow: 0 12px 24px rgba(0,0,0,0.2); max-height: calc(100vh - 120px); overflow-y: auto; }
+.mobile-nav-link { color: white; text-decoration: none; padding: 12px 14px; font-size: 14px; font-family: Poppins, sans-serif; border-radius: 6px; display: block; }
+.mobile-nav-group-label { color: rgba(255,255,255,0.5); padding: 12px 14px 4px; font-size: 11px; font-family: Poppins, sans-serif; text-transform: uppercase; letter-spacing: 0.5px; }
+.mobile-nav-admin { color: rgba(255,255,255,0.6); text-decoration: none; padding: 12px 14px; font-size: 13px; font-family: Poppins, sans-serif; border-top: 1px solid rgba(255,255,255,0.1); margin-top: 8px; }
+
+/* ============================================ */
+/* MOBILE RESPONSIVE - ALL PAGES                */
+/* ============================================ */
 @media (max-width: 900px) {
   .desktop-nav { display: none !important; }
   .mobile-menu-btn { display: flex !important; }
+}
+
+@media (max-width: 768px) {
+  .header-brand-inner { padding: 8px 12px; gap: 10px; }
+  .header-logo-img { height: 48px; width: 48px; }
+  .header-logo-fallback { width: 48px; height: 48px; font-size: 16px; }
+  .header-org-name { font-size: 13px !important; }
+  .header-org-short { font-size: 9px; }
+  .header-reg-number { font-size: 8px; padding: 1px 6px; }
+  footer > div > div > div { grid-template-columns: 1fr !important; gap: 24px !important; }
+}
+
+@media (max-width: 480px) {
+  .header-brand-inner { padding: 6px 10px; gap: 8px; }
+  .header-logo-img { height: 40px; width: 40px; }
+  .header-logo-fallback { width: 40px; height: 40px; font-size: 14px; }
+  .header-org-name { font-size: 12px !important; letter-spacing: 0 !important; }
+  .header-org-sub { gap: 4px; }
+  .header-reg-number { font-size: 7px; }
 }

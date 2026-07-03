@@ -235,7 +235,7 @@ export default function MembershipApplyPage() {
     return (
       <div style={{ background: '#f8fafc', minHeight: '100vh' }}>
         <PublicNavbar />
-        <div style={{ paddingTop: '170px', maxWidth: '600px', margin: '0 auto', padding: '80px 24px', textAlign: 'center' }}>
+        <div style={{ maxWidth: '600px', margin: '0 auto', padding: '200px 24px 40px', textAlign: 'center' }}>
           <div style={{ background: 'white', borderRadius: '20px', padding: '48px', boxShadow: '0 8px 32px rgba(0,0,0,0.1)' }}>
             <div style={{ width: '72px', height: '72px', background: '#d1fae5', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}><CheckCircle size={36} style={{ color: '#1e7a4d' }} /></div>
             <h2 style={{ fontFamily: 'Poppins, sans-serif', fontSize: '24px', fontWeight: 700, color: '#0c3c60', marginBottom: '12px' }}>Application Submitted!</h2>
@@ -267,8 +267,8 @@ export default function MembershipApplyPage() {
     return (
       <div style={{ background: '#f8fafc', minHeight: '100vh' }}>
         <PublicNavbar />
-        <div style={{ paddingTop: '170px' }}>
-          <div style={{ background: '#0c3c60', padding: '40px 24px', textAlign: 'center', color: 'white' }}>
+        <div>
+          <div style={{ background: '#0c3c60', padding: '170px 24px 30px', textAlign: 'center', color: 'white' }}>
             <h1 style={{ fontFamily: 'Poppins', fontSize: 'clamp(20px,3vw,32px)', fontWeight: 800, marginBottom: '8px' }}>Complete Membership Payment</h1>
             <p style={{ fontSize: '14px', opacity: 0.8 }}>{form.prefix} {form.name} - {currentPlan?.label || form.membership_type}</p>
             {isInternational && <div style={{ marginTop: '8px', background: 'rgba(255,255,255,0.15)', display: 'inline-block', padding: '4px 14px', borderRadius: '20px', fontSize: '12px', fontWeight: 600 }}>Payment in USD via Razorpay</div>}
@@ -290,8 +290,8 @@ export default function MembershipApplyPage() {
   return (
     <div style={{ background: '#f8fafc', minHeight: '100vh' }}>
       <PublicNavbar />
-      <div style={{ paddingTop: '170px' }}>
-        <div style={{ background: '#0c3c60', padding: '60px 24px', textAlign: 'center', color: 'white' }}>
+      <div>
+        <div style={{ background: '#0c3c60', padding: '180px 24px 40px', textAlign: 'center', color: 'white' }}>
           <h1 style={{ fontFamily: 'Poppins, sans-serif', fontSize: 'clamp(22px,3vw,36px)', fontWeight: 800, marginBottom: '12px' }}>Apply for Membership</h1>
           <p style={{ fontSize: '15px', opacity: 0.8, fontFamily: 'Inter, sans-serif' }}>Join the Indian Dairy Scientists and Entrepreneurs Association</p>
         </div>

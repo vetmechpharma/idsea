@@ -4030,6 +4030,7 @@ async def startup_event():
         "navbar": {
             "org_name": "Indian Dairy Scientists and Entrepreneurs Association",
             "org_short": "(IDSEA)",
+            "registration_number": "",
         },
         "footer": {
             "description": "Bridging dairy science, innovation & entrepreneurship for the sustainable growth of the Indian dairy sector.",

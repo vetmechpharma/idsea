@@ -22,8 +22,8 @@ export default function GalleryPage() {
     <div style={{ background: '#f8fafc' }}>
       <SEOHead page="gallery" fallback={{ title: 'IDSEA Photo Gallery', description: 'Browse photos from IDSEA conferences, field visits, workshops and events.' }} />
       <PublicNavbar />
-      <div style={{ paddingTop: '170px' }}>
-        <div style={{ background: '#0c3c60', padding: '60px 24px', textAlign: 'center', color: 'white' }}>
+      <div>
+        <div style={{ background: '#0c3c60', padding: '180px 24px 40px', textAlign: 'center', color: 'white' }}>
           <h1 style={{ fontFamily: 'Poppins, sans-serif', fontSize: 'clamp(24px,4vw,40px)', fontWeight: 800, marginBottom: '12px' }}>{pc.hero_title || 'Photo Gallery'}</h1>
           <p style={{ fontSize: '15px', opacity: 0.8, fontFamily: 'Inter, sans-serif' }}>{pc.hero_subtitle || 'Conferences, field visits, workshops, and research events'}</p>
         </div>

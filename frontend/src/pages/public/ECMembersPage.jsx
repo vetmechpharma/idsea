@@ -42,10 +42,10 @@ export default function ECMembersPage() {
     <div style={{ background: '#fafbfc' }}>
       <SEOHead page="about" fallback={{ title: 'IDSEA Executive Council - Office Bearers & EC Members', description: 'Meet the executive council, office bearers and committee members leading IDSEA.' }} />
       <PublicNavbar />
-      <div style={{ paddingTop: '170px' }}>
+      <div>
 
         {/* Hero */}
-        <div style={{ position: 'relative', background: '#0c3c60', padding: '100px 24px 120px', textAlign: 'center', color: 'white', overflow: 'hidden' }}>
+        <div style={{ position: 'relative', background: '#0c3c60', padding: '220px 24px 80px', textAlign: 'center', color: 'white', overflow: 'hidden' }}>
           <div style={{ position: 'absolute', top: 0, right: 0, width: '400px', height: '400px', borderRadius: '50%', background: 'rgba(30,122,77,0.15)', filter: 'blur(80px)', transform: 'translate(30%, -30%)' }} />
           <div style={{ position: 'absolute', bottom: 0, left: 0, width: '300px', height: '300px', borderRadius: '50%', background: 'rgba(59,130,246,0.12)', filter: 'blur(60px)', transform: 'translate(-20%, 30%)' }} />
           <div style={{ position: 'relative', zIndex: 1, maxWidth: '720px', margin: '0 auto' }}>

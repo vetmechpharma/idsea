@@ -46,8 +46,8 @@ export default function MembersPage() {
     <div style={{ background: '#f8fafc' }}>
       <SEOHead page="members" fallback={{ title: 'IDSEA Member Directory', description: 'Search and discover IDSEA members - dairy scientists and entrepreneurs across India.' }} />
       <PublicNavbar />
-      <div style={{ paddingTop: '170px' }}>
-        <div style={{ background: '#0c3c60', padding: '60px 24px', textAlign: 'center', color: 'white' }}>
+      <div>
+        <div style={{ background: '#0c3c60', padding: '180px 24px 40px', textAlign: 'center', color: 'white' }}>
           <h1 style={{ fontFamily: 'Poppins, sans-serif', fontSize: 'clamp(24px,4vw,40px)', fontWeight: 800, marginBottom: '12px' }}>{pc.hero_title || 'Member Directory'}</h1>
           <p style={{ fontSize: '15px', opacity: 0.8, margin: '0 auto', fontFamily: 'Inter, sans-serif' }}>{pc.hero_subtitle || 'Search and discover IDSEA members across India'}</p>
         </div>

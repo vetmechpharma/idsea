@@ -80,10 +80,10 @@ export default function HomePage() {
   const renderHero = () => {
     if (sliders.length === 0) {
       return (
-        <section data-testid="hero-fallback" style={{ position: 'relative', minHeight: '100vh', display: 'flex', alignItems: 'center', paddingTop: '170px', overflow: 'hidden' }}>
+        <section data-testid="hero-fallback" style={{ position: 'relative', minHeight: '100vh', display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
           <div style={{ position: 'absolute', inset: 0, background: '#0c3c60', zIndex: 0 }} />
           <div style={{ position: 'absolute', inset: 0, zIndex: 1, backgroundImage: `url(${FALLBACK_HERO})`, backgroundSize: 'cover', backgroundPosition: 'center', opacity: 0.2 }} />
-          <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '60px 24px', position: 'relative', zIndex: 2, width: '100%' }}>
+          <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '180px 24px 60px', position: 'relative', zIndex: 2, width: '100%' }}>
             <div style={{ maxWidth: '680px' }}>
               <h1 style={{ fontFamily: 'Poppins, sans-serif', fontSize: 'clamp(28px, 5vw, 52px)', fontWeight: 800, color: 'white', lineHeight: 1.2, marginBottom: '20px' }}>
                 Indian Dairy Scientists<br /><span style={{ color: '#4ade80' }}>& Entrepreneurs</span> Association
@@ -101,7 +101,7 @@ export default function HomePage() {
       );
     }
     return (
-      <section data-testid="hero-slider" style={{ position: 'relative', paddingTop: '170px' }}>
+      <section data-testid="hero-slider" style={{ position: 'relative',  }}>
         <style>{`
           .hero-slider .slick-dots li div { background: rgba(255,255,255,0.4); }
           .hero-slider .slick-dots li.slick-active div { background: white !important; transform: scale(1.3); }
@@ -110,11 +110,11 @@ export default function HomePage() {
         <Slider {...sliderSettings} className="hero-slider">
           {sliders.map((slide, idx) => (
             <div key={slide.id}>
-              <div style={{ position: 'relative', minHeight: 'calc(100vh - 170px)', display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
+              <div style={{ position: 'relative', minHeight: '100vh', display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
                 <div style={{ position: 'absolute', inset: 0, background: '#0c3c60', zIndex: 0 }} />
                 <div style={{ position: 'absolute', inset: 0, zIndex: 1, backgroundImage: `url(${resolveImg(slide.image_url)})`, backgroundSize: 'cover', backgroundPosition: 'center', opacity: 0.35 }} />
                 <div style={{ position: 'absolute', inset: 0, zIndex: 2, background: 'linear-gradient(to right, rgba(12,60,96,0.85) 0%, rgba(12,60,96,0.4) 100%)' }} />
-                <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '80px 24px', position: 'relative', zIndex: 3, width: '100%', display: 'flex', alignItems: 'center', minHeight: 'calc(100vh - 170px)' }}>
+                <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '180px 24px 60px', position: 'relative', zIndex: 3, width: '100%', display: 'flex', alignItems: 'center', minHeight: '100vh' }}>
                   <div style={{ maxWidth: '680px' }}>
                     {slide.title && <h1 data-testid={`slider-title-${idx}`} style={{ fontFamily: 'Poppins, sans-serif', fontSize: 'clamp(28px, 5vw, 52px)', fontWeight: 800, color: 'white', lineHeight: 1.2, marginBottom: '20px' }}>{slide.title}</h1>}
                     {slide.subtitle && <p data-testid={`slider-subtitle-${idx}`} style={{ color: 'rgba(255,255,255,0.85)', fontSize: '17px', lineHeight: 1.7, marginBottom: '36px', fontFamily: 'Inter, sans-serif', maxWidth: '560px' }}>{slide.subtitle}</p>}
