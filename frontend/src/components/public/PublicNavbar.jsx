@@ -27,9 +27,12 @@ export default function PublicNavbar() {
   const [aboutOpen, setAboutOpen] = useState(false);
   const aboutRef = useRef(null);
 
+  const [aboutPc, setAboutPc] = useState({});
+
   useEffect(() => {
     axios.get(`${API}/public/cms`).then(r => setCms(r.data)).catch(() => {});
     axios.get(`${API}/public/page-content/navbar`).then(r => setPc(r.data)).catch(() => {});
+    axios.get(`${API}/public/page-content/about`).then(r => setAboutPc(r.data)).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -46,7 +49,7 @@ export default function PublicNavbar() {
 
   const orgName = pc.org_name || 'Indian Dairy Scientists and Entrepreneurs Association';
   const orgShort = pc.org_short || '(IDSEA)';
-  const regNumber = pc.registration_number || '';
+  const regNumber = aboutPc.cert_reg_number || '';
 
   const linkStyle = (isActive) => ({
     color: 'white', textDecoration: 'none', padding: '13px 16px',
