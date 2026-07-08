@@ -16,6 +16,7 @@ const navLinks = [
   { to: '/events', label: 'Events' },
   { to: '/publications', label: 'Publications' },
   { to: '/gallery', label: 'Gallery' },
+  { to: '/verify', label: 'Verify Certificate' },
   { to: '/contact', label: 'Contact Us' },
   { to: '/apply', label: 'Join IDSEA' },
 ];
