@@ -2717,10 +2717,12 @@ def _resolve_img_path(url_or_path: str) -> str:
     return ""
 
 
-def generate_template_pdf(template: dict, data: dict) -> bytes:
+def generate_template_pdf(template: dict, data: dict, cert_id: str = "") -> bytes:
     from reportlab.platypus import Paragraph as RLParagraph
     from reportlab.lib.styles import ParagraphStyle
     from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
+    import qrcode
+    import tempfile
 
     pw = template.get("page_width", 1000)
     ph = template.get("page_height", 707)
@@ -2823,6 +2825,32 @@ def generate_template_pdf(template: dict, data: dict) -> bytes:
             c.setStrokeColor(colors.HexColor(lc))
             c.setLineWidth(lw_val)
             c.line(ex, ey + eh / 2, ex + ew, ey + eh / 2)
+
+        elif etype == "qrcode":
+            qr_data = cert_id or data.get("certificate_id", "") or data.get("membership_id", "SAMPLE")
+            verify_base = el.get("verify_url", "")
+            if verify_base:
+                qr_url = f"{verify_base}?id={qr_data}"
+            else:
+                qr_url = qr_data
+            try:
+                qr = qrcode.QRCode(version=1, error_correction=qrcode.constants.ERROR_CORRECT_M, box_size=10, border=1)
+                qr.add_data(qr_url)
+                qr.make(fit=True)
+                qr_img = qr.make_image(fill_color="black", back_color="white")
+                tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+                qr_img.save(tmp.name)
+                qr_size = min(ew, eh)
+                qr_x = ex + (ew - qr_size) / 2
+                qr_y = ey + (eh - qr_size) / 2
+                c.drawImage(tmp.name, qr_x, qr_y, width=qr_size, height=qr_size, preserveAspectRatio=True)
+                # Draw cert ID text below QR
+                c.setFillColor(colors.HexColor(clr))
+                c.setFont("Helvetica", max(5, fs * 0.55))
+                c.drawCentredString(ex + ew / 2, qr_y - max(5, fs * 0.6), qr_data)
+                os.unlink(tmp.name)
+            except Exception:
+                pass
 
     c.showPage()
     c.save()
@@ -2942,13 +2970,20 @@ async def preview_cert_template(tpl_id: str, request: Request, admin=Depends(get
         "event_title": "IDSEA Annual Conference 2026", "event_date": "20-22 March 2026",
         "event_venue": "VCRI, Namakkal", "registration_id": "REG-2026-0001",
         "paper_title": "Advances in Dairy Processing", "specialization": "Dairy Technology",
+        "certificate_id": "IDSEA-SAMPLE-0000",
     }
     body = await request.json() if request.headers.get("content-length") and int(request.headers.get("content-length", 0)) > 0 else {}
     if body.get("data"):
         sample.update(body["data"])
-    pdf = generate_template_pdf(t, sample)
+    pdf = generate_template_pdf(t, sample, cert_id="IDSEA-SAMPLE-0000")
     return StreamingResponse(io.BytesIO(pdf), media_type="application/pdf",
                              headers={"Content-Disposition": f'inline; filename="preview.pdf"'})
+
+
+def _gen_cert_id(prefix="CERT"):
+    import random, string
+    code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+    return f"IDSEA-{prefix}-{code}"
 
 
 @api_router.post("/admin/certificate-templates/{tpl_id}/generate-member/{member_id}")
@@ -2957,6 +2992,7 @@ async def gen_cert_member(tpl_id: str, member_id: str, admin=Depends(get_current
     m = await db.members.find_one({"id": member_id}, {"_id": 0})
     if not t or not m:
         raise HTTPException(404, "Not found")
+    cert_id = _gen_cert_id("MEM")
     data = {
         "name": f"{m.get('prefix','')} {m.get('name','')}".strip(),
         "membership_id": m.get("membership_id", ""),
@@ -2965,8 +3001,17 @@ async def gen_cert_member(tpl_id: str, member_id: str, admin=Depends(get_current
         "qualification": m.get("qualification", ""), "specialization": m.get("specialization", ""),
         "organization": m.get("organization", ""), "membership_type": m.get("membership_type", ""),
         "state": m.get("state", ""), "country": m.get("country", "India"),
+        "certificate_id": cert_id,
     }
-    pdf = generate_template_pdf(t, data)
+    # Store certificate record (metadata only, no PDF)
+    await db.certificate_records.insert_one({
+        "cert_id": cert_id, "type": "membership", "template_id": tpl_id,
+        "member_id": member_id, "recipient_name": data["name"],
+        "membership_id": data.get("membership_id", ""),
+        "membership_type": data.get("membership_type", ""),
+        "issued_date": now_iso(), "data": data,
+    })
+    pdf = generate_template_pdf(t, data, cert_id=cert_id)
     fn = f"certificate_{m.get('name','member').replace(' ','_')}.pdf"
     return StreamingResponse(io.BytesIO(pdf), media_type="application/pdf",
                              headers={"Content-Disposition": f'attachment; filename="{fn}"'})
@@ -2983,21 +3028,65 @@ async def gen_cert_event_bulk(tpl_id: str, event_id: str, admin=Depends(get_curr
     zbuf = io.BytesIO()
     with zf.ZipFile(zbuf, 'w', zf.ZIP_DEFLATED) as z:
         for r in regs:
+            cert_id = _gen_cert_id("EVT")
             data = {
                 "name": r.get("name", ""), "email": r.get("email", ""),
                 "phone": r.get("phone", ""), "qualification": r.get("qualification", ""),
                 "organization": r.get("organization", ""), "state": r.get("state", ""),
                 "event_title": ev.get("title", ""), "event_venue": ev.get("venue", ""),
-                "event_date": f"{ev.get('start_date','')} to {ev.get('end_date','')}",
+                "event_date": f"{ev.get('date','')} to {ev.get('end_date','')}",
                 "registration_id": r.get("id", ""),
                 "date": datetime.now().strftime("%d.%m.%Y"), "year": str(datetime.now().year),
+                "certificate_id": cert_id,
             }
-            pdf = generate_template_pdf(t, data)
+            # Store record
+            await db.certificate_records.insert_one({
+                "cert_id": cert_id, "type": "event", "template_id": tpl_id,
+                "event_id": event_id, "registration_id": r.get("id", ""),
+                "recipient_name": data["name"], "event_title": ev.get("title", ""),
+                "issued_date": now_iso(), "data": data,
+            })
+            pdf = generate_template_pdf(t, data, cert_id=cert_id)
             sn = r.get("name", "p").replace(" ", "_")[:40]
             z.writestr(f"certificate_{sn}.pdf", pdf)
     zbuf.seek(0)
     fn = f"certificates_{ev.get('title','event').replace(' ','_')[:30]}.zip"
     return StreamingResponse(zbuf, media_type="application/zip",
+                             headers={"Content-Disposition": f'attachment; filename="{fn}"'})
+
+
+# =================== PUBLIC CERTIFICATE VERIFICATION ===================
+
+@api_router.get("/public/certificates/verify/{cert_id}")
+async def verify_certificate(cert_id: str):
+    rec = await db.certificate_records.find_one({"cert_id": cert_id}, {"_id": 0})
+    if not rec:
+        return {"verified": False, "message": "Certificate not found"}
+    return {
+        "verified": True,
+        "cert_id": rec["cert_id"],
+        "type": rec.get("type", ""),
+        "recipient_name": rec.get("recipient_name", ""),
+        "membership_id": rec.get("membership_id", ""),
+        "membership_type": rec.get("membership_type", ""),
+        "event_title": rec.get("event_title", ""),
+        "issued_date": rec.get("issued_date", ""),
+    }
+
+
+@api_router.get("/public/certificates/download/{cert_id}")
+async def download_certificate(cert_id: str):
+    rec = await db.certificate_records.find_one({"cert_id": cert_id}, {"_id": 0})
+    if not rec:
+        raise HTTPException(404, "Certificate not found")
+    tpl = await db.certificate_templates.find_one({"id": rec.get("template_id")}, {"_id": 0})
+    if not tpl:
+        raise HTTPException(404, "Certificate template not found")
+    data = rec.get("data", {})
+    data["certificate_id"] = cert_id
+    pdf = generate_template_pdf(tpl, data, cert_id=cert_id)
+    fn = f"certificate_{cert_id}.pdf"
+    return StreamingResponse(io.BytesIO(pdf), media_type="application/pdf",
                              headers={"Content-Disposition": f'attachment; filename="{fn}"'})
 
 

@@ -6,7 +6,7 @@ import {
   ArrowLeft, Save, Eye, Type, Image, PenLine, Minus, Trash2,
   Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight,
   Upload, Copy, Layers, Braces, X, GripVertical, ZoomIn, ZoomOut,
-  RotateCcw, Link2, Unlink, ChevronDown, Move
+  RotateCcw, Link2, Unlink, ChevronDown, Move, QrCode
 } from 'lucide-react';
 
 const CANVAS_L = { w: 1000, h: 707 };
@@ -55,6 +55,7 @@ const mkEl = (type, cw, ch, extra = {}) => {
     image: { image_url: '', width: 120, height: 120 },
     signature_block: { y: ch - 130, width: 180, height: 110, signer_name: 'Signatory Name', signer_title: 'Designation', signature_image_url: '', font_size: 11 },
     line: { width: 300, height: 6, line_color: '#000000', line_width: 2 },
+    qrcode: { x: cw - 140, y: ch - 140, width: 100, height: 100, verify_url: '', font_size: 8 },
   };
   return { ...base, ...(defs[type] || {}), ...extra };
 };
@@ -483,6 +484,24 @@ export default function CertificateDesigner() {
         </div>
       );
     }
+
+    if (el.type === 'qrcode') {
+      return (
+        <div key={el.id} style={{
+          ...base, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          background: isSel ? 'rgba(59,130,246,0.05)' : '#fafafa',
+          border: isSel ? 'none' : '1px dashed #94a3b8', borderRadius: '6px',
+        }}
+          onMouseDown={e => onElDown(e, el)} data-testid={`canvas-el-${el.id}`}>
+          <div style={{ width: '70%', height: '70%', background: 'white', border: '2px solid #111', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+            <QrCode size={Math.min(el.width, el.height) * 0.45} style={{ color: '#111' }} />
+          </div>
+          <div style={{ fontSize: Math.max(6, el.font_size * 0.7), color: '#6b7280', marginTop: '3px', fontFamily: 'monospace', letterSpacing: '0.5px' }}>IDSEA-XXXX-XXXX</div>
+          <ResizeHandles el={el} />
+        </div>
+      );
+    }
+
     return null;
   };
 
@@ -647,6 +666,21 @@ export default function CertificateDesigner() {
           </div>
         )}
 
+        {/* QR Code props */}
+        {selEl.type === 'qrcode' && (
+          <>
+            <div style={rowS}>
+              <label style={labelS}>Verification URL Base</label>
+              <input value={selEl.verify_url || ''} onChange={e => upd('verify_url', e.target.value)} style={inputS} placeholder="https://yoursite.com/verify" data-testid="prop-verify-url" />
+              <p style={{ fontSize: '10px', color: '#9ca3af', marginTop: '3px' }}>QR will encode: [URL]?id=[cert_id]. Leave empty for just cert ID.</p>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '5px', ...rowS }}>
+              <div><label style={labelS}>ID Font Size</label><input type="number" value={selEl.font_size || 8} onChange={e => upd('font_size', +e.target.value)} style={inputS} min={4} max={16} /></div>
+              <div><label style={labelS}>Text Color</label><input type="color" value={selEl.color || '#000'} onChange={e => upd('color', e.target.value)} style={{ ...inputS, padding: '2px', height: '32px' }} /></div>
+            </div>
+          </>
+        )}
+
         {/* Layer controls */}
         <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: '10px', marginTop: '8px' }}>
           <label style={labelS}>Layer Order</label>
@@ -721,6 +755,7 @@ export default function CertificateDesigner() {
           <button onClick={() => addElement('image')} title="Add Image" style={toolBtnS} data-testid="add-image-btn"><Image size={13} /><span style={{ fontSize: '11px' }}>Image</span></button>
           <button onClick={() => addElement('signature_block')} title="Add Signature" style={toolBtnS} data-testid="add-signature-btn"><PenLine size={13} /><span style={{ fontSize: '11px' }}>Sign</span></button>
           <button onClick={() => addElement('line')} title="Add Line" style={toolBtnS} data-testid="add-line-btn"><Minus size={13} /><span style={{ fontSize: '11px' }}>Line</span></button>
+          <button onClick={() => addElement('qrcode')} title="Add QR Code" style={toolBtnS} data-testid="add-qrcode-btn"><QrCode size={13} /><span style={{ fontSize: '11px' }}>QR</span></button>
         </div>
 
         <div style={{ width: '1px', height: '24px', background: '#e5e7eb' }} />
@@ -773,6 +808,7 @@ export default function CertificateDesigner() {
                 {el.type === 'text' && <Type size={10} />}{el.type === 'placeholder' && <Braces size={10} />}
                 {el.type === 'image' && <Image size={10} />}{el.type === 'signature_block' && <PenLine size={10} />}
                 {el.type === 'line' && <Minus size={10} />}
+                {el.type === 'qrcode' && <QrCode size={10} />}
                 <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {el.type === 'text' ? (el.content?.slice(0, 16) || 'Text') : el.type === 'placeholder' ? `{{${el.placeholder_key}}}` : el.type === 'signature_block' ? el.signer_name : el.type}
                 </span>

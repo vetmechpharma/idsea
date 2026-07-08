@@ -15,6 +15,7 @@ import MembershipApplyPage from './pages/public/MembershipApplyPage';
 import EventRegistrationPage from './pages/public/EventRegistrationPage';
 import ECMembersPage from './pages/public/ECMembersPage';
 import EventDetailPage from './pages/public/EventDetailPage';
+import CertificateVerifyPage from './pages/public/CertificateVerifyPage';
 import CustomScripts from './components/CustomScripts';
 
 import LoginPage from './pages/admin/LoginPage';
@@ -64,6 +65,7 @@ function App() {
           <Route path="/apply" element={<MembershipApplyPage />} />
           <Route path="/ec-members" element={<ECMembersPage />} />
           <Route path="/events/:eventId" element={<EventDetailPage />} />
+          <Route path="/verify" element={<CertificateVerifyPage />} />
           <Route path="/events/:eventId/register" element={<EventRegistrationPage />} />
           <Route path="/admin/login" element={<LoginPage />} />
           <Route path="/admin" element={<ProtectedRoute><AdminLayout /></ProtectedRoute>}>
