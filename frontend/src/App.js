@@ -14,6 +14,7 @@ import ContactPage from './pages/public/ContactPage';
 import MembershipApplyPage from './pages/public/MembershipApplyPage';
 import EventRegistrationPage from './pages/public/EventRegistrationPage';
 import ECMembersPage from './pages/public/ECMembersPage';
+import EventDetailPage from './pages/public/EventDetailPage';
 import CustomScripts from './components/CustomScripts';
 
 import LoginPage from './pages/admin/LoginPage';
@@ -38,6 +39,7 @@ import PaymentSettings from './pages/admin/PaymentSettings';
 import WhatsappAdmin from './pages/admin/WhatsappAdmin';
 import MembershipAdmin from './pages/admin/MembershipAdmin';
 import CertificateDesigner from './pages/admin/CertificateDesigner';
+import EventDetailEditor from './pages/admin/EventDetailEditor';
 
 const ProtectedRoute = ({ children }) => {
   const { admin } = useAuth();
@@ -61,6 +63,7 @@ function App() {
           <Route path="/contact" element={<ContactPage />} />
           <Route path="/apply" element={<MembershipApplyPage />} />
           <Route path="/ec-members" element={<ECMembersPage />} />
+          <Route path="/events/:eventId" element={<EventDetailPage />} />
           <Route path="/events/:eventId/register" element={<EventRegistrationPage />} />
           <Route path="/admin/login" element={<LoginPage />} />
           <Route path="/admin" element={<ProtectedRoute><AdminLayout /></ProtectedRoute>}>
@@ -70,6 +73,7 @@ function App() {
             <Route path="payments" element={<PaymentsAdmin />} />
             <Route path="events" element={<EventsAdmin />} />
             <Route path="events/:eventId/registrations" element={<EventRegistrations />} />
+            <Route path="events/:eventId/details" element={<EventDetailEditor />} />
             <Route path="news" element={<NewsAdmin />} />
             <Route path="gallery" element={<GalleryAdmin />} />
             <Route path="publications" element={<PublicationsAdmin />} />

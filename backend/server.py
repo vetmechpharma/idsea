@@ -191,14 +191,15 @@ class Event(BaseModel):
     brochure_url: Optional[str] = ""
     status: str = "upcoming"
     image_url: Optional[str] = ""
+    is_visible: bool = True
     registration_enabled: bool = False
     allow_membership_registration: bool = False
     fee_tiers: List[dict] = []  # [{name, deadline, fees: {member, non_member, student, international}}]
     accommodation: dict = {}
-    additional_person_fee: float = 0  # per-person fee for additional accommodation persons
-    additional_person_fee_usd: float = 0  # per-person fee in USD for international delegates
-    registration_addons: List[dict] = []  # [{name, fee_inr, fee_usd, description, pdf_url}]
-    premium_hotels: List[dict] = []  # [{name, amount, tax_percent, room_types: [{type, price, price_usd}], location, rating}]
+    additional_person_fee: float = 0
+    additional_person_fee_usd: float = 0
+    registration_addons: List[dict] = []
+    premium_hotels: List[dict] = []
     created_at: str = Field(default_factory=now_iso)
 
 
@@ -213,6 +214,7 @@ class EventCreate(BaseModel):
     brochure_url: Optional[str] = ""
     status: str = "upcoming"
     image_url: Optional[str] = ""
+    is_visible: bool = True
     registration_enabled: bool = False
     allow_membership_registration: bool = False
     fee_tiers: List[dict] = []
@@ -1010,7 +1012,7 @@ async def public_upload_photo(file: UploadFile = File(...)):
 
 @api_router.get("/public/events")
 async def get_public_events():
-    return await db.events.find({}, {"_id": 0}).sort("date", -1).to_list(100)
+    return await db.events.find({"is_visible": {"$ne": False}}, {"_id": 0}).sort("date", -1).to_list(100)
 
 
 @api_router.get("/public/events/{event_id}")
@@ -1019,6 +1021,30 @@ async def get_public_event(event_id: str):
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
     return event
+
+
+@api_router.get("/public/events/{event_id}/details")
+async def get_public_event_details(event_id: str):
+    doc = await db.event_details.find_one({"event_id": event_id}, {"_id": 0})
+    return doc or {"event_id": event_id}
+
+
+@api_router.get("/admin/events/{event_id}/details")
+async def get_admin_event_details(event_id: str, admin=Depends(get_current_admin)):
+    doc = await db.event_details.find_one({"event_id": event_id}, {"_id": 0})
+    return doc or {"event_id": event_id}
+
+
+@api_router.put("/admin/events/{event_id}/details")
+async def update_admin_event_details(event_id: str, data: dict, admin=Depends(get_current_admin)):
+    data["event_id"] = event_id
+    data["updated_at"] = now_iso()
+    await db.event_details.update_one(
+        {"event_id": event_id},
+        {"$set": data},
+        upsert=True
+    )
+    return {"message": "Event details updated"}
 
 
 @api_router.get("/public/news")

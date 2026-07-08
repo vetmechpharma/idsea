@@ -74,7 +74,10 @@ export default function EventsPage() {
                         {event.status?.toUpperCase()}
                       </span>
                     </div>
-                    <h3 style={{ fontFamily: 'Poppins, sans-serif', fontSize: '18px', fontWeight: 700, color: '#111827', marginBottom: '12px', lineHeight: 1.4 }}>{event.title}</h3>
+                    <Link to={`/events/${event.id}`} style={{ textDecoration: 'none' }}>
+                      <h3 style={{ fontFamily: 'Poppins, sans-serif', fontSize: '18px', fontWeight: 700, color: '#111827', marginBottom: '12px', lineHeight: 1.4, transition: 'color 0.2s' }}
+                        onMouseEnter={e => e.currentTarget.style.color = '#1e7a4d'} onMouseLeave={e => e.currentTarget.style.color = '#111827'}>{event.title}</h3>
+                    </Link>
                     <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', marginBottom: '12px' }}>
                       <div style={{ display: 'flex', gap: '6px', alignItems: 'center', color: '#6b7280', fontSize: '13px' }}>
                         <Calendar size={14} style={{ color: '#1e7a4d' }} />
@@ -99,6 +102,9 @@ export default function EventsPage() {
                     </div>
                     {event.description && <p style={{ color: '#6b7280', fontSize: '14px', lineHeight: 1.6, margin: '0 0 16px', fontFamily: 'Inter, sans-serif' }}>{event.description}</p>}
                     <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap', marginTop: '16px' }}>
+                      <Link to={`/events/${event.id}`} data-testid="event-view-btn" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '10px 18px', borderRadius: '8px', background: '#0c3c60', color: 'white', fontSize: '13px', fontFamily: 'Poppins, sans-serif', fontWeight: 600, textDecoration: 'none' }}>
+                        View Details <ArrowRight size={14} />
+                      </Link>
                       {event.registration_enabled && event.status !== 'completed' && (
                         <Link to={`/events/${event.id}/register`} data-testid="event-register-btn" className="btn-primary" style={{ textDecoration: 'none', display: 'inline-flex' }}>
                           Register Now <ArrowRight size={14} />

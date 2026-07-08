@@ -1,55 +1,31 @@
 # IDSEA - Indian Dairy Scientists and Entrepreneurs Association
 
-## Problem Statement
-Build a full-stack website for IDSEA with public-facing website and comprehensive admin panel.
-
 ## Tech Stack
-- Frontend: React 19, TailwindCSS, Shadcn/UI, Axios, React Router v7, Lucide Icons
-- Backend: FastAPI (Python), Motor (async MongoDB), httpx, Reportlab (PDF)
-- Database: MongoDB | Auth: JWT | Payments: Razorpay, UPI QR, Bank Transfer
-- WhatsApp: AK Nexus v2 API | SMTP for emails
+- Frontend: React 19, TailwindCSS, Shadcn/UI, react-helmet-async, react-slick
+- Backend: FastAPI, Motor (MongoDB), Reportlab (PDF), httpx
+- Database: MongoDB | Auth: JWT | Payments: Razorpay
+- WhatsApp: AK Nexus v2 | SMTP for emails
 
-## Default Admin: admin@idsea.org / Admin@123
+## Admin: admin@idsea.org / Admin@123
 
-## Implemented Features
+## Completed Features
 
-### Dynamic CMS & Page Content Manager - COMPLETE (Apr 16, 2026)
-- **Page Content System:** MongoDB `page_contents` collection with per-page content documents
-- **Admin CMS Page:** Tabbed interface with 10 tabs:
-  - Branding & Global (logo, hero, about, vision/mission, contact, social links)
-  - Home Page (about section, membership section, events/news section titles, CTA)
-  - About Page (hero, objectives list, council/founders titles, HQ)
-  - Events/Gallery/Publications/Members Pages (hero title/subtitle)
-  - Contact Page (hero, form labels, membership CTA box)
-  - Navbar (org name, short name) & Footer (description, copyright)
-- **All Public Pages Dynamic:** Every page fetches content from `/api/public/page-content/{page}`
-- **Membership Plans Dynamic:** Home page and Footer display plans from `/api/public/membership-plans`
-- **APIs:** GET/PUT `/api/admin/page-content/{page}`, GET `/api/public/page-content/{page}`
+### Event Detail Page System - COMPLETE (Jul 5, 2026)
+- **Rich Event Landing Page** (`/events/:eventId`) with sections: Hero with countdown timer, About/Welcome with objectives & highlights, Conference Themes (numbered), Important Dates (cards), Registration Fee Table (from fee_tiers), Awards, Sponsorship Packages (tiered with benefits), Conference Committee, Hotels/Accommodation, Venue & Travel (how to reach, weather, sightseeing), Contact Persons, Bottom Register CTA
+- **Event Visibility Toggle** — `is_visible` field, Hide/Show button in admin, public listing filters hidden events
+- **Admin Event Detail Editor** (`/admin/events/:eventId/details`) — Full page editor with sections: Countdown Timer, About/Welcome Content, Themes, Important Dates (add/remove), Awards, Sponsors (add/remove with color), Committee (add/remove), Venue & Travel Info, Contact Persons
+- **Event Cards** link to detail page with "View Details" button
+- **Backend**: `event_details` collection, GET/PUT APIs for public and admin
 
-### Certificate Design Module V2 - COMPLETE (Apr 16, 2026)
-- **Visual Template Designer:** Drag-drop canvas editor with 5 element types
-  - Text (multi-line via textarea), Placeholder Fields (17 dynamic fields), Image/Logo, Signature Block, Lines
-- **Drag Threshold:** 4px threshold prevents accidental drags during clicks
-- **Inline Text Editing:** Double-click text elements to edit directly on canvas
-- **4-Corner Resize Handles:** NW, NE, SW, SE resize with proper cursor styles
-- **Keyboard Shortcuts:** Delete/Backspace to remove, Arrow keys to nudge (Shift=10px), Ctrl+D duplicate, Escape deselect
-- **Mouse Wheel Zoom:** Ctrl+scroll zooms 0.2x-2.0x with proper coordinate transformation
-- **Properties Panel:** Font family/size/color, bold/italic/underline, alignment, opacity (10-100%), layer order, position/size inputs
-- **PDF Generation:** Improved text positioning with proper vertical alignment and newline handling
-- **Membership Plan Linking:** Each template can be linked to a membership type
-- **Template Management:** Create, Edit, Clone, Delete, Preview PDF
-- **Generate Certificates:** Single member or bulk event (ZIP)
-
-### Event Registration System V2 - COMPLETE
-### Payment System (INR/USD) - COMPLETE
-### Admin Event Management - COMPLETE
-### Admin Event Registrations - COMPLETE
-### Membership Registration (4 plans incl. International) - COMPLETE
-### Membership Plans Dynamic Management - COMPLETE
-### WhatsApp v2 + SMTP + Admin Panel (18+ sections) - COMPLETE
-
-## Testing: iterations 1-24 all pass
+### Dynamic CMS & Page Content - COMPLETE
+### SEO & Google Indexing - COMPLETE  
+### Custom Scripts Injection - COMPLETE
+### Certificate Design Module V2 - COMPLETE
+### EC Members Page with Sub-Divisions - COMPLETE
+### Membership Registration (4 plans + International) - COMPLETE
+### WhatsApp v2 Marketing Campaigns - COMPLETE
+### Mobile Responsive - ALL Pages - COMPLETE
 
 ## Backlog
-- P2: Admin Roles, Member renewal reminders
-- P3: Mobile responsive, Backend modularization (server.py > 3900 lines)
+- P2: Admin Role Management, Member renewal reminders
+- P3: Backend modularization (server.py 4000+ lines)

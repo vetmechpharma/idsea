@@ -196,10 +196,19 @@ export default function EventsAdmin() {
                   <span style={{ padding: '1px 8px', borderRadius: '10px', fontSize: '11px', fontWeight: 600, background: e.registration_enabled ? '#d1fae5' : '#f1f5f9', color: e.registration_enabled ? '#065f46' : '#94a3b8' }}>
                     {e.registration_enabled ? 'Reg. Open' : 'Reg. Closed'}
                   </span>
+                  <span style={{ padding: '1px 8px', borderRadius: '10px', fontSize: '11px', fontWeight: 600, background: e.is_visible !== false ? '#dbeafe' : '#fee2e2', color: e.is_visible !== false ? '#1e40af' : '#991b1b' }}>
+                    {e.is_visible !== false ? 'Visible' : 'Hidden'}
+                  </span>
                 </div>
               </div>
             </div>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <button onClick={async () => { await axios.put(`${API}/admin/events/${e.id}`, { ...e, is_visible: e.is_visible === false ? true : false }); load(); }} style={{ background: e.is_visible !== false ? '#fee2e2' : '#d1fae5', color: e.is_visible !== false ? '#991b1b' : '#065f46', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: 600, fontFamily: 'Poppins' }} data-testid={`toggle-visibility-${e.id}`}>
+                {e.is_visible !== false ? 'Hide' : 'Show'}
+              </button>
+              <Link to={`/admin/events/${e.id}/details`} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#f0f9ff', color: '#0369a1', border: '1px solid #bae6fd', padding: '6px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: 600, fontFamily: 'Poppins', textDecoration: 'none', cursor: 'pointer' }} data-testid={`edit-details-${e.id}`}>
+                Edit Details Page
+              </Link>
               {e.registration_enabled && (
                 <Link to={`/admin/events/${e.id}/registrations`} className="btn-primary" data-testid={`view-registrations-${e.id}`} style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '13px', padding: '6px 14px' }}>
                   <ClipboardList size={14} /> Registrations
