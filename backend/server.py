@@ -1261,24 +1261,7 @@ async def admin_create_member(data: MemberCreate, admin=Depends(get_current_admi
         raise HTTPException(status_code=400, detail="Email already registered")
     member = Member(**data.model_dump(), status="approved")
     member.join_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    # Generate membership ID with global serial continuation
-    mtype = data.membership_type
-    prefix_map = {"academic": "ACD", "entrepreneur": "ENT", "corporate": "COP", "international": "INT"}
-    type_prefix = prefix_map.get(mtype, "MEM")
-    year = datetime.now().year
-    all_members = await db.members.find(
-        {"status": "approved", "membership_id": {"$regex": f"^{type_prefix}/IDSEA/"}},
-        {"_id": 0, "membership_id": 1}
-    ).to_list(None)
-    max_serial = 0
-    for m in all_members:
-        try:
-            s = int(m["membership_id"].split("/")[-1])
-            if s > max_serial:
-                max_serial = s
-        except (ValueError, IndexError):
-            pass
-    member.membership_id = f"{type_prefix}/IDSEA/{year}/{str(max_serial + 1).zfill(4)}"
+    member.membership_id = await generate_membership_id(data.membership_type)
     if data.permanent_address and data.permanent_address.get("state"):
         member.state = data.permanent_address["state"]
     await db.members.insert_one(member.model_dump())
@@ -1305,27 +1288,9 @@ async def approve_member(member_id: str, background_tasks: BackgroundTasks, admi
     if not member:
         raise HTTPException(status_code=404, detail="Member not found")
 
-    # Generate membership ID: ACD/IDSEA/2026/0001, ENT/IDSEA/2026/0001, COP/IDSEA/2026/0001
-    # Serial continues from last year's last serial (global across all years for this type)
+    # Generate membership ID using configurable prefix
     mtype = member.get("membership_type", "academic")
-    prefix_map = {"academic": "ACD", "entrepreneur": "ENT", "corporate": "COP", "international": "INT"}
-    type_prefix = prefix_map.get(mtype, "MEM")
-    year = datetime.now().year
-    # Find the highest serial across ALL years for this type
-    all_members = await db.members.find(
-        {"status": "approved", "membership_id": {"$regex": f"^{type_prefix}/IDSEA/"}},
-        {"_id": 0, "membership_id": 1}
-    ).to_list(None)
-    max_serial = 0
-    for m in all_members:
-        try:
-            s = int(m["membership_id"].split("/")[-1])
-            if s > max_serial:
-                max_serial = s
-        except (ValueError, IndexError):
-            pass
-    serial = str(max_serial + 1).zfill(4)
-    membership_id = f"{type_prefix}/IDSEA/{year}/{serial}"
+    membership_id = await generate_membership_id(mtype)
 
     # Derive state from permanent address if not set
     state = member.get("state", "") or member.get("permanent_address", {}).get("state", "")
@@ -3884,6 +3849,76 @@ async def public_get_membership_plans():
             {"key": "international", "label": "International Delegates", "fee_inr": 0, "fee_usd": 100, "enabled": True},
         ]
     return plans
+
+
+# =================== MEMBERSHIP ID CONFIG ===================
+
+DEFAULT_ID_PREFIXES = {
+    "academic": "ACD",
+    "entrepreneur": "ENT",
+    "corporate": "COP",
+    "international": "INT",
+}
+
+
+async def get_membership_prefix(membership_type: str) -> str:
+    """Get the configured prefix for a membership type from DB, fallback to defaults"""
+    config = await db.membership_id_config.find_one({"type": membership_type}, {"_id": 0})
+    if config and config.get("prefix"):
+        return config["prefix"]
+    return DEFAULT_ID_PREFIXES.get(membership_type, "MEM")
+
+
+async def generate_membership_id(membership_type: str) -> str:
+    """Generate next membership ID using configured prefix"""
+    prefix = await get_membership_prefix(membership_type)
+    year = datetime.now().year
+    all_members = await db.members.find(
+        {"status": "approved", "membership_id": {"$regex": f"^{prefix}/"}},
+        {"_id": 0, "membership_id": 1}
+    ).to_list(None)
+    max_serial = 0
+    for m in all_members:
+        try:
+            s = int(m["membership_id"].split("/")[-1])
+            if s > max_serial:
+                max_serial = s
+        except (ValueError, IndexError):
+            pass
+    serial = str(max_serial + 1).zfill(4)
+    return f"{prefix}/IDSEA/{year}/{serial}"
+
+
+@api_router.get("/admin/membership-id-config")
+async def admin_get_membership_id_config(admin=Depends(get_current_admin)):
+    configs = await db.membership_id_config.find({}, {"_id": 0}).to_list(20)
+    existing_types = {c["type"] for c in configs}
+    for mtype, prefix in DEFAULT_ID_PREFIXES.items():
+        if mtype not in existing_types:
+            configs.append({"type": mtype, "prefix": prefix, "is_default": True})
+        else:
+            for c in configs:
+                if c["type"] == mtype:
+                    c["is_default"] = False
+    # Add sample next ID
+    for c in configs:
+        c["sample_id"] = f"{c['prefix']}/IDSEA/{datetime.now().year}/0001"
+    return sorted(configs, key=lambda c: list(DEFAULT_ID_PREFIXES.keys()).index(c["type"]) if c["type"] in DEFAULT_ID_PREFIXES else 99)
+
+
+@api_router.put("/admin/membership-id-config/{membership_type}")
+async def admin_update_membership_id_prefix(membership_type: str, data: dict, admin=Depends(get_current_admin)):
+    prefix = data.get("prefix", "").strip().upper()
+    if not prefix:
+        raise HTTPException(status_code=400, detail="Prefix cannot be empty")
+    if "/" in prefix or " " in prefix:
+        raise HTTPException(status_code=400, detail="Prefix cannot contain / or spaces")
+    await db.membership_id_config.update_one(
+        {"type": membership_type},
+        {"$set": {"type": membership_type, "prefix": prefix, "updated_at": now_iso(), "updated_by": admin["email"]}},
+        upsert=True
+    )
+    return {"message": f"Prefix for '{membership_type}' updated to '{prefix}'", "sample_id": f"{prefix}/IDSEA/{datetime.now().year}/0001"}
 
 
 # Public PDF upload for registration documents

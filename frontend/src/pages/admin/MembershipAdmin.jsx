@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Plus, Edit3, Trash2, Save, X, Crown, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Plus, Edit3, Trash2, Save, X, Crown, ToggleLeft, ToggleRight, Hash, Check } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -9,6 +9,11 @@ export default function MembershipAdmin() {
   const [showModal, setShowModal] = useState(false);
   const [editPlan, setEditPlan] = useState(null);
   const [form, setForm] = useState({ key: '', label: '', fee_inr: 0, fee_usd: 0, enabled: true, description: '' });
+  const [idConfigs, setIdConfigs] = useState([]);
+  const [editingPrefix, setEditingPrefix] = useState(null);
+  const [prefixValue, setPrefixValue] = useState('');
+  const [prefixSaving, setPrefixSaving] = useState(false);
+  const [toast, setToast] = useState('');
   const token = localStorage.getItem('idsea_token');
   const headers = { Authorization: `Bearer ${token}` };
 
@@ -19,7 +24,14 @@ export default function MembershipAdmin() {
     } catch {}
   };
 
-  useEffect(() => { fetchPlans(); }, []);
+  const fetchIdConfigs = async () => {
+    try {
+      const r = await axios.get(`${API}/admin/membership-id-config`, { headers });
+      setIdConfigs(r.data || []);
+    } catch {}
+  };
+
+  useEffect(() => { fetchPlans(); fetchIdConfigs(); }, []);
 
   const openCreate = () => {
     setEditPlan(null);
@@ -132,10 +144,74 @@ export default function MembershipAdmin() {
         ))}
         {plans.length === 0 && (
           <div style={{ background: 'white', borderRadius: '10px', padding: '40px', textAlign: 'center', color: '#94a3b8', fontSize: '14px' }}>
-            No membership plans yet. Click "Add Plan" to create one.
+            No membership plans yet. Click &ldquo;Add Plan&rdquo; to create one.
           </div>
         )}
       </div>
+
+      {/* ═══ Membership ID Prefix Config ═══ */}
+      <div style={{ marginTop: '28px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
+          <Hash size={18} style={{ color: '#0c3c60' }} />
+          <h2 style={{ fontFamily: 'Poppins', fontSize: '16px', fontWeight: 700, color: '#0c3c60', margin: 0 }}>Membership ID Prefix</h2>
+        </div>
+        <div style={{ background: '#f0f9ff', borderRadius: '8px', padding: '10px 14px', marginBottom: '14px', fontSize: '12px', color: '#0369a1', lineHeight: 1.6 }}>
+          Configure the prefix for each membership category. Format: <strong>PREFIX/IDSEA/YEAR/SERIAL</strong>
+        </div>
+        <div style={{ display: 'grid', gap: '10px' }}>
+          {idConfigs.map(c => (
+            <div key={c.type} data-testid={`id-config-${c.type}`} style={{
+              background: 'white', borderRadius: '10px', border: '1px solid #e2e8f0',
+              padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+            }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontFamily: 'Poppins', fontWeight: 600, fontSize: '14px', color: '#0c3c60', textTransform: 'capitalize' }}>{c.type}</div>
+                {editingPrefix === c.type ? (
+                  <div style={{ display: 'flex', gap: '6px', marginTop: '6px', alignItems: 'center' }}>
+                    <input
+                      value={prefixValue}
+                      onChange={e => setPrefixValue(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+                      style={{ padding: '5px 10px', border: '1px solid #93c5fd', borderRadius: '6px', fontSize: '13px', fontWeight: 700, width: '100px', fontFamily: 'monospace' }}
+                      data-testid={`prefix-input-${c.type}`}
+                      autoFocus
+                    />
+                    <span style={{ fontSize: '12px', color: '#6b7280', fontFamily: 'monospace' }}>/IDSEA/{new Date().getFullYear()}/0001</span>
+                    <button onClick={async () => {
+                      if (!prefixValue) return;
+                      setPrefixSaving(true);
+                      try {
+                        await axios.put(`${API}/admin/membership-id-config/${c.type}`, { prefix: prefixValue }, { headers });
+                        setToast(`Prefix updated to ${prefixValue}`);
+                        setTimeout(() => setToast(''), 3000);
+                        setEditingPrefix(null);
+                        fetchIdConfigs();
+                      } catch (e) { setToast('Error: ' + (e.response?.data?.detail || 'Failed')); setTimeout(() => setToast(''), 3000); }
+                      setPrefixSaving(false);
+                    }} disabled={prefixSaving} style={{ background: '#1e7a4d', color: 'white', border: 'none', borderRadius: '6px', padding: '5px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px', fontSize: '12px' }} data-testid={`save-prefix-${c.type}`}>
+                      <Check size={12} /> {prefixSaving ? '...' : 'Save'}
+                    </button>
+                    <button onClick={() => setEditingPrefix(null)} style={{ background: '#f1f5f9', color: '#64748b', border: 'none', borderRadius: '6px', padding: '5px 8px', cursor: 'pointer' }}><X size={12} /></button>
+                  </div>
+                ) : (
+                  <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px', fontFamily: 'monospace' }}>
+                    Sample: <strong style={{ color: '#1e7a4d' }}>{c.sample_id}</strong>
+                    {c.is_default && <span style={{ marginLeft: '8px', fontSize: '10px', color: '#94a3b8' }}>(default)</span>}
+                  </div>
+                )}
+              </div>
+              {editingPrefix !== c.type && (
+                <button onClick={() => { setEditingPrefix(c.type); setPrefixValue(c.prefix); }}
+                  className="btn-secondary" style={{ fontSize: '12px', padding: '5px 12px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                  data-testid={`edit-prefix-${c.type}`}>
+                  <Edit3 size={12} /> Change
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {toast && <div className="toast-success" data-testid="toast-prefix">{toast}</div>}
 
       {/* Modal */}
       {showModal && (
