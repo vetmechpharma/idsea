@@ -1,0 +1,37 @@
+{
+  "summary": "Sitewide QA (Iteration 29) before VPS deployment. Backend: 29/29 pytest passed (SEO endpoints, page-content, public lists, event detail, certificate verify, all admin auth-protected endpoints including dashboard/members/events/email-templates/email-queue/executive/cms/gallery/news/publications/reports/smtp/certificates). Frontend: All 10 public pages loaded 200 with navbar+footer and 0 console errors (Home, About, Events, EventDetail, Gallery, Publications, Contact, EC-Members, Apply, Verify). Admin login succeeded (admin@idsea.org / Admin@123) and 17/17 admin pages rendered with 0 JS console errors and 0 API 4xx/5xx failures (Dashboard, Members, Events, Email, EmailTemplates, CMS, Certificates, Executive, Gallery, News, Publications, Reports, Sliders, PaymentSettings, Whatsapp, MembershipPlans, Roles). Navbar shows all expected menu items. Sitemap.xml and robots.txt served correctly with xml content-type. Ready for VPS deployment.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Event Detail Page (/events/eb488c54-2ee9-4160-b851-548846ec1038)",
+        "issue": "4 x 404 responses for placeholder/test images referenced in event CMS content: /api/uploads/photo.jpg, /api/uploads/test1.jpg, /api/uploads/test2.jpg, /api/uploads/lalbagh.jpg. Visible as broken image spots in hero slider/gallery. Test/seed data only - no code bug. Recommend cleaning up references or uploading real assets before VPS launch.",
+        "affected_selectors": ["img[src*='/api/uploads/']"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_sitewide_qa_iter29.py",
+    "/app/test_reports/pytest/iter29_sitewide.xml"
+  ],
+  "action_items": [
+    "Cosmetic (non-blocking): Replace or remove references to placeholder images (photo.jpg, test1.jpg, test2.jpg, lalbagh.jpg) in event 'eb488c54-2ee9-4160-b851-548846ec1038' event_details JSON (hero_images or sponsors etc) so no 404s appear on public page for VPS."
+  ],
+  "critical_code_review_comments": [
+    "server.py is ~4527 lines - still well beyond 700-line guideline; should be split into modular routers (auth, members, events, cms, email, certificates, whatsapp, payments). Non-blocking but grows tech debt every iteration.",
+    "Public event detail page references admin-uploaded files under /api/uploads/{filename} - consider caching headers and CDN for VPS performance.",
+    "No caching headers observed on /api/public/sitemap.xml and /api/public/robots.txt - consider adding Cache-Control for CDN edge caching in production."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_sitewide_qa_iter29.py (new - 29 tests)"
+  ],
+  "success_rate": {"backend": "100% (29/29)", "frontend": "100% (10/10 public + 17/17 admin pages, 0 JS errors, 0 API failures)"},
+  "test_credentials": "admin@idsea.org / Admin@123 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "None. No test data created. Reused existing event eb488c54-...",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "The 4 image 404s on EventDetail come from seeded test data (test1.jpg, test2.jpg, photo.jpg, lalbagh.jpg) - not a code bug. All 10 public routes and 17 admin routes render clean. Backend auth uses POST /api/auth/login (NOT /api/admin/login) returning access_token. Admin dashboard endpoint is GET /api/admin/dashboard (no /stats suffix). Gallery admin uses /api/admin/gallery/albums. Reports uses /api/admin/reports/stats.",
+  "rca of the issue": "EventDetail 404 image references: event_details.hero_images or similar array in MongoDB contains filenames that were never uploaded to backend/uploads. No user-visible functional impact - broken image icons render. Fix: main agent can update the event's CMS content via /admin/events/{id}/details to remove or replace those filenames."
+}
