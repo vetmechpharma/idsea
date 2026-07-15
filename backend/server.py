@@ -3690,6 +3690,11 @@ async def admin_send_campaign(data: dict, background_tasks: BackgroundTasks, adm
     if not template_key:
         raise HTTPException(status_code=400, detail="template_key required")
 
+    # Validate template exists
+    tmpl = await db.email_templates.find_one({"key": template_key}, {"_id": 0})
+    if not tmpl and template_key not in DEFAULT_EMAIL_TEMPLATES:
+        raise HTTPException(status_code=400, detail=f"Template '{template_key}' not found")
+
     query = {"status": "approved"}
     if recipient_group == "academic":
         query["membership_type"] = "academic"

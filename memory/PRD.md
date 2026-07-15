@@ -9,6 +9,7 @@ Build a full-stack website for IDSEA containing a public-facing site and compreh
 - **Database**: MongoDB
 - **PDF**: reportlab + qrcode[pil]
 - **WhatsApp**: AK Nexus v2 API
+- **Email**: SMTP (configurable via admin)
 
 ## What's Been Implemented
 
@@ -32,60 +33,58 @@ Build a full-stack website for IDSEA containing a public-facing site and compreh
 - Event listing page
 
 ### Event Detail Page - UPGRADED (DONE - July 15, 2026)
-- **Hero banner** with gallery image slider (auto-rotation)
-- **Countdown timer** with glassmorphism styling
-- **Colorful Important Dates** with color-coded cards (red, green, purple, amber, blue, pink) and status badges (Open Now, Upcoming, Closed)
-- **Committee members** with profile photos and fallback avatar (User icon)
-- **Google Maps iframe** embed for venue
-- **QR Code** for venue navigation (using qrserver.com API)
-- **Nearby Sightseeing** cards with images and distances
-- **Travel info** (How to Reach, Weather) with styled info cards
-- **Registration fee table** with member/non-member/student/international columns
-- **Awards as medal badges with ribbons** (gold, silver, bronze, purple, green, blue) - July 15, 2026
-- **Sponsorship packages with colored header cards** showing all tiers with benefits - July 15, 2026
-- **Register CTA** at bottom
-- **Mobile responsive** with proper grid stacking
-- **Admin EventDetailEditor** with member linking, photo upload, color picker for dates, map URL fields
+- Hero banner with gallery image slider, countdown timer
+- Colorful Important Dates with status badges
+- Committee members with profile photos and fallback avatar
+- Google Maps iframe embed, QR Code for navigation
+- Nearby Sightseeing cards, Travel info sections
+- Awards as medal badges with ribbons
+- Sponsorship packages with colored header cards
+- Mobile responsive with proper grid stacking
+
+### Email Template & Campaign System (DONE - July 15, 2026)
+- **7 Default Templates**: Registration Submitted, Membership Approved, Membership Rejected, Event Notification, Event Participation Certificate, Event Registration Confirmed, Certificate Issued
+- **Custom Template CRUD**: Create/edit/delete user-defined templates
+- **Rich Text Toolbar**: Bold, Italic, Heading, Link, Image, List, Color text, Info Box, Table, HR insertion
+- **Template Editor**: HTML editing with variable placeholders (click to copy)
+- **Template Preview**: Renders with sample data, shows in modal
+- **Email Queue System**: Batch processing — 50 emails per batch, 1 batch every 5 minutes
+- **Queue Dashboard**: Stats (Pending/Sent/Failed/Processing), retry failed, clear sent
+- **Campaign Sending**: Select template + recipient group (All/Academic/Entrepreneur/Corporate), queue for batch delivery
+- **Email Logs Tab**: View sent/queued/failed email history
+- **Background Scheduler**: Auto-starts on app startup, processes pending queue continuously
+- **SMTP Configuration**: Editable via admin settings (host, port, user, pass, from_email)
+- **Auto Triggers**: Event creation → notify all members, Registration → confirmation email, Membership approval/rejection → notification, Certificate → notification
 
 ### Certificate System (DONE)
 - Visual drag-and-drop Certificate Designer (V2)
-- Inline text editing, zoom, background image
 - QR code on certificates with unique ID
 - Public /verify portal for certificate verification
-- certificate_records collection for validation
 
 ### Executive Committee (DONE)
 - Dedicated /ec-members page with sub-division categorization
-- Creative member cards with photos
-- Patrons/Founders on About Us page
 
 ### WhatsApp Campaigns (DONE - MOCKED)
 - Campaign dashboard with AK Nexus v2 API contracts
-- WhatsApp messages simulated via API
 
 ## Key DB Collections
-- `cms_settings`: page_contents (Home, About, SEO, Scripts, Navbar etc.)
-- `executive_committee`: sub_division, frontend_section
-- `event_details`: Extended rich content for event pages (flexible dict)
-- `certificate_records`: cert_id, type, ref_id, created_at
-- `events`: Core event data, fee_tiers, registration_enabled
-- `members`: Membership applications
-- `admins`: Admin accounts
-
-## Key API Endpoints
-- `/api/public/events/{id}/details` - GET event detail page data
-- `/api/admin/events/{id}/details` - PUT update event details (upsert)
-- `/api/public/certificates/verify/{id}` - QR code verification
-- `/api/admin/certificates/generate` - PDF generation with QR
-- `/api/public/sitemap.xml` / `/api/public/robots.txt` - SEO
+- `cms_settings`, `page_contents`: CMS data
+- `executive_committee`: EC members
+- `event_details`: Extended event page content
+- `certificate_records`: QR verification records
+- `events`, `members`, `admins`: Core data
+- `email_templates`: Email template storage (merged with defaults)
+- `email_queue`: Batch email queue (pending/sent/failed)
+- `email_logs`: Email send history
+- `smtp_settings`: SMTP configuration
 
 ## Backlog / Upcoming Tasks
 - **P1**: Public Member Directory with search & filter
 - **P2**: Admin Role Management (Super Admin vs Event Manager)
 - **P2**: Member subscription renewal/expiry reminders
-- **P3**: Refactor server.py (~4100+ lines) into modular routes/models/services
+- **P3**: Refactor server.py (~4500+ lines) into modular routes/models/services
 
 ## 3rd Party Integrations
 - Razorpay (Payments) — Requires User API Key
-- SMTP (Email) — Requires User Credentials
+- SMTP (Email) — Configurable via Admin settings
 - AK Nexus WhatsApp API v2 — Requires User API Key
