@@ -1,0 +1,39 @@
+{
+  "summary": "Frontend-only verification of PublicFooter line-art divider + brand-colored SVG social icons on desktop (1920) and mobile (390). All 6 requested checks pass functionally.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Public footer line-art divider (desktop)", "issues": [
+        "Container div (data-testid='footer-lineart') IS full-width (1920x128), but the illustration content renders as a small centered tile (~150-240px visible) rather than visually spanning the width. This is a consequence of the source PNG aspect ratio (1264x848) being scaled to 130% width but clipped to 100px height - most of the vertical illustration content is cropped, leaving only a narrow horizontal band with sparse content. Consider a wider/panoramic line-art variant or reducing width scaling to make the visible slice more meaningful.",
+        "Computed style on the img shows opacity:1 and filter 'invert(1) brightness(2)' in the deployed build, while the source file (/app/frontend/src/components/public/PublicFooter.jsx line 175-176) specifies opacity:0.25 and brightness(1.5). This mismatch suggests either a stale build/hot-reload issue or a deviation between source and served bundle. Because opacity is 1 (not 0.25) and brightness is 2 (not 1.5), the line art appears more solid/brighter than the intended subtle watermark effect. Main agent should verify what is deployed."
+      ]}
+    ]
+  },
+  "test_report_links": [
+    "/app/tests/footer_ui_test.py"
+  ],
+  "action_items": [
+    "Investigate opacity/brightness discrepancy: source says opacity:0.25 brightness(1.5) but browser computed style shows opacity:1 brightness(2). Restart frontend or verify build output.",
+    "(Optional design) Consider a panoramic/tileable line-art asset so the divider visually feels 'full width' rather than a small centered image tile."
+  ],
+  "critical_code_review_comments": [
+    "PublicFooter.jsx is now ~193 lines with 5 inline SVG icon components + heavy inline styles. Consider extracting SocialIcons into a separate file to improve readability and testability.",
+    "Social anchors use href='#' when CMS URL missing, which causes page to scroll to top on click; safer to render as <span> or add e.preventDefault() when url is falsy.",
+    "The line-art <img> lacks alt text (alt='') which is fine for decorative usage, but aria-hidden='true' would be more explicit for screen readers."
+  ],
+  "updated_files": [
+    "/app/tests/footer_ui_test.py (new: verification script)"
+  ],
+  "success_rate": {"backend": "n/a", "frontend": "100% (6/6 test items pass)"},
+  "test_credentials": "not required (public footer)",
+  "seed_data_creation": "none",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Verified: footer-lineart div, image load from /api/uploads/idsea_footer_lineart.png (200, 1.25MB PNG, natural 1264x848), all 5 social- SVG icons with correct brand fill colors (Facebook #1877F2, Twitter #000000, LinkedIn #0A66C2, YouTube #FF0000, Instagram gradient), copyright bar rgb(9,31,50) = #091f32, and correct DOM order (content -> lineart -> copyright). Mobile 390px: all elements still present and visible. Playwright test: /app/tests/footer_ui_test.py",
+  "rca of the issue": "No functional bugs. Two cosmetic observations: (1) opacity/brightness computed styles differ from source - likely deployed bundle out of sync with source or intentional post-edit; (2) line-art visual width is limited by image aspect ratio + 100px container height + overflow hidden - not a true design bug but the 'full width' intent is only structurally met, not visually."
+}
