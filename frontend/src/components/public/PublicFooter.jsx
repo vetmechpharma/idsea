@@ -157,8 +157,11 @@ export default function PublicFooter() {
 
       {/* ═══ Copyright Bar ═══ */}
       <div style={{ background: '#091f32', padding: '16px 24px', textAlign: 'center' }}>
-        <p style={{ margin: 0, fontSize: '12px', color: 'rgba(255,255,255,0.45)', fontFamily: 'Inter, sans-serif' }}>
+        <p style={{ margin: '0 0 6px', fontSize: '12px', color: 'rgba(255,255,255,0.45)', fontFamily: 'Inter, sans-serif' }}>
           &copy; {new Date().getFullYear()} {pc.copyright_text || 'Indian Dairy Scientists and Entrepreneurs Association (IDSEA). All rights reserved.'}
+        </p>
+        <p style={{ margin: 0, fontSize: '11px', color: 'rgba(255,255,255,0.35)', fontFamily: 'Inter, sans-serif' }}>
+          Developed by <strong style={{ color: 'rgba(255,255,255,0.55)', fontWeight: 700 }}>ANIMitra Softwares</strong> — <strong style={{ color: 'rgba(255,255,255,0.55)', fontWeight: 700 }}>Engineering the Future of Animal Health</strong>
         </p>
       </div>
     </footer>
