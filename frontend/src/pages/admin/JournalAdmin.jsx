@@ -1,18 +1,45 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
-import { BookOpen, Plus, Trash2, Save, ChevronUp, ChevronDown, Search, X, User, ToggleLeft, ToggleRight, Eye, Settings } from 'lucide-react';
+import { BookOpen, Plus, Trash2, Save, ChevronUp, ChevronDown, Search, X, User, ToggleLeft, ToggleRight, Eye, Settings, FileText, Bold, Italic, Heading1, Link2, List, Image, Code, Type, Palette } from 'lucide-react';
 import { API } from '../../contexts/AuthContext';
 
 const BACKEND = API.replace('/api', '');
 const inputS = { width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '13px', boxSizing: 'border-box' };
 
+function RichToolbar({ textareaRef, value, onChange }) {
+  const insert = (before, after = '') => { const el = textareaRef.current; if (!el) return; const s = el.selectionStart, e = el.selectionEnd; const sel = value.substring(s, e) || 'text'; onChange(value.substring(0, s) + before + sel + after + value.substring(e)); setTimeout(() => { el.focus(); el.setSelectionRange(s + before.length, s + before.length + sel.length); }, 50); };
+  const insertAt = (t) => { const el = textareaRef.current; if (!el) return; const s = el.selectionStart; onChange(value.substring(0, s) + t + value.substring(s)); setTimeout(() => { el.focus(); el.setSelectionRange(s + t.length, s + t.length); }, 50); };
+  const btn = { background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '5px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#475569' };
+  const sep = { width: '1px', height: '24px', background: '#e2e8f0', margin: '0 3px' };
+  return (
+    <div style={{ display: 'flex', gap: '3px', flexWrap: 'wrap', padding: '8px 10px', background: '#f8fafc', borderRadius: '8px 8px 0 0', border: '1px solid #e2e8f0', borderBottom: 'none', alignItems: 'center' }}>
+      <button type="button" onClick={() => insert('<strong>', '</strong>')} style={btn}><Bold size={14} /></button>
+      <button type="button" onClick={() => insert('<em>', '</em>')} style={btn}><Italic size={14} /></button>
+      <button type="button" onClick={() => insert('<h2 style="color:#0c3c60;font-size:20px;margin:18px 0 8px;font-weight:700;">', '</h2>')} style={btn}><Heading1 size={14} /></button>
+      <button type="button" onClick={() => insert('<h3 style="color:#1e7a4d;font-size:16px;margin:14px 0 6px;font-weight:700;">', '</h3>')} style={btn}><Type size={14} /></button>
+      <div style={sep} />
+      <button type="button" onClick={() => insert('<a href="URL" style="color:#2563eb;">', '</a>')} style={btn}><Link2 size={14} /></button>
+      <button type="button" onClick={() => insertAt('<img src="IMAGE_URL" alt="" style="max-width:100%;border-radius:8px;margin:12px 0;" />')} style={btn}><Image size={14} /></button>
+      <button type="button" onClick={() => insertAt('<ol style="padding-left:24px;margin:12px 0;line-height:1.8;">\n  <li>First item</li>\n  <li>Second item</li>\n</ol>')} style={{ ...btn, fontSize: '11px' }}>OL</button>
+      <button type="button" onClick={() => insertAt('<ul style="padding-left:24px;margin:12px 0;line-height:1.8;">\n  <li>Item</li>\n  <li>Item</li>\n</ul>')} style={btn}><List size={14} /></button>
+      <div style={sep} />
+      <button type="button" onClick={() => insertAt('<blockquote style="border-left:4px solid #0c3c60;padding:12px 16px;margin:16px 0;background:#f0f9ff;border-radius:0 8px 8px 0;color:#374151;">Quote</blockquote>')} style={{ ...btn, fontSize: '11px' }}><Code size={12} /> Quote</button>
+      <button type="button" onClick={() => insertAt('<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:16px;margin:16px 0;">\nContent</div>')} style={{ ...btn, fontSize: '11px' }}>Box</button>
+      <button type="button" onClick={() => insertAt('<table style="width:100%;border-collapse:collapse;margin:16px 0;">\n  <tr style="background:#0c3c60;color:white;">\n    <th style="padding:10px 12px;text-align:left;">Header</th>\n    <th style="padding:10px 12px;text-align:left;">Header</th>\n  </tr>\n  <tr style="border-bottom:1px solid #e5e7eb;">\n    <td style="padding:10px 12px;">Data</td>\n    <td style="padding:10px 12px;">Data</td>\n  </tr>\n</table>')} style={{ ...btn, fontSize: '11px' }}>Table</button>
+      <button type="button" onClick={() => insertAt('<hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0;" />')} style={{ ...btn, fontSize: '11px' }}>HR</button>
+    </div>
+  );
+}
+
 export default function JournalAdmin() {
-  const [settings, setSettings] = useState({ coming_soon: true, journal_name: 'Journal of Dairy Science and Enterprise', abbreviation: 'JDSE', description: '', cover_image: '', meta_title: '', meta_description: '', meta_keywords: '' });
+  const [settings, setSettings] = useState({ coming_soon: true, journal_name: 'Journal of Dairy Science and Enterprise', abbreviation: 'JDSE', description: '', cover_image: '', meta_title: '', meta_description: '', meta_keywords: '', guidelines_content: '' });
   const [sections, setSections] = useState([]);
   const [toast, setToast] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [activeSection, setActiveSection] = useState(null);
+  const [showGuidelinesEditor, setShowGuidelinesEditor] = useState(false);
+  const guidelinesRef = useRef(null);
 
   const showToast = (m) => { setToast(m); setTimeout(() => setToast(''), 3000); };
 
@@ -169,6 +196,38 @@ export default function JournalAdmin() {
         </div>
 
         <button onClick={saveSettings} className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '5px' }} data-testid="save-journal-settings"><Save size={14} /> Save Settings</button>
+      </div>
+
+      {/* Guidelines for Submission Editor */}
+      <div className="admin-card" style={{ marginBottom: '20px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: showGuidelinesEditor ? '14px' : '0' }}>
+          <h3 style={{ fontFamily: 'Poppins', fontSize: '15px', fontWeight: 700, color: '#0c3c60', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <FileText size={16} /> Guidelines for Submission
+          </h3>
+          <div style={{ display: 'flex', gap: '6px' }}>
+            <a href="/journal/guidelines" target="_blank" rel="noreferrer" className="btn-secondary" style={{ fontSize: '11px', padding: '5px 10px', display: 'flex', alignItems: 'center', gap: '3px' }}><Eye size={12} /> View</a>
+            <button onClick={() => setShowGuidelinesEditor(!showGuidelinesEditor)} className="btn-secondary" style={{ fontSize: '11px', padding: '5px 10px' }}>
+              {showGuidelinesEditor ? 'Collapse' : 'Edit Content'}
+            </button>
+          </div>
+        </div>
+        {showGuidelinesEditor && (
+          <div>
+            <div style={{ background: '#f0f9ff', borderRadius: '8px', padding: '10px 14px', marginBottom: '10px', fontSize: '12px', color: '#0369a1', lineHeight: 1.6 }}>
+              Write the author guidelines in HTML. Use the toolbar for formatting. This content appears on the &ldquo;Guidelines for Submission&rdquo; page under Journal.
+            </div>
+            <RichToolbar textareaRef={guidelinesRef} value={settings.guidelines_content || ''} onChange={v => setSettings({ ...settings, guidelines_content: v })} />
+            <textarea
+              ref={guidelinesRef}
+              value={settings.guidelines_content || ''}
+              onChange={e => setSettings({ ...settings, guidelines_content: e.target.value })}
+              style={{ ...inputS, minHeight: '300px', fontFamily: 'monospace', fontSize: '12px', lineHeight: 1.6, borderRadius: '0 0 8px 8px', borderTop: 'none', resize: 'vertical' }}
+              placeholder="Write guidelines content here..."
+              data-testid="guidelines-editor"
+            />
+            <button onClick={saveSettings} className="btn-primary" style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '5px' }}><Save size={14} /> Save Guidelines</button>
+          </div>
+        )}
       </div>
 
       {/* Editorial Board Sections */}

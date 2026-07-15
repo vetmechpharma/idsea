@@ -329,6 +329,7 @@ export default function CMSAdmin() {
     { value: '/events', label: 'Events' },
     { value: '/announcements', label: 'Announcements' },
     { value: '/journal', label: 'Journal (JDSE)' },
+    { value: '/journal/guidelines', label: 'Journal Guidelines' },
     { value: '/gallery', label: 'Gallery' },
     { value: '/verify', label: 'Verify Certificate' },
     { value: '/contact', label: 'Contact Us' },

@@ -13,6 +13,7 @@ const DEFAULT_NAV = [
   { id: '11', label: 'Announcements', to: '/announcements', type: 'internal', visible: true, order: 5 },
   { id: '6', label: 'Journal (JDSE)', to: '/journal', type: 'internal', visible: true, order: 6 },
   { id: '12', label: 'Editorial Board', to: '/journal', type: 'internal', visible: true, order: 7, parent: 'journal' },
+  { id: '13', label: 'Guidelines for Submission', to: '/journal/guidelines', type: 'internal', visible: true, order: 8, parent: 'journal' },
   { id: '7', label: 'Gallery', to: '/gallery', type: 'internal', visible: true, order: 6 },
   { id: '8', label: 'Verify Certificate', to: '/verify', type: 'internal', visible: true, order: 7 },
   { id: '9', label: 'Contact Us', to: '/contact', type: 'internal', visible: true, order: 8 },
