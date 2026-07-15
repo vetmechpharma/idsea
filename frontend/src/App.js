@@ -25,6 +25,7 @@ import MembersAdmin from './pages/admin/MembersAdmin';
 import PaymentsAdmin from './pages/admin/PaymentsAdmin';
 import EventsAdmin from './pages/admin/EventsAdmin';
 import NewsAdmin from './pages/admin/NewsAdmin';
+import AnnouncementsPage from './pages/public/AnnouncementsPage';
 import GalleryAdmin from './pages/admin/GalleryAdmin';
 import PublicationsAdmin from './pages/admin/PublicationsAdmin';
 import EmailAdmin from './pages/admin/EmailAdmin';
@@ -63,6 +64,7 @@ function App() {
           <Route path="/journal" element={<JournalPage />} />
           <Route path="/publications" element={<JournalPage />} />
           <Route path="/gallery" element={<GalleryPage />} />
+          <Route path="/announcements" element={<AnnouncementsPage />} />
           <Route path="/contact" element={<ContactPage />} />
           <Route path="/apply" element={<MembershipApplyPage />} />
           <Route path="/ec-members" element={<ECMembersPage />} />

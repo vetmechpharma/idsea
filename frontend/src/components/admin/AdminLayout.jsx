@@ -13,7 +13,7 @@ const navItems = [
   { path: '/admin/membership-plans', icon: Crown, label: 'Membership Plans' },
   { path: '/admin/payments', icon: CreditCard, label: 'Payments' },
   { path: '/admin/events', icon: Calendar, label: 'Events' },
-  { path: '/admin/news', icon: Newspaper, label: 'News' },
+  { path: '/admin/news', icon: Newspaper, label: 'Announcements' },
   { path: '/admin/gallery', icon: Image, label: 'Gallery' },
   { path: '/admin/publications', icon: BookOpen, label: 'Publications' },
   { path: '/admin/email', icon: Mail, label: 'Email System' },
