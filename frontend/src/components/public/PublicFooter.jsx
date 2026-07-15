@@ -162,7 +162,7 @@ export default function PublicFooter() {
         lineHeight: 0,
       }}>
         <img
-          src={`${BACKEND}/api/uploads/idsea_footer_art.png`}
+          src={`${BACKEND}/api/uploads/idsea_footer_final.png`}
           alt=""
           aria-hidden="true"
           style={{
@@ -171,7 +171,6 @@ export default function PublicFooter() {
             objectFit: 'cover',
             objectPosition: 'center center',
             display: 'block',
-            opacity: 0.35,
           }}
           loading="lazy"
         />
