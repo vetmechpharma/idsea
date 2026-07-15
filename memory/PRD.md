@@ -1,41 +1,96 @@
-# IDSEA - Indian Dairy Scientists and Entrepreneurs Association
+# IDSEA (Indian Dairy Scientists and Entrepreneurs Association) - PRD
+
+## Original Problem Statement
+Build a full-stack website for IDSEA containing a public-facing site and comprehensive admin panel. Core requirements include complex event registrations, membership management with international delegate support, a custom visual Certificate Design Module for bulk PDF generation, a WhatsApp marketing campaign system utilizing the AK Nexus v2 API, and fully dynamic CMS capabilities.
 
 ## Tech Stack
-- Frontend: React 19, TailwindCSS, Shadcn/UI, react-helmet-async, react-slick
-- Backend: FastAPI, Motor (MongoDB), Reportlab (PDF), qrcode, httpx
-- Database: MongoDB | Auth: JWT | Payments: Razorpay
-- WhatsApp: AK Nexus v2 | SMTP for emails
+- **Frontend**: React, TailwindCSS, Shadcn/UI, react-helmet-async, axios
+- **Backend**: FastAPI (Python), Motor (async MongoDB), Pydantic
+- **Database**: MongoDB
+- **PDF**: reportlab + qrcode[pil]
+- **WhatsApp**: AK Nexus v2 API
 
-## Admin: admin@idsea.org / Admin@123
+## What's Been Implemented
 
-## Completed Features
+### Core CMS & Public Pages (DONE)
+- Dynamic CMS for all public pages (Home, About, Contact, EC Members, Gallery, Publications)
+- Navbar, Footer, Hero slider fully editable via admin
+- Full SEO module (meta tags, favicon, auto sitemap.xml & robots.txt)
+- Custom HTML/Scripts injector (Head, Body Start, Body End)
+- Mobile responsive layouts across all pages
 
-### Certificate QR Code & Verification System - COMPLETE (Jul 8, 2026)
-- QR Code element in Certificate Designer (position, size, verify URL base)
-- Unique certificate IDs: IDSEA-MEM-XXXXXXXX (membership) / IDSEA-EVT-XXXXXXXX (event)
-- Certificate records stored in `certificate_records` collection (metadata only, no PDF stored)
-- Public verification page at `/verify` with search by cert ID
-- On-the-fly PDF generation for download (no storage)
-- QR codes on certificates link to verification URL
-- Both membership and event certificates supported
+### Membership System (DONE)
+- Multi-step membership application form
+- Approval/rejection workflow in admin
+- Razorpay integration (requires user API key)
+- International delegate support ($100 USD)
 
-### Event Detail Page System - COMPLETE
-### Dynamic CMS & Page Content - COMPLETE
-### SEO & Google Indexing - COMPLETE
-### Custom Scripts Injection - COMPLETE
-### Certificate Design Module V2 - COMPLETE
-### EC Members Page with Sub-Divisions - COMPLETE
-### Membership Registration (4 plans + International) - COMPLETE
-### WhatsApp v2 Marketing Campaigns - COMPLETE
-### Mobile Responsive - ALL Pages - COMPLETE
+### Event Management (DONE)
+- Event creation with registration fee tiers, brochure upload
+- Event registration forms with payment integration
+- Enable/disable event toggle
+- Event listing page
 
-## Key APIs
-- GET/POST `/api/admin/certificate-templates` - Template CRUD
-- POST `/api/admin/certificate-templates/{id}/generate-member/{member_id}` - Generate member cert
-- POST `/api/admin/certificate-templates/{id}/generate-event/{event_id}` - Bulk event certs (ZIP)
-- GET `/api/public/certificates/verify/{cert_id}` - Verify certificate
-- GET `/api/public/certificates/download/{cert_id}` - Download cert PDF on-the-fly
+### Event Detail Page - UPGRADED (DONE - July 15, 2026)
+- **Hero banner** with gallery image slider (auto-rotation)
+- **Countdown timer** with glassmorphism styling
+- **Colorful Important Dates** with color-coded cards (red, green, purple, amber, blue, pink) and status badges (Open Now, Upcoming, Closed)
+- **Committee members** with profile photos and fallback avatar (User icon)
+- **Google Maps iframe** embed for venue
+- **QR Code** for venue navigation (using qrserver.com API)
+- **Nearby Sightseeing** cards with images and distances
+- **Travel info** (How to Reach, Weather) with styled info cards
+- **Registration fee table** with member/non-member/student/international columns
+- **Awards, Sponsorship packages, Contact persons** sections
+- **Register CTA** at bottom
+- **Mobile responsive** with proper grid stacking
+- **Admin EventDetailEditor** with member linking, photo upload, color picker for dates, map URL fields
 
-## Backlog
-- P2: Admin Role Management, Member renewal reminders
-- P3: Backend modularization (server.py 4100+ lines)
+### Certificate System (DONE)
+- Visual drag-and-drop Certificate Designer (V2)
+- Inline text editing, zoom, background image
+- QR code on certificates with unique ID
+- Public /verify portal for certificate verification
+- certificate_records collection for validation
+
+### Executive Committee (DONE)
+- Dedicated /ec-members page with sub-division categorization
+- Creative member cards with photos
+- Patrons/Founders on About Us page
+
+### WhatsApp Campaigns (DONE - MOCKED)
+- Campaign dashboard with AK Nexus v2 API contracts
+- WhatsApp messages simulated via API
+
+## Key DB Collections
+- `cms_settings`: page_contents (Home, About, SEO, Scripts, Navbar etc.)
+- `executive_committee`: sub_division, frontend_section
+- `event_details`: Extended rich content for event pages (flexible dict)
+- `certificate_records`: cert_id, type, ref_id, created_at
+- `events`: Core event data, fee_tiers, registration_enabled
+- `members`: Membership applications
+- `admins`: Admin accounts
+
+## Key API Endpoints
+- `/api/public/events/{id}/details` - GET event detail page data
+- `/api/admin/events/{id}/details` - PUT update event details (upsert)
+- `/api/public/certificates/verify/{id}` - QR code verification
+- `/api/admin/certificates/generate` - PDF generation with QR
+- `/api/public/sitemap.xml` / `/api/public/robots.txt` - SEO
+
+## Backlog / Upcoming Tasks
+- **P1**: Public Member Directory with search & filter
+- **P2**: Admin Role Management (Super Admin vs Event Manager)
+- **P2**: Member subscription renewal/expiry reminders
+- **P3**: Refactor server.py (~4100+ lines) into modular routes/models/services
+
+## 3rd Party Integrations
+- Razorpay (Payments) — Requires User API Key
+- SMTP (Email) — Requires User Credentials
+- AK Nexus WhatsApp API v2 — Requires User API Key
+
+## Known Technical Notes
+- Header Registration Number fetches from `page-content/about` → `cert_reg_number`
+- Event PDFs are temporary; records saved to certificate_records, PDF buffer returned and discarded
+- Backend event_details endpoint uses flexible dict storage with upsert
+- QR code for venue uses external API: `https://api.qrserver.com/v1/create-qr-code/`
