@@ -327,19 +327,44 @@ export default function EventDetailPage() {
         </section>
       )}
 
-      {/* ═══ AWARDS ═══ */}
+      {/* ═══ AWARDS (Badge + Ribbon Style) ═══ */}
       {awards.length > 0 && (
         <section data-testid="awards-section" style={{ padding: '80px 24px', background: 'white' }}>
-          <div style={{ maxWidth: '900px', margin: '0 auto' }}>
-            <SectionTitle title="Awards" color="#d97706" icon={Award} />
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
-              {awards.map((a, i) => (
-                <div key={i} style={{ background: 'linear-gradient(135deg, #fffbeb, #fef3c7)', borderRadius: '14px', padding: '24px 18px', textAlign: 'center', border: '1px solid #fcd34d', position: 'relative', overflow: 'hidden' }}>
-                  <div style={{ position: 'absolute', top: '-8px', right: '-8px', width: '40px', height: '40px', background: '#fbbf24', borderRadius: '50%', opacity: 0.2 }} />
-                  <Award size={24} style={{ color: '#d97706', marginBottom: '12px' }} />
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#92400e', fontFamily: 'Poppins', lineHeight: 1.5 }}>{a}</div>
-                </div>
-              ))}
+          <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
+            <SectionTitle title="Awards & Recognitions" color="#d97706" icon={Award} />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '24px' }}>
+              {awards.map((a, i) => {
+                const badgeColors = [
+                  { medal: 'linear-gradient(145deg, #fbbf24, #f59e0b, #d97706)', ribbon: '#b45309', ring: '#fcd34d', shine: '#fef3c7' },
+                  { medal: 'linear-gradient(145deg, #c0c0c0, #a8a8a8, #909090)', ribbon: '#6b7280', ring: '#d1d5db', shine: '#f3f4f6' },
+                  { medal: 'linear-gradient(145deg, #d4a574, #cd7f32, #a0522d)', ribbon: '#78350f', ring: '#d97706', shine: '#fef3c7' },
+                  { medal: 'linear-gradient(145deg, #a78bfa, #8b5cf6, #7c3aed)', ribbon: '#5b21b6', ring: '#c4b5fd', shine: '#ede9fe' },
+                  { medal: 'linear-gradient(145deg, #34d399, #10b981, #059669)', ribbon: '#065f46', ring: '#6ee7b7', shine: '#ecfdf5' },
+                  { medal: 'linear-gradient(145deg, #60a5fa, #3b82f6, #2563eb)', ribbon: '#1e40af', ring: '#93c5fd', shine: '#eff6ff' },
+                ];
+                const c = badgeColors[i % badgeColors.length];
+                return (
+                  <div key={i} data-testid={`award-badge-${i}`} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+                    {/* Badge Medal */}
+                    <div style={{ position: 'relative', marginBottom: '8px' }}>
+                      {/* Ribbon tails */}
+                      <div style={{ position: 'absolute', bottom: '-18px', left: '50%', transform: 'translateX(-50%)', width: '60px', height: '28px', zIndex: 0 }}>
+                        <div style={{ position: 'absolute', left: '0', top: '0', width: '28px', height: '28px', background: c.ribbon, clipPath: 'polygon(0 0, 100% 0, 70% 100%, 0 70%)', opacity: 0.9 }} />
+                        <div style={{ position: 'absolute', right: '0', top: '0', width: '28px', height: '28px', background: c.ribbon, clipPath: 'polygon(0 0, 100% 0, 100% 70%, 30% 100%)', opacity: 0.9 }} />
+                      </div>
+                      {/* Outer ring */}
+                      <div style={{ width: '88px', height: '88px', borderRadius: '50%', background: c.medal, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: `0 6px 20px rgba(0,0,0,0.15), inset 0 2px 4px rgba(255,255,255,0.3)`, position: 'relative', zIndex: 1 }}>
+                        {/* Inner circle */}
+                        <div style={{ width: '68px', height: '68px', borderRadius: '50%', background: c.shine, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `3px solid ${c.ring}`, boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.08)' }}>
+                          <Award size={26} style={{ color: c.ribbon }} />
+                        </div>
+                      </div>
+                    </div>
+                    {/* Award Name */}
+                    <div style={{ fontSize: '13px', fontWeight: 700, color: '#1e293b', fontFamily: 'Poppins', lineHeight: 1.4, marginTop: '14px', maxWidth: '160px' }}>{a}</div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </section>
@@ -348,26 +373,37 @@ export default function EventDetailPage() {
       {/* ═══ SPONSORSHIP PACKAGES ═══ */}
       {sponsors.length > 0 && (
         <section data-testid="sponsors-section" style={{ padding: '80px 24px', background: '#f8fafc' }}>
-          <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
+          <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
             <SectionTitle title="Sponsorship Packages" color="#7c3aed" icon={Users} />
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px' }}>
-              {sponsors.map((s, i) => (
-                <div key={i} style={{ background: 'white', borderRadius: '18px', padding: '32px 24px', textAlign: 'center', boxShadow: '0 4px 20px rgba(0,0,0,0.06)', border: '1px solid #e8edf2', position: 'relative', overflow: 'hidden', transition: 'transform 0.2s' }}>
-                  <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '5px', background: s.color || '#7c3aed' }} />
-                  <h3 style={{ fontFamily: 'Poppins', fontSize: '16px', fontWeight: 800, color: '#0c3c60', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{s.name}</h3>
-                  <div style={{ fontSize: '28px', fontWeight: 800, color: '#1e7a4d', fontFamily: 'Poppins', marginBottom: '18px' }}>{s.amount}</div>
-                  {s.benefits && (
-                    <div style={{ fontSize: '13px', color: '#6b7280', lineHeight: 1.7, fontFamily: 'Inter', textAlign: 'left' }}>
-                      {s.benefits.split('\n').filter(b => b.trim()).map((b, j) => (
-                        <div key={j} style={{ display: 'flex', gap: '8px', marginBottom: '6px', alignItems: 'flex-start' }}>
-                          <span style={{ color: '#1e7a4d', fontWeight: 700, flexShrink: 0 }}>&#10003;</span>
-                          <span>{b}</span>
-                        </div>
-                      ))}
+            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(sponsors.length, 4)}, 1fr)`, gap: '20px' }}>
+              {sponsors.map((s, i) => {
+                const tierColor = s.color || '#7c3aed';
+                return (
+                  <div key={i} data-testid={`sponsor-card-${i}`} style={{ background: 'white', borderRadius: '18px', padding: '0', textAlign: 'center', boxShadow: '0 4px 24px rgba(0,0,0,0.07)', border: '1px solid #e8edf2', position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                    {/* Colored header strip */}
+                    <div style={{ background: tierColor, padding: '22px 20px 18px', position: 'relative' }}>
+                      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'linear-gradient(180deg, rgba(255,255,255,0.15) 0%, transparent 100%)' }} />
+                      <h3 style={{ fontFamily: 'Poppins', fontSize: '15px', fontWeight: 800, color: 'white', textTransform: 'uppercase', letterSpacing: '1.5px', margin: 0, position: 'relative', zIndex: 1 }}>{s.name}</h3>
                     </div>
-                  )}
-                </div>
-              ))}
+                    {/* Amount */}
+                    <div style={{ padding: '20px 20px 0' }}>
+                      <div style={{ fontSize: 'clamp(22px, 2.5vw, 30px)', fontWeight: 800, color: '#0c3c60', fontFamily: 'Poppins', lineHeight: 1.2 }}>{s.amount}</div>
+                    </div>
+                    {/* Benefits */}
+                    {s.benefits && (
+                      <div style={{ padding: '16px 20px 24px', flex: 1, textAlign: 'left' }}>
+                        <div style={{ width: '36px', height: '2px', background: tierColor, margin: '0 auto 14px', opacity: 0.5, borderRadius: '1px' }} />
+                        {s.benefits.split('\n').filter(b => b.trim()).map((b, j) => (
+                          <div key={j} style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'flex-start', fontSize: '13px', color: '#4b5563', lineHeight: 1.5, fontFamily: 'Inter' }}>
+                            <span style={{ color: tierColor, fontWeight: 700, flexShrink: 0, fontSize: '14px' }}>&#10003;</span>
+                            <span>{b}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         </section>

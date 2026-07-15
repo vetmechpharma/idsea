@@ -498,4 +498,5 @@ h1, h2, h3, h4, h5, h6 {
   .event-venue-grid .venue-text { text-align: center; }
   .event-venue-grid .venue-text .venue-actions { justify-content: center; }
   .event-venue-grid .venue-text .venue-qr { display: flex; justify-content: center; }
+  [data-testid="sponsors-section"] > div > div:last-child { grid-template-columns: 1fr !important; }
 }
