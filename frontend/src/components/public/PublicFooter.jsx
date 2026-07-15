@@ -155,22 +155,86 @@ export default function PublicFooter() {
         </div>
       </div>
 
-      {/* ═══ IDSEA Line Art Divider ═══ */}
-      <div data-testid="footer-lineart" style={{
-        width: '100%',
-        lineHeight: 0,
-      }}>
-        <img
-          src={`${BACKEND}/api/uploads/idsea_footer_final.webp`}
-          alt=""
-          aria-hidden="true"
-          style={{
-            width: '100%',
-            height: 'auto',
-            display: 'block',
-          }}
-          loading="lazy"
-        />
+      {/* ═══ IDSEA Line Art Divider (SVG) ═══ */}
+      <div data-testid="footer-lineart" style={{ width: '100%', lineHeight: 0, overflow: 'hidden' }}>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 100" preserveAspectRatio="none" style={{ width: '100%', height: '70px', display: 'block' }}>
+          <rect width="1600" height="100" fill="#0c3c60"/>
+          <g stroke="rgba(255,255,255,0.35)" strokeWidth="1.2" fill="none" strokeLinecap="round" strokeLinejoin="round">
+            {/* Ground line */}
+            <path d="M0 78 Q200 72 400 76 Q600 80 800 74 Q1000 70 1200 76 Q1400 80 1600 74"/>
+            {/* Farm hut */}
+            <path d="M60 78 L60 55 L40 42 L80 42 L60 55 M48 78 L48 62 L68 62 L68 78"/>
+            {/* Palm tree */}
+            <path d="M110 78 L110 48 M105 48 Q110 38 120 42 M115 46 Q110 36 100 40 M108 44 Q112 35 118 38"/>
+            {/* Cow */}
+            <path d="M170 78 L170 62 L175 58 L220 56 L228 60 L228 78 M185 78 L185 62 M210 78 L210 62 M175 56 L172 48 L178 48 L175 56 M222 56 Q230 54 228 56"/>
+            {/* Milk can */}
+            <path d="M260 78 L260 64 Q260 60 264 60 L274 60 Q278 60 278 64 L278 78 M262 60 L262 58 Q262 56 264 56 L274 56 Q276 56 276 58 L276 60"/>
+            {/* Milk drops */}
+            <circle cx="295" cy="68" r="2"/><circle cx="302" cy="72" r="1.5"/><circle cx="308" cy="66" r="1.8"/>
+            {/* Farmer */}
+            <circle cx="340" cy="42" r="6"/>
+            <path d="M340 48 L340 66 M340 54 L328 60 M340 54 L352 60 M340 66 L332 78 M340 66 L348 78"/>
+            <path d="M328 60 L325 38 L327 36 L329 38 L328 48"/>
+            {/* Wheat/grass */}
+            <path d="M380 78 Q382 60 390 50 M385 78 Q387 62 394 54 M390 78 Q392 64 398 56"/>
+            {/* DNA helix */}
+            <path d="M440 40 Q455 48 470 40 Q485 32 500 40 M440 50 Q455 42 470 50 Q485 58 500 50 M452 44 L452 47 M470 44 L470 47 M488 44 L488 47"/>
+            {/* Atom */}
+            <circle cx="550" cy="48" r="3"/>
+            <ellipse cx="550" cy="48" rx="18" ry="8" transform="rotate(0,550,48)"/>
+            <ellipse cx="550" cy="48" rx="18" ry="8" transform="rotate(60,550,48)"/>
+            <ellipse cx="550" cy="48" rx="18" ry="8" transform="rotate(120,550,48)"/>
+            {/* Microscope */}
+            <path d="M620 78 L610 78 L615 72 L612 56 L612 48 Q612 44 616 42 L620 42 L620 48 L618 48 L618 56 L622 72 L625 78 M612 48 L606 44"/>
+            {/* Flask */}
+            <path d="M660 78 L650 78 L648 66 L652 56 L652 48 L658 48 L658 56 L662 66 L660 78 M650 54 L660 54"/>
+            {/* Test tube */}
+            <path d="M690 78 L690 46 Q690 42 694 42 L694 78 M688 46 L696 46"/>
+            <circle cx="692" cy="58" r="1.5"/>
+            <circle cx="692" cy="52" r="1"/>
+            {/* Scientist */}
+            <circle cx="740" cy="42" r="6"/>
+            <path d="M740 48 L740 66 M740 54 L728 58 M740 54 L752 62 M740 66 L732 78 M740 66 L748 78"/>
+            <rect x="734" y="48" width="12" height="2" rx="1"/>
+            {/* Beaker */}
+            <path d="M790 78 L784 78 L782 66 L786 58 L794 58 L798 66 L796 78"/>
+            <path d="M784 70 Q790 68 796 70"/>
+            {/* Computer/Laptop */}
+            <path d="M850 78 L842 78 L844 72 L856 72 L858 78 M844 72 L844 58 L860 58 L860 72 M847 62 L857 62 M847 65 L854 65"/>
+            {/* Businessman */}
+            <circle cx="900" cy="42" r="6"/>
+            <path d="M900 48 L900 66 M900 54 L888 60 M900 54 L912 60 M900 66 L892 78 M900 66 L908 78"/>
+            <path d="M896 48 L904 48 L906 54 L894 54 Z"/>
+            {/* Bar chart */}
+            <path d="M950 78 L950 64 L958 64 L958 78 M962 78 L962 56 L970 56 L970 78 M974 78 L974 48 L982 48 L982 78 M986 78 L986 40 L994 40 L994 78"/>
+            {/* Rupee symbol */}
+            <path d="M1030 42 L1044 42 M1030 48 L1044 48 M1032 42 Q1040 42 1040 48 Q1040 54 1034 58 L1042 68"/>
+            {/* Globe */}
+            <circle cx="1090" cy="52" r="16"/>
+            <ellipse cx="1090" cy="52" rx="8" ry="16"/>
+            <path d="M1074 52 L1106 52 M1076 44 Q1090 40 1104 44 M1076 60 Q1090 64 1104 60"/>
+            {/* Arrow on globe */}
+            <path d="M1106 42 L1114 36 L1112 42 L1118 40" strokeWidth="1.5"/>
+            {/* City buildings */}
+            <path d="M1160 78 L1160 52 L1172 52 L1172 78 M1164 56 L1164 58 M1168 56 L1168 58 M1164 62 L1164 64 M1168 62 L1168 64"/>
+            <path d="M1176 78 L1176 44 L1186 44 L1186 78 M1179 48 L1179 50 M1183 48 L1183 50 M1179 54 L1179 56 M1183 54 L1183 56"/>
+            <path d="M1190 78 L1190 56 L1200 56 L1200 78 M1193 60 L1193 62 M1197 60 L1197 62"/>
+            <path d="M1204 78 L1204 38 L1210 34 L1216 38 L1216 78 M1208 42 L1208 44 M1212 42 L1212 44 M1208 50 L1208 52 M1212 50 L1212 52"/>
+            {/* Wind turbine */}
+            <path d="M1260 78 L1260 48 M1260 48 L1252 36 M1260 48 L1270 38 M1260 48 L1258 60"/>
+            <circle cx="1260" cy="48" r="2"/>
+            {/* More wheat/plants on right */}
+            <path d="M1320 78 Q1322 62 1328 52 M1325 78 Q1327 64 1333 56 M1330 78 Q1332 66 1338 58"/>
+            {/* Truck/transport */}
+            <path d="M1380 78 L1380 66 L1410 66 L1410 72 L1418 72 L1418 78 M1388 78 Q1388 74 1392 74 Q1396 74 1396 78 M1410 78 Q1410 74 1414 74 Q1418 74 1418 78"/>
+            <path d="M1384 66 L1384 60 L1404 60 L1404 66"/>
+            {/* Wifi/connectivity */}
+            <path d="M1470 60 Q1480 52 1490 60 M1474 56 Q1480 50 1486 56 M1478 52 Q1480 48 1482 52"/>
+            {/* More buildings far right */}
+            <path d="M1530 78 L1530 58 L1540 58 L1540 78 M1544 78 L1544 50 L1552 50 L1552 78 M1556 78 L1556 62 L1564 62 L1564 78"/>
+          </g>
+        </svg>
       </div>
 
       {/* ═══ Copyright Bar ═══ */}
