@@ -46,18 +46,19 @@ function Countdown({ targetDate, label }) {
   }, [targetDate]);
   if (expired) return null;
   const Box = ({ v, l }) => (
-    <div style={{ textAlign: 'center', minWidth: '60px' }}>
-      <div style={{ fontSize: 'clamp(26px, 4vw, 42px)', fontWeight: 800, color: 'white', fontFamily: 'Poppins', lineHeight: 1, background: 'rgba(255,255,255,0.12)', borderRadius: '12px', padding: '10px 6px', backdropFilter: 'blur(4px)' }}>{String(v).padStart(2, '0')}</div>
-      <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.65)', textTransform: 'uppercase', letterSpacing: '1.5px', marginTop: '6px', fontWeight: 600 }}>{l}</div>
+    <div style={{ textAlign: 'center', flex: '1 1 0', minWidth: 0, maxWidth: '72px' }}>
+      <div style={{ fontSize: 'clamp(20px, 5vw, 42px)', fontWeight: 800, color: 'white', fontFamily: 'Poppins', lineHeight: 1, background: 'rgba(255,255,255,0.12)', borderRadius: 'clamp(6px, 1.5vw, 12px)', padding: 'clamp(6px, 1.2vw, 10px) 2px', backdropFilter: 'blur(4px)' }}>{String(v).padStart(2, '0')}</div>
+      <div style={{ fontSize: 'clamp(7px, 1.4vw, 10px)', color: 'rgba(255,255,255,0.65)', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: '4px', fontWeight: 600 }}>{l}</div>
     </div>
   );
+  const Colon = () => <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: 'clamp(16px, 3vw, 28px)', fontWeight: 300, marginTop: '-12px', flexShrink: 0, lineHeight: 1 }}>:</span>;
   return (
-    <div data-testid="countdown-timer" style={{ display: 'inline-block' }}>
-      {label && <div style={{ fontSize: '12px', color: '#fbbf24', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '16px', textAlign: 'center', fontFamily: 'Poppins' }}>{label}</div>}
-      <div style={{ display: 'flex', gap: '10px', alignItems: 'center', justifyContent: 'center' }}>
-        <Box v={time.d} l="Days" /><span style={{ color: 'rgba(255,255,255,0.35)', fontSize: '28px', fontWeight: 300, marginTop: '-14px' }}>:</span>
-        <Box v={time.h} l="Hours" /><span style={{ color: 'rgba(255,255,255,0.35)', fontSize: '28px', fontWeight: 300, marginTop: '-14px' }}>:</span>
-        <Box v={time.m} l="Mins" /><span style={{ color: 'rgba(255,255,255,0.35)', fontSize: '28px', fontWeight: 300, marginTop: '-14px' }}>:</span>
+    <div data-testid="countdown-timer" style={{ width: '100%', maxWidth: '380px', margin: '0 auto', boxSizing: 'border-box' }}>
+      {label && <div style={{ fontSize: 'clamp(9px, 1.8vw, 12px)', color: '#fbbf24', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 'clamp(1px, 0.3vw, 2px)', marginBottom: '12px', textAlign: 'center', fontFamily: 'Poppins' }}>{label}</div>}
+      <div style={{ display: 'flex', gap: 'clamp(4px, 1vw, 10px)', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
+        <Box v={time.d} l="Days" /><Colon />
+        <Box v={time.h} l="Hours" /><Colon />
+        <Box v={time.m} l="Mins" /><Colon />
         <Box v={time.s} l="Secs" />
       </div>
     </div>
@@ -182,7 +183,7 @@ export default function EventDetailPage() {
           <div style={{ position: 'absolute', inset: 0, zIndex: 1, backgroundImage: `url(${imgSrc})`, backgroundSize: 'cover', backgroundPosition: 'center', opacity: 0.3 }} />
         ) : null}
         <div style={{ position: 'absolute', inset: 0, zIndex: 2, background: 'linear-gradient(180deg, rgba(12,60,96,0.55) 0%, rgba(12,60,96,0.92) 70%, rgba(12,60,96,0.98) 100%)' }} />
-        <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '180px 24px 70px', position: 'relative', zIndex: 3, width: '100%', textAlign: 'center' }}>
+        <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '180px 16px 70px', position: 'relative', zIndex: 3, width: '100%', textAlign: 'center', boxSizing: 'border-box' }}>
           <div style={{ display: 'inline-flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap', justifyContent: 'center' }}>
             <span data-testid="event-status-badge" style={{ background: event.status === 'upcoming' ? '#1e7a4d' : event.status === 'ongoing' ? '#d97706' : '#6b7280', color: 'white', padding: '5px 16px', borderRadius: '20px', fontSize: '11px', fontWeight: 700, fontFamily: 'Poppins', textTransform: 'uppercase', letterSpacing: '1px' }}>{event.status}</span>
             {event.registration_enabled && <span style={{ background: 'rgba(255,255,255,0.12)', color: 'white', padding: '5px 16px', borderRadius: '20px', fontSize: '11px', fontWeight: 600, fontFamily: 'Poppins', border: '1px solid rgba(255,255,255,0.2)', backdropFilter: 'blur(4px)' }}>Registration Open</span>}
