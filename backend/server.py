@@ -1144,6 +1144,14 @@ async def get_public_news(category: Optional[str] = None):
     return await db.news.find(query, {"_id": 0}).sort("published_date", -1).to_list(50)
 
 
+@api_router.get("/public/news/{news_id}")
+async def get_public_news_single(news_id: str):
+    item = await db.news.find_one({"id": news_id, "status": "published"}, {"_id": 0})
+    if not item:
+        raise HTTPException(status_code=404, detail="Not found")
+    return item
+
+
 @api_router.get("/public/gallery")
 async def get_public_gallery():
     albums = await db.gallery_albums.find({}, {"_id": 0}).to_list(50)

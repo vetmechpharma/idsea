@@ -4,6 +4,7 @@ import PublicFooter from '../../components/public/PublicFooter';
 import SEOHead from '../../components/SEOHead';
 import axios from 'axios';
 import { Megaphone, Calendar, Tag, ArrowRight } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const BACKEND = process.env.REACT_APP_BACKEND_URL;
@@ -98,9 +99,21 @@ export default function AnnouncementsPage() {
                     </h2>
 
                     {/* Content */}
-                    <p style={{ fontSize: '14px', color: '#6b7280', lineHeight: 1.7, margin: 0, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                      {item.content}
+                    <p style={{ fontSize: '14px', color: '#6b7280', lineHeight: 1.7, margin: '0 0 14px', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                      {item.content?.replace(/<[^>]*>/g, '')}
                     </p>
+
+                    {/* Read More */}
+                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                      <Link to={`/announcements/${item.id}`} data-testid={`read-more-${i}`} style={{
+                        display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#0c3c60',
+                        fontSize: '13px', fontWeight: 600, fontFamily: 'Poppins', textDecoration: 'none',
+                        padding: '6px 14px', borderRadius: '8px', border: '1px solid #e2e8f0',
+                        background: '#f8fafc', transition: 'all 0.2s'
+                      }}>
+                        Read More <ArrowRight size={14} />
+                      </Link>
+                    </div>
                   </div>
                 </article>
               );
