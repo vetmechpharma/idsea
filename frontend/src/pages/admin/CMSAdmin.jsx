@@ -19,6 +19,24 @@ const PAGES = [
   { key: 'footer', label: 'Footer', icon: Footprints },
 ];
 
+const Section = ({ title, children }) => (
+  <div className="admin-card" style={{ marginBottom: '20px' }}>
+    <h3 style={{ fontFamily: 'Poppins', fontSize: '15px', fontWeight: 700, color: '#0c3c60', marginBottom: '16px', paddingBottom: '12px', borderBottom: '1px solid #f1f5f9' }}>{title}</h3>
+    {children}
+  </div>
+);
+
+const Field = ({ label, value, onChange, type = 'text', rows, placeholder }) => (
+  <div className="form-group">
+    <label className="form-label">{label}</label>
+    {type === 'textarea' ? (
+      <textarea value={value || ''} onChange={e => onChange(e.target.value)} className="form-textarea" rows={rows || 3} placeholder={placeholder} data-testid={`cms-field-${label.toLowerCase().replace(/\s+/g, '-')}`} />
+    ) : (
+      <input type={type} value={value || ''} onChange={e => onChange(e.target.value)} className="form-input" placeholder={placeholder} data-testid={`cms-field-${label.toLowerCase().replace(/\s+/g, '-')}`} />
+    )}
+  </div>
+);
+
 export default function CMSAdmin() {
   const [activeTab, setActiveTab] = useState('global');
   const [cmsForm, setCmsForm] = useState({});
@@ -79,24 +97,6 @@ export default function CMSAdmin() {
   const pc = pageContents[activeTab] || {};
 
   if (loading) return <div className="loading-spinner">Loading CMS...</div>;
-
-  const Section = ({ title, children }) => (
-    <div className="admin-card" style={{ marginBottom: '20px' }}>
-      <h3 style={{ fontFamily: 'Poppins', fontSize: '15px', fontWeight: 700, color: '#0c3c60', marginBottom: '16px', paddingBottom: '12px', borderBottom: '1px solid #f1f5f9' }}>{title}</h3>
-      {children}
-    </div>
-  );
-
-  const Field = ({ label, value, onChange, type = 'text', rows, placeholder }) => (
-    <div className="form-group">
-      <label className="form-label">{label}</label>
-      {type === 'textarea' ? (
-        <textarea value={value || ''} onChange={e => onChange(e.target.value)} className="form-textarea" rows={rows || 3} placeholder={placeholder} data-testid={`cms-field-${label.toLowerCase().replace(/\s+/g, '-')}`} />
-      ) : (
-        <input type={type} value={value || ''} onChange={e => onChange(e.target.value)} className="form-input" placeholder={placeholder} data-testid={`cms-field-${label.toLowerCase().replace(/\s+/g, '-')}`} />
-      )}
-    </div>
-  );
 
   const renderGlobal = () => (
     <>

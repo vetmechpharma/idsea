@@ -1,0 +1,25 @@
+{
+  "summary": "Verified fix for CMS Admin scroll-jump bug. Section and Field components now defined at module scope (lines 22-38 of CMSAdmin.jsx) outside the component function, preventing remount on every keystroke. All 6 test scenarios PASSED: (1) About > Objectives textarea keeps focus and scroll during rapid multi-line typing, (2) Contact > Form Title stable, (3) Global > Hero Title stable, (4) Footer > Copyright Text stable, (5) All 12 tabs (global/seo/scripts/home/about/events/gallery/publications/members/contact/navbar/footer) load correctly, (6) Rapid 30-keystroke stress test — scroll delta = 0px in every scenario, focus retained.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Fix implementation is correct: Section and Field extracted to module scope (lines 22-38) so they preserve identity across renders. This is the canonical React fix.",
+    "Minor observation: Field component uses data-testid derived from label (`cms-field-${label.toLowerCase()...}`) — duplicate labels across tabs (e.g., 'Hero Title', 'Hero Subtitle', 'Section Title') will produce duplicate data-testids across different renders. Not an issue currently since only one tab renders at a time, but worth noting for scoping. Tests still work because non-active tabs are unmounted.",
+    "CMSAdmin.jsx is 470 lines with many render* helper functions inside the component body. Consider extracting per-tab renderers (renderGlobal, renderHome, renderAbout, etc.) into separate files to keep the main component under 300 lines and improve maintainability.",
+    "handleSave silently swallows errors with a generic 'Error saving' toast (line 87). Consider logging the actual error to aid debugging."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend-only test)", "frontend": "100%"},
+  "test_credentials": "admin@idsea.org / Admin@123 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "CMS Admin scroll-jump fix verified working. Section/Field components at module scope. If future changes are made to CMSAdmin.jsx, re-verify that helper components are not moved back inside the component function. Reuse the playwright approach: navigate to /admin/cms, click a tab (cms-tab-{key}), scroll_into_view a field (cms-field-{label-kebab}), record scrollY before/after typing — diff should stay <50px and document.activeElement should remain the input.",
+  "rca of the issue": "Root cause: Section and Field were originally declared INSIDE the CMSAdmin function. Every setState (each keystroke via updateCms/updatePage) triggered CMSAdmin re-render, which created NEW Section/Field function references. React's reconciler treats different component types as different, so it unmounted the old input DOM node and mounted a new one → focus lost + browser scrolled input into view (jumping to top of the newly mounted element). Fix: hoisting Section and Field to module scope (outside CMSAdmin) makes their references stable across renders, so React reuses the same DOM node and preserves focus/scroll. Verified with 6 scenarios; scroll delta = 0px in all cases."
+}
