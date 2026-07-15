@@ -1,0 +1,26 @@
+{
+  "summary": "Verified admin menu editor + public navbar changes. All 9 review scenarios PASSED: (1) Public navbar has NO Admin link/button, (2) Public navbar shows all 9 top-level items + About Us dropdown with About IDSEA & EC Members, (3) CMS Admin → Navbar tab shows Menu Items section with all 10 items each having order arrows/label input/page select/type select/parent select/visibility toggle/delete button, (4) Move-up arrow on index 1 correctly swaps items 1 & 2 (About IDSEA ↔ Home), (5) '+ Add Menu Item' appends new item with label='New Link', type='custom', to='https://' at bottom, (6) Setting type='custom' converts page dropdown into a text URL input (tagName changes from SELECT to INPUT), (7) Visibility toggle changes item opacity from 1.0 → 0.5 (dimmed), (8) Delete button (✕) removes item and re-indexes remaining items, (9) Save persistence verified end-to-end: edited label 'Events' → 'TEST_Events_X' in admin, clicked Save Changes, reloaded public site, new label appeared in navbar; then reverted back to 'Events' and confirmed public site restored.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "PublicNavbar.jsx line 89-133: buildDesktopNav uses splice(1, 0, aboutDropdown) to always insert the About dropdown at index 1. This works because DEFAULT_NAV puts Home at index 0, but if the admin reorders 'Home' out of position 0 (e.g., moves Membership to top), the About Us dropdown will be inserted at position 1 regardless of where about-children actually belong in the ordering. Consider placing the About dropdown at the ordinal position of the first about child in the visibleMenu array instead of hardcoded index 1.",
+    "CMSAdmin.jsx line 361-363: The label <input> and other menu-item form inputs are defined inline inside .map() within renderNavbar. Since renderNavbar is a helper defined inside CMSAdmin, and Section/Field were previously found to remount on keystroke (fixed in iteration_33), these raw <input> elements inside .map are fine only because they are native DOM elements (React reconciles by key/position). Verified typing works without focus loss.",
+    "CMSAdmin.jsx addMenuItem (line 309): New items default type='custom' with to='https://' — but there's no client-side URL validation before save. Consider warning admin if 'to' is still 'https://' (unfilled) on save.",
+    "CMSAdmin.jsx deleteItem (line 297): No confirmation dialog before removing a menu item. A single misclick permanently deletes on save. Add a confirm() or lightweight confirmation to prevent accidental data loss on the actual production nav.",
+    "CMSAdmin.jsx 613 lines total — approaching threshold. Consider extracting renderNavbar (~80 lines) into a separate MenuEditor component file, along with DEFAULT_MENU and INTERNAL_PAGES constants."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend-only test)", "frontend": "100%"},
+  "test_credentials": "admin@idsea.org / Admin@123 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "Temporarily changed 'Events' label to 'TEST_Events_X' for save-persistence verification, then reverted back to 'Events'. No permanent data changes.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Menu editor at /admin/cms → Navbar tab is fully functional. Data-testids in place: menu-item-{idx}, menu-label-{idx}, menu-to-{idx}, menu-type-{idx}, menu-parent-{idx}, menu-toggle-{idx}, menu-delete-{idx}, move-up-{idx}, move-down-{idx}, add-menu-item, cms-tab-navbar. Menu items persist to page_contents.navbar.menu_items via /api/admin/page-content/navbar. Public site reads from /api/public/page-content/navbar and falls back to DEFAULT_NAV (10 items) when menu_items is empty. Admin link removed from PublicNavbar (both desktop and mobile). To retest: login → CMS Settings → Navbar tab → interact with any menu-* testid.",
+  "rca of the issue": "N/A — no bugs found. Implementation matches all 9 requirements from the review request."
+}

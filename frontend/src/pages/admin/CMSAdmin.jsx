@@ -262,12 +262,155 @@ export default function CMSAdmin() {
     </>
   );
 
+  const DEFAULT_MENU = [
+    { id: '1', label: 'Home', to: '/', type: 'internal', visible: true, order: 0 },
+    { id: '2', label: 'About IDSEA', to: '/about', type: 'internal', visible: true, order: 1, parent: 'about' },
+    { id: '3', label: 'EC Members', to: '/ec-members', type: 'internal', visible: true, order: 2, parent: 'about' },
+    { id: '4', label: 'Membership', to: '/members', type: 'internal', visible: true, order: 3 },
+    { id: '5', label: 'Events', to: '/events', type: 'internal', visible: true, order: 4 },
+    { id: '6', label: 'Publications', to: '/publications', type: 'internal', visible: true, order: 5 },
+    { id: '7', label: 'Gallery', to: '/gallery', type: 'internal', visible: true, order: 6 },
+    { id: '8', label: 'Verify Certificate', to: '/verify', type: 'internal', visible: true, order: 7 },
+    { id: '9', label: 'Contact Us', to: '/contact', type: 'internal', visible: true, order: 8 },
+    { id: '10', label: 'Join IDSEA', to: '/apply', type: 'internal', visible: true, order: 9 },
+  ];
+
+  const menuItems = (pc.menu_items && pc.menu_items.length > 0) ? pc.menu_items : DEFAULT_MENU;
+
+  const updateMenu = (newItems) => updatePage('menu_items', newItems);
+
+  const moveItem = (idx, dir) => {
+    const items = [...menuItems];
+    const target = idx + dir;
+    if (target < 0 || target >= items.length) return;
+    [items[idx], items[target]] = [items[target], items[idx]];
+    items.forEach((it, i) => { it.order = i; });
+    updateMenu(items);
+  };
+
+  const toggleVisible = (idx) => {
+    const items = [...menuItems];
+    items[idx] = { ...items[idx], visible: !items[idx].visible };
+    updateMenu(items);
+  };
+
+  const deleteItem = (idx) => {
+    const items = menuItems.filter((_, i) => i !== idx);
+    items.forEach((it, i) => { it.order = i; });
+    updateMenu(items);
+  };
+
+  const updateMenuItem = (idx, field, value) => {
+    const items = [...menuItems];
+    items[idx] = { ...items[idx], [field]: value };
+    updateMenu(items);
+  };
+
+  const addMenuItem = () => {
+    const items = [...menuItems, {
+      id: String(Date.now()),
+      label: 'New Link',
+      to: 'https://',
+      type: 'custom',
+      visible: true,
+      order: menuItems.length,
+      parent: '',
+    }];
+    updateMenu(items);
+  };
+
+  const INTERNAL_PAGES = [
+    { value: '/', label: 'Home' },
+    { value: '/about', label: 'About IDSEA' },
+    { value: '/ec-members', label: 'EC Members' },
+    { value: '/members', label: 'Membership' },
+    { value: '/events', label: 'Events' },
+    { value: '/publications', label: 'Publications' },
+    { value: '/gallery', label: 'Gallery' },
+    { value: '/verify', label: 'Verify Certificate' },
+    { value: '/contact', label: 'Contact Us' },
+    { value: '/apply', label: 'Join IDSEA' },
+  ];
+
   const renderNavbar = () => (
-    <Section title="Navigation Bar">
-      <Field label="Organization Name" value={pc.org_name} onChange={v => updatePage('org_name', v)} />
-      <Field label="Short Name / Abbreviation" value={pc.org_short} onChange={v => updatePage('org_short', v)} placeholder="(IDSEA)" />
-      <p style={{ fontSize: '11px', color: '#9ca3af', marginTop: '4px' }}>Registration number is pulled from About Page → Registration Certificate section.</p>
-    </Section>
+    <>
+      <Section title="Navigation Bar">
+        <Field label="Organization Name" value={pc.org_name} onChange={v => updatePage('org_name', v)} />
+        <Field label="Short Name / Abbreviation" value={pc.org_short} onChange={v => updatePage('org_short', v)} placeholder="(IDSEA)" />
+        <p style={{ fontSize: '11px', color: '#9ca3af', marginTop: '4px' }}>Registration number is pulled from About Page &rarr; Registration Certificate section.</p>
+      </Section>
+
+      <Section title="Menu Items (Drag to Reorder)">
+        <div style={{ background: '#f0f9ff', borderRadius: '8px', padding: '10px 14px', marginBottom: '14px', fontSize: '12px', color: '#0369a1', lineHeight: 1.6 }}>
+          Reorder with arrows. Toggle visibility with the eye icon. Add custom external links. Items with <strong>parent: about</strong> appear under &ldquo;About Us&rdquo; dropdown. Click <strong>Save Changes</strong> to apply.
+        </div>
+        <div style={{ display: 'grid', gap: '6px' }}>
+          {menuItems.map((item, idx) => (
+            <div key={item.id} data-testid={`menu-item-${idx}`} style={{
+              background: item.visible ? 'white' : '#f8fafc', borderRadius: '8px', border: `1px solid ${item.visible ? '#e2e8f0' : '#f1f5f9'}`,
+              padding: '10px 12px', display: 'flex', gap: '8px', alignItems: 'center', opacity: item.visible ? 1 : 0.5,
+            }}>
+              {/* Order arrows */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <button onClick={() => moveItem(idx, -1)} disabled={idx === 0} style={{ background: 'none', border: 'none', cursor: idx === 0 ? 'default' : 'pointer', color: idx === 0 ? '#d1d5db' : '#6b7280', fontSize: '14px', padding: '0 2px', lineHeight: 1 }} data-testid={`move-up-${idx}`}>&#9650;</button>
+                <button onClick={() => moveItem(idx, 1)} disabled={idx === menuItems.length - 1} style={{ background: 'none', border: 'none', cursor: idx === menuItems.length - 1 ? 'default' : 'pointer', color: idx === menuItems.length - 1 ? '#d1d5db' : '#6b7280', fontSize: '14px', padding: '0 2px', lineHeight: 1 }} data-testid={`move-down-${idx}`}>&#9660;</button>
+              </div>
+              {/* Order number */}
+              <span style={{ width: '22px', height: '22px', borderRadius: '6px', background: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 700, color: '#6b7280', flexShrink: 0 }}>{idx + 1}</span>
+              {/* Label */}
+              <input value={item.label} onChange={e => updateMenuItem(idx, 'label', e.target.value)}
+                style={{ flex: 1, padding: '4px 8px', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '13px', fontWeight: 600, fontFamily: 'Poppins', minWidth: 0 }}
+                data-testid={`menu-label-${idx}`} />
+              {/* Link / Page select */}
+              {item.type === 'internal' ? (
+                <select value={item.to} onChange={e => updateMenuItem(idx, 'to', e.target.value)}
+                  style={{ padding: '4px 8px', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '12px', color: '#374151', width: '140px' }}
+                  data-testid={`menu-to-${idx}`}>
+                  {INTERNAL_PAGES.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+                </select>
+              ) : (
+                <input value={item.to} onChange={e => updateMenuItem(idx, 'to', e.target.value)}
+                  placeholder="https://example.com"
+                  style={{ padding: '4px 8px', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '12px', width: '180px' }}
+                  data-testid={`menu-to-${idx}`} />
+              )}
+              {/* Type toggle */}
+              <select value={item.type} onChange={e => updateMenuItem(idx, 'type', e.target.value)}
+                style={{ padding: '4px 6px', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '11px', color: '#6b7280', width: '80px' }}
+                data-testid={`menu-type-${idx}`}>
+                <option value="internal">Internal</option>
+                <option value="custom">Custom</option>
+              </select>
+              {/* Parent dropdown */}
+              <select value={item.parent || ''} onChange={e => updateMenuItem(idx, 'parent', e.target.value)}
+                style={{ padding: '4px 6px', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '11px', color: '#6b7280', width: '90px' }}
+                title="Dropdown parent"
+                data-testid={`menu-parent-${idx}`}>
+                <option value="">Top Level</option>
+                <option value="about">Under About</option>
+              </select>
+              {/* Visibility toggle */}
+              <button onClick={() => toggleVisible(idx)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', padding: '2px 4px', color: item.visible ? '#1e7a4d' : '#d1d5db' }}
+                title={item.visible ? 'Visible' : 'Hidden'}
+                data-testid={`menu-toggle-${idx}`}>
+                {item.visible ? '👁' : '👁‍🗨'}
+              </button>
+              {/* Delete */}
+              <button onClick={() => deleteItem(idx)}
+                style={{ background: '#fee2e2', color: '#dc2626', border: 'none', borderRadius: '6px', padding: '4px 6px', cursor: 'pointer', fontSize: '12px', flexShrink: 0 }}
+                data-testid={`menu-delete-${idx}`}>
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+        <button onClick={addMenuItem} style={{ marginTop: '12px', background: '#f0fdf4', color: '#1e7a4d', border: '1px solid #bbf7d0', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 600, fontFamily: 'Poppins', display: 'flex', alignItems: 'center', gap: '6px' }}
+          data-testid="add-menu-item">
+          + Add Menu Item
+        </button>
+      </Section>
+    </>
   );
 
   const renderFooter = () => (
