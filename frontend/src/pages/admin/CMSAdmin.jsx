@@ -391,6 +391,7 @@ export default function CMSAdmin() {
                 data-testid={`menu-parent-${idx}`}>
                 <option value="">Top Level</option>
                 <option value="about">Under About</option>
+                <option value="journal">Under Journal</option>
               </select>
               {/* Visibility toggle */}
               <button onClick={() => toggleVisible(idx)}

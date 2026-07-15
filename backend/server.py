@@ -3896,6 +3896,72 @@ async def generate_membership_id(membership_type: str) -> str:
     return f"{prefix}/IDSEA/{serial}"
 
 
+# =================== JOURNAL MANAGEMENT ===================
+
+@api_router.get("/admin/journal/settings")
+async def admin_get_journal_settings(admin=Depends(get_current_admin)):
+    settings = await db.journal_settings.find_one({}, {"_id": 0})
+    if not settings:
+        settings = {"coming_soon": True, "journal_name": "Journal of Dairy Science and Enterprise", "abbreviation": "JDSE", "description": "", "cover_image": "", "meta_title": "", "meta_description": "", "meta_keywords": ""}
+    return settings
+
+
+@api_router.put("/admin/journal/settings")
+async def admin_update_journal_settings(data: dict, admin=Depends(get_current_admin)):
+    data["updated_at"] = now_iso()
+    await db.journal_settings.update_one({}, {"$set": data}, upsert=True)
+    return {"message": "Journal settings updated"}
+
+
+@api_router.get("/admin/journal/board")
+async def admin_get_journal_board(admin=Depends(get_current_admin)):
+    sections = await db.journal_board.find({}, {"_id": 0}).sort("order", 1).to_list(50)
+    return sections
+
+
+@api_router.post("/admin/journal/board")
+async def admin_add_journal_section(data: dict, admin=Depends(get_current_admin)):
+    section = {
+        "id": str(uuid.uuid4()),
+        "title": data.get("title", "New Section"),
+        "order": data.get("order", 99),
+        "members": data.get("members", []),
+        "created_at": now_iso(),
+    }
+    await db.journal_board.insert_one(section)
+    return {"message": "Section added", "id": section["id"]}
+
+
+@api_router.put("/admin/journal/board/{section_id}")
+async def admin_update_journal_section(section_id: str, data: dict, admin=Depends(get_current_admin)):
+    data.pop("_id", None)
+    data["updated_at"] = now_iso()
+    await db.journal_board.update_one({"id": section_id}, {"$set": data})
+    return {"message": "Section updated"}
+
+
+@api_router.delete("/admin/journal/board/{section_id}")
+async def admin_delete_journal_section(section_id: str, admin=Depends(get_current_admin)):
+    await db.journal_board.delete_one({"id": section_id})
+    return {"message": "Section deleted"}
+
+
+@api_router.get("/public/journal")
+async def get_public_journal():
+    settings = await db.journal_settings.find_one({}, {"_id": 0}) or {"coming_soon": True, "journal_name": "Journal of Dairy Science and Enterprise", "abbreviation": "JDSE"}
+    board = await db.journal_board.find({}, {"_id": 0}).sort("order", 1).to_list(50) if not settings.get("coming_soon") else []
+    return {"settings": settings, "board": board}
+
+
+@api_router.get("/admin/members/search")
+async def admin_search_members(q: str = "", admin=Depends(get_current_admin)):
+    if len(q) < 2:
+        return []
+    query = {"name": {"$regex": q, "$options": "i"}, "status": "approved"}
+    members = await db.members.find(query, {"_id": 0, "id": 1, "name": 1, "qualification": 1, "organization": 1, "email": 1, "phone": 1, "photo_url": 1}).limit(15).to_list(15)
+    return members
+
+
 @api_router.get("/admin/membership-id-config")
 async def admin_get_membership_id_config(admin=Depends(get_current_admin)):
     configs = await db.membership_id_config.find({}, {"_id": 0}).to_list(20)
