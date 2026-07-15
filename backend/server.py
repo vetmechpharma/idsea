@@ -1,5 +1,6 @@
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, BackgroundTasks, UploadFile, File, Query, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from starlette.background import BackgroundTask
 from fastapi.responses import StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
@@ -4335,7 +4336,8 @@ async def admin_backup_database(admin=Depends(get_current_admin)):
         }, indent=2))
 
     return FileResponse(tmp.name, media_type="application/zip",
-                        filename=f"idsea_db_backup_{datetime.now().strftime('%Y%m%d_%H%M')}.zip")
+                        filename=f"idsea_db_backup_{datetime.now().strftime('%Y%m%d_%H%M')}.zip",
+                        background=BackgroundTask(lambda: os.remove(tmp.name)))
 
 
 @api_router.get("/admin/backup/uploads")
@@ -4357,7 +4359,8 @@ async def admin_backup_uploads(admin=Depends(get_current_admin)):
         }, indent=2))
 
     return FileResponse(tmp.name, media_type="application/zip",
-                        filename=f"idsea_uploads_backup_{datetime.now().strftime('%Y%m%d_%H%M')}.zip")
+                        filename=f"idsea_uploads_backup_{datetime.now().strftime('%Y%m%d_%H%M')}.zip",
+                        background=BackgroundTask(lambda: os.remove(tmp.name)))
 
 
 @api_router.get("/admin/backup/info")
@@ -4442,9 +4445,12 @@ async def admin_restore_uploads(file: UploadFile = File(...), admin=Depends(get_
     try:
         with zipfile.ZipFile(tmp_path, 'r') as zf:
             for name in zf.namelist():
-                if name.startswith('_'):
+                if name == '_backup_info.json':
                     continue
                 target = UPLOAD_DIR / name
+                # Prevent zip-slip attack
+                if not str(target.resolve()).startswith(str(UPLOAD_DIR.resolve())):
+                    continue
                 target.parent.mkdir(parents=True, exist_ok=True)
                 with zf.open(name) as src, open(target, 'wb') as dst:
                     dst.write(src.read())
