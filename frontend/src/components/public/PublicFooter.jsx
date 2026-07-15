@@ -134,8 +134,9 @@ export default function PublicFooter() {
                 {SOCIAL_ICONS.map(({ key, Icon, bgHover }) => {
                   const url = socialUrls[key];
                   return (
-                    <a key={key} href={url || '#'} target={url ? '_blank' : undefined} rel="noreferrer"
+                    <a key={key} href={url || undefined} target={url ? '_blank' : undefined} rel="noreferrer"
                       data-testid={`social-${key}`}
+                      onClick={e => { if (!url) e.preventDefault(); }}
                       style={{
                         width: '34px', height: '34px', borderRadius: '50%',
                         background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center',
