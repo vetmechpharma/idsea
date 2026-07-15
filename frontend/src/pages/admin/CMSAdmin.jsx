@@ -295,6 +295,7 @@ export default function CMSAdmin() {
   };
 
   const deleteItem = (idx) => {
+    if (!window.confirm(`Remove "${menuItems[idx]?.label}" from the menu?`)) return;
     const items = menuItems.filter((_, i) => i !== idx);
     items.forEach((it, i) => { it.order = i; });
     updateMenu(items);
