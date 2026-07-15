@@ -156,7 +156,7 @@ export default function MembershipAdmin() {
           <h2 style={{ fontFamily: 'Poppins', fontSize: '16px', fontWeight: 700, color: '#0c3c60', margin: 0 }}>Membership ID Prefix</h2>
         </div>
         <div style={{ background: '#f0f9ff', borderRadius: '8px', padding: '10px 14px', marginBottom: '14px', fontSize: '12px', color: '#0369a1', lineHeight: 1.6 }}>
-          Configure the prefix for each membership category. Format: <strong>PREFIX/IDSEA/YEAR/SERIAL</strong>
+          Configure the prefix for each membership category. Format: <strong>PREFIX/IDSEA/SERIAL</strong> (continuous numbering)
         </div>
         <div style={{ display: 'grid', gap: '10px' }}>
           {idConfigs.map(c => (
@@ -175,7 +175,7 @@ export default function MembershipAdmin() {
                       data-testid={`prefix-input-${c.type}`}
                       autoFocus
                     />
-                    <span style={{ fontSize: '12px', color: '#6b7280', fontFamily: 'monospace' }}>/IDSEA/{new Date().getFullYear()}/0001</span>
+                    <span style={{ fontSize: '12px', color: '#6b7280', fontFamily: 'monospace' }}>/IDSEA/0001</span>
                     <button onClick={async () => {
                       if (!prefixValue) return;
                       setPrefixSaving(true);

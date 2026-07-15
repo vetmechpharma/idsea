@@ -3870,9 +3870,8 @@ async def get_membership_prefix(membership_type: str) -> str:
 
 
 async def generate_membership_id(membership_type: str) -> str:
-    """Generate next membership ID using configured prefix"""
+    """Generate next membership ID using configured prefix — continuous serial"""
     prefix = await get_membership_prefix(membership_type)
-    year = datetime.now().year
     all_members = await db.members.find(
         {"status": "approved", "membership_id": {"$regex": f"^{prefix}/"}},
         {"_id": 0, "membership_id": 1}
@@ -3886,7 +3885,7 @@ async def generate_membership_id(membership_type: str) -> str:
         except (ValueError, IndexError):
             pass
     serial = str(max_serial + 1).zfill(4)
-    return f"{prefix}/IDSEA/{year}/{serial}"
+    return f"{prefix}/IDSEA/{serial}"
 
 
 @api_router.get("/admin/membership-id-config")
@@ -3902,7 +3901,7 @@ async def admin_get_membership_id_config(admin=Depends(get_current_admin)):
                     c["is_default"] = False
     # Add sample next ID
     for c in configs:
-        c["sample_id"] = f"{c['prefix']}/IDSEA/{datetime.now().year}/0001"
+        c["sample_id"] = f"{c['prefix']}/IDSEA/0001"
     return sorted(configs, key=lambda c: list(DEFAULT_ID_PREFIXES.keys()).index(c["type"]) if c["type"] in DEFAULT_ID_PREFIXES else 99)
 
 
@@ -3918,7 +3917,7 @@ async def admin_update_membership_id_prefix(membership_type: str, data: dict, ad
         {"$set": {"type": membership_type, "prefix": prefix, "updated_at": now_iso(), "updated_by": admin["email"]}},
         upsert=True
     )
-    return {"message": f"Prefix for '{membership_type}' updated to '{prefix}'", "sample_id": f"{prefix}/IDSEA/{datetime.now().year}/0001"}
+    return {"message": f"Prefix for '{membership_type}' updated to '{prefix}'", "sample_id": f"{prefix}/IDSEA/0001"}
 
 
 # Public PDF upload for registration documents
