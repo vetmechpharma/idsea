@@ -8,7 +8,7 @@ import HomePage from './pages/public/HomePage';
 import AboutPage from './pages/public/AboutPage';
 import MembersPage from './pages/public/MembersPage';
 import EventsPage from './pages/public/EventsPage';
-import PublicationsPage from './pages/public/PublicationsPage';
+import JournalPage from './pages/public/JournalPage';
 import GalleryPage from './pages/public/GalleryPage';
 import ContactPage from './pages/public/ContactPage';
 import MembershipApplyPage from './pages/public/MembershipApplyPage';
@@ -60,7 +60,8 @@ function App() {
           <Route path="/about" element={<AboutPage />} />
           <Route path="/members" element={<MembersPage />} />
           <Route path="/events" element={<EventsPage />} />
-          <Route path="/publications" element={<PublicationsPage />} />
+          <Route path="/journal" element={<JournalPage />} />
+          <Route path="/publications" element={<JournalPage />} />
           <Route path="/gallery" element={<GalleryPage />} />
           <Route path="/contact" element={<ContactPage />} />
           <Route path="/apply" element={<MembershipApplyPage />} />
