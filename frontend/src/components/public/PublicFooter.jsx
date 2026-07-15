@@ -158,28 +158,25 @@ export default function PublicFooter() {
       {/* ═══ IDSEA Line Art Divider ═══ */}
       <div data-testid="footer-lineart" style={{
         width: '100%',
-        position: 'relative',
+        background: '#0c3c60',
         overflow: 'hidden',
-        height: '100px',
       }}>
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: 'linear-gradient(90deg, transparent 5%, rgba(255,255,255,0.12) 50%, transparent 95%)', zIndex: 1 }} />
-        <img
-          src={`${BACKEND}/api/uploads/idsea_footer_lineart.png`}
-          alt=""
-          style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: '130%',
-            height: 'auto',
-            opacity: 0.25,
-            filter: 'invert(1) brightness(1.5)',
-            pointerEvents: 'none',
-          }}
-          loading="lazy"
-        />
-        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '1px', background: 'linear-gradient(90deg, transparent 5%, rgba(255,255,255,0.12) 50%, transparent 95%)', zIndex: 1 }} />
+        <div style={{ width: '100%', lineHeight: 0 }}>
+          <img
+            src={`${BACKEND}/api/uploads/idsea_footer_banner.png`}
+            alt=""
+            aria-hidden="true"
+            style={{
+              width: '100%',
+              height: '80px',
+              objectFit: 'cover',
+              objectPosition: 'center center',
+              display: 'block',
+              opacity: 0.6,
+            }}
+            loading="lazy"
+          />
+        </div>
       </div>
 
       {/* ═══ Copyright Bar ═══ */}
