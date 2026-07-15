@@ -158,18 +158,15 @@ export default function PublicFooter() {
       {/* ═══ IDSEA Line Art Divider ═══ */}
       <div data-testid="footer-lineart" style={{
         width: '100%',
-        overflow: 'hidden',
         lineHeight: 0,
       }}>
         <img
-          src={`${BACKEND}/api/uploads/idsea_footer_final.png`}
+          src={`${BACKEND}/api/uploads/idsea_footer_final.webp`}
           alt=""
           aria-hidden="true"
           style={{
             width: '100%',
-            height: '90px',
-            objectFit: 'cover',
-            objectPosition: 'center center',
+            height: 'auto',
             display: 'block',
           }}
           loading="lazy"
