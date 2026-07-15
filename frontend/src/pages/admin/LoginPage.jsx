@@ -1,7 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
+import axios from 'axios';
+
+const API = process.env.REACT_APP_BACKEND_URL;
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -10,6 +13,16 @@ export default function LoginPage() {
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [logoUrl, setLogoUrl] = useState('');
+
+  useEffect(() => {
+    axios.get(`${API}/api/public/cms`).then(res => {
+      const url = res.data?.logo_url;
+      if (url) {
+        setLogoUrl(url.startsWith('http') ? url : `${API.replace('/api', '')}${url}`);
+      }
+    }).catch(() => {});
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -58,13 +71,22 @@ export default function LoginPage() {
       }}>
         <div style={{ width: '100%', background: 'white', borderRadius: '20px', padding: '40px', boxShadow: '0 24px 64px rgba(0,0,0,0.2)' }}>
           <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-            <div style={{
-              width: '60px', height: '60px', borderRadius: '16px', background: '#0c3c60',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              margin: '0 auto 16px', boxShadow: '0 8px 24px rgba(12,60,96,0.3)'
-            }}>
-              <span style={{ color: 'white', fontWeight: 800, fontSize: '20px', fontFamily: 'Poppins, sans-serif' }}>ID</span>
-            </div>
+            {logoUrl ? (
+              <img
+                src={logoUrl}
+                alt="IDSEA"
+                data-testid="login-logo"
+                style={{ width: '80px', height: '80px', objectFit: 'contain', margin: '0 auto 16px', display: 'block' }}
+              />
+            ) : (
+              <div style={{
+                width: '60px', height: '60px', borderRadius: '16px', background: '#0c3c60',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                margin: '0 auto 16px', boxShadow: '0 8px 24px rgba(12,60,96,0.3)'
+              }}>
+                <span style={{ color: 'white', fontWeight: 800, fontSize: '20px', fontFamily: 'Poppins, sans-serif' }}>ID</span>
+              </div>
+            )}
             <h1 style={{ fontFamily: 'Poppins, sans-serif', fontSize: '22px', fontWeight: 700, color: '#0c3c60', margin: '0 0 6px' }}>Admin Login</h1>
             <p style={{ color: '#6b7280', fontSize: '13px', margin: 0 }}>Sign in to IDSEA administration panel</p>
           </div>
@@ -142,10 +164,20 @@ export default function LoginPage() {
 
           <div style={{ textAlign: 'center', marginTop: '24px' }}>
             <a href="/" style={{ color: '#0c3c60', fontSize: '13px', textDecoration: 'none', fontFamily: 'Inter, sans-serif' }}>
-              ← Back to public website
+              &larr; Back to public website
             </a>
           </div>
         </div>
+      </div>
+
+      {/* Footer */}
+      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,0.25)', padding: '12px 24px', textAlign: 'center', backdropFilter: 'blur(8px)' }}>
+        <p style={{ margin: '0 0 4px', fontSize: '11px', color: 'rgba(255,255,255,0.45)', fontFamily: 'Inter, sans-serif' }}>
+          &copy; {new Date().getFullYear()} Indian Dairy Scientists and Entrepreneurs Association (IDSEA). All rights reserved.
+        </p>
+        <p style={{ margin: 0, fontSize: '10px', color: 'rgba(255,255,255,0.3)', fontFamily: 'Inter, sans-serif' }}>
+          Developed by <strong style={{ color: 'rgba(255,255,255,0.5)', fontWeight: 700 }}>ANIMitra Softwares</strong> &mdash; <strong style={{ color: 'rgba(255,255,255,0.5)', fontWeight: 700 }}>Engineering the Future of Animal Health</strong>
+        </p>
       </div>
     </div>
   );
