@@ -4300,6 +4300,197 @@ async def whatsapp_webhook(data: dict):
 
 
 
+# =================== BACKUP, RESTORE & FACTORY RESET ===================
+
+import zipfile
+import shutil
+import tempfile
+import json as json_lib
+from bson import json_util
+
+
+@api_router.get("/admin/backup/database")
+async def admin_backup_database(admin=Depends(get_current_admin)):
+    """Download full MongoDB database as JSON ZIP"""
+    collections = ["admins", "members", "events", "event_details", "event_registrations",
+                    "executive_committee", "cms_settings", "page_contents", "news", "gallery_albums",
+                    "publications", "payments", "payment_settings", "email_templates", "email_logs",
+                    "email_queue", "smtp_settings", "certificate_records", "certificate_templates",
+                    "whatsapp_settings", "whatsapp_campaigns", "slider_settings", "membership_plans"]
+
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
+    with zipfile.ZipFile(tmp.name, 'w', zipfile.ZIP_DEFLATED) as zf:
+        for coll_name in collections:
+            try:
+                docs = await db[coll_name].find({}).to_list(100000)
+                json_str = json_util.dumps(docs, indent=2)
+                zf.writestr(f"{coll_name}.json", json_str)
+            except Exception:
+                pass
+        zf.writestr("_backup_info.json", json_lib.dumps({
+            "backup_date": now_iso(),
+            "backup_by": admin["email"],
+            "db_name": db.name,
+            "collections": collections
+        }, indent=2))
+
+    return FileResponse(tmp.name, media_type="application/zip",
+                        filename=f"idsea_db_backup_{datetime.now().strftime('%Y%m%d_%H%M')}.zip")
+
+
+@api_router.get("/admin/backup/uploads")
+async def admin_backup_uploads(admin=Depends(get_current_admin)):
+    """Download all uploaded files as ZIP"""
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
+    with zipfile.ZipFile(tmp.name, 'w', zipfile.ZIP_DEFLATED) as zf:
+        upload_path = UPLOAD_DIR
+        if upload_path.exists():
+            for file_path in upload_path.rglob("*"):
+                if file_path.is_file():
+                    arcname = str(file_path.relative_to(upload_path))
+                    zf.write(str(file_path), arcname)
+        zf.writestr("_backup_info.json", json_lib.dumps({
+            "backup_date": now_iso(),
+            "backup_by": admin["email"],
+            "uploads_path": str(upload_path),
+            "file_count": sum(1 for f in upload_path.rglob("*") if f.is_file()) if upload_path.exists() else 0
+        }, indent=2))
+
+    return FileResponse(tmp.name, media_type="application/zip",
+                        filename=f"idsea_uploads_backup_{datetime.now().strftime('%Y%m%d_%H%M')}.zip")
+
+
+@api_router.get("/admin/backup/info")
+async def admin_backup_info(admin=Depends(get_current_admin)):
+    """Get backup info — file counts, DB stats, restore paths"""
+    collections_info = {}
+    for coll_name in ["admins", "members", "events", "event_details", "event_registrations",
+                       "executive_committee", "cms_settings", "page_contents", "news", "gallery_albums",
+                       "publications", "payments", "email_templates", "email_logs", "certificate_records"]:
+        try:
+            count = await db[coll_name].count_documents({})
+            collections_info[coll_name] = count
+        except Exception:
+            collections_info[coll_name] = 0
+
+    upload_count = sum(1 for f in UPLOAD_DIR.rglob("*") if f.is_file()) if UPLOAD_DIR.exists() else 0
+    upload_size_mb = round(sum(f.stat().st_size for f in UPLOAD_DIR.rglob("*") if f.is_file()) / (1024*1024), 2) if UPLOAD_DIR.exists() else 0
+
+    return {
+        "database": {
+            "name": db.name,
+            "collections": collections_info,
+            "total_documents": sum(collections_info.values()),
+        },
+        "uploads": {
+            "path": str(UPLOAD_DIR),
+            "restore_path": "/var/www/idsea/backend/uploads/",
+            "file_count": upload_count,
+            "size_mb": upload_size_mb,
+        },
+        "restore_instructions": {
+            "database": "Upload the database backup ZIP. Each JSON file inside will replace the corresponding MongoDB collection.",
+            "uploads": "Upload the uploads backup ZIP. Files will be extracted to the uploads directory, restoring all images and documents.",
+        }
+    }
+
+
+@api_router.post("/admin/restore/database")
+async def admin_restore_database(file: UploadFile = File(...), admin=Depends(get_current_admin)):
+    """Restore MongoDB database from backup ZIP"""
+    if not file.filename.endswith('.zip'):
+        raise HTTPException(status_code=400, detail="Only ZIP files accepted")
+
+    tmp_path = f"/tmp/idsea_restore_{uuid.uuid4().hex}.zip"
+    with open(tmp_path, 'wb') as f:
+        content = await file.read()
+        f.write(content)
+
+    restored = []
+    try:
+        with zipfile.ZipFile(tmp_path, 'r') as zf:
+            for name in zf.namelist():
+                if name.startswith('_') or not name.endswith('.json'):
+                    continue
+                coll_name = name.replace('.json', '')
+                json_str = zf.read(name).decode('utf-8')
+                docs = json_util.loads(json_str)
+                if docs:
+                    await db[coll_name].delete_many({})
+                    await db[coll_name].insert_many(docs)
+                    restored.append(f"{coll_name}: {len(docs)} documents")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Restore failed: {str(e)}")
+    finally:
+        os.remove(tmp_path)
+
+    return {"message": "Database restored successfully", "restored": restored}
+
+
+@api_router.post("/admin/restore/uploads")
+async def admin_restore_uploads(file: UploadFile = File(...), admin=Depends(get_current_admin)):
+    """Restore uploads folder from backup ZIP"""
+    if not file.filename.endswith('.zip'):
+        raise HTTPException(status_code=400, detail="Only ZIP files accepted")
+
+    tmp_path = f"/tmp/idsea_uploads_restore_{uuid.uuid4().hex}.zip"
+    with open(tmp_path, 'wb') as f:
+        content = await file.read()
+        f.write(content)
+
+    file_count = 0
+    try:
+        with zipfile.ZipFile(tmp_path, 'r') as zf:
+            for name in zf.namelist():
+                if name.startswith('_'):
+                    continue
+                target = UPLOAD_DIR / name
+                target.parent.mkdir(parents=True, exist_ok=True)
+                with zf.open(name) as src, open(target, 'wb') as dst:
+                    dst.write(src.read())
+                file_count += 1
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Restore failed: {str(e)}")
+    finally:
+        os.remove(tmp_path)
+
+    return {"message": f"Uploads restored: {file_count} files", "count": file_count, "path": str(UPLOAD_DIR)}
+
+
+@api_router.post("/admin/factory-reset")
+async def admin_factory_reset(data: dict, admin=Depends(get_current_admin)):
+    """Factory reset — delete ALL data. Requires confirmation code."""
+    if data.get("confirm") != "DELETE_ALL_DATA":
+        raise HTTPException(status_code=400, detail="Send {\"confirm\": \"DELETE_ALL_DATA\"} to confirm")
+
+    keep_admin = data.get("keep_admin", True)
+    collections_cleared = []
+
+    all_collections = ["members", "events", "event_details", "event_registrations",
+                       "executive_committee", "cms_settings", "page_contents", "news", "gallery_albums",
+                       "publications", "payments", "payment_settings", "email_templates", "email_logs",
+                       "email_queue", "smtp_settings", "certificate_records", "certificate_templates",
+                       "whatsapp_settings", "whatsapp_campaigns", "slider_settings", "membership_plans"]
+
+    for coll_name in all_collections:
+        result = await db[coll_name].delete_many({})
+        collections_cleared.append(f"{coll_name}: {result.deleted_count}")
+
+    if not keep_admin:
+        await db.admins.delete_many({})
+        collections_cleared.append("admins: all deleted")
+
+    # Clear uploads folder
+    if data.get("clear_uploads", False):
+        if UPLOAD_DIR.exists():
+            for f in UPLOAD_DIR.iterdir():
+                if f.is_file() and f.name != 'idsea_logo.png':
+                    f.unlink()
+            collections_cleared.append("uploads: files cleared (kept logo)")
+
+    return {"message": "Factory reset complete. Restart backend to re-seed defaults.", "cleared": collections_cleared}
+
+
 # =================== APP SETUP ===================
 
 app.include_router(api_router)
@@ -4334,123 +4525,7 @@ async def startup_event():
         ).model_dump())
         logger.info("Default admin created: admin@idsea.org / Admin@123")
 
-    # Migrate: if old executive data exists without category field, clear and re-seed
-    old_exec = await db.executive_committee.find_one({"category": {"$exists": False}})
-    if old_exec:
-        await db.executive_committee.delete_many({})
-        logger.info("Cleared old executive data for migration")
-
-    # Seed all founders & EC members as approved members + executive entries
-    if await db.executive_committee.count_documents({}) == 0:
-        # All people who need to be members first
-        seed_people = [
-            # Founders / Officers
-            {"name": "Dr. A. Elango", "qualification": "Ph.D.", "membership_type": "academic", "organization": "Veterinary College and Research Institute, Salem - 636112", "state": "Tamil Nadu"},
-            {"name": "Dr. G. Kumaresan", "qualification": "Ph.D.", "membership_type": "academic", "organization": "Dept. of Livestock Products Technology (Dairy Science), VCRI, Namakkal - 637002", "state": "Tamil Nadu"},
-            {"name": "Dr. N. Karthikeyan", "qualification": "Ph.D.", "membership_type": "academic", "organization": "Dept. of Livestock Products Technology (Dairy Science), VCRI, Namakkal - 637002", "state": "Tamil Nadu"},
-            {"name": "Dr. C. Pandiyan", "qualification": "Ph.D.", "membership_type": "academic", "organization": "Dept. of Livestock Products Technology (Dairy Science), VCRI, Namakkal - 637002", "state": "Tamil Nadu"},
-            {"name": "Dr. C. R. Prasanna", "qualification": "IAS", "membership_type": "corporate", "organization": "Indian Administrative Service (IAS), Government of India", "state": "Tamil Nadu"},
-            {"name": "Dr. L. Vijay", "qualification": "M.V.Sc.", "membership_type": "academic", "organization": "Dept. of Animal Husbandry, Government of Tamil Nadu", "state": "Tamil Nadu"},
-            # EC Members
-            {"name": "Dr. R. Subash", "qualification": "Ph.D.", "membership_type": "academic", "organization": "Bargur Cattle Research Station, Anthiyur Taluk, Erode District - 638501", "state": "Tamil Nadu"},
-            {"name": "Dr. T. Lokesh", "qualification": "B.V.Sc. & A.H.", "membership_type": "academic", "organization": "Tirupur District Co-operative Milk Producers Union Ltd., Tirupur", "state": "Tamil Nadu"},
-            {"name": "Dr. K. Prabu", "qualification": "M.V.Sc.", "membership_type": "academic", "organization": "Dept. of Animal Husbandry, Government of Tamil Nadu", "state": "Tamil Nadu"},
-            {"name": "Dr. B. R. Kadam", "qualification": "Ph.D.", "membership_type": "academic", "organization": "Dept. of Livestock Products Technology, KNP College of Veterinary Science, MAFSU, Shirwal, Satara District, Maharashtra", "state": "Maharashtra"},
-            {"name": "Dr. Neha Thakur", "qualification": "Ph.D.", "membership_type": "academic", "organization": "Dept. of Livestock Products Technology, College of Veterinary Science, LUVASU, Hisar, Haryana - 125004", "state": "Haryana"},
-            {"name": "Dr. Anindita Mali", "qualification": "M.V.Sc.", "membership_type": "academic", "organization": "Assam Animal Husbandry and Veterinary Department, Government of Assam", "state": "Assam"},
-            {"name": "Dr. A. R. Praveen", "qualification": "Ph.D.", "membership_type": "academic", "organization": "Dept. of Dairy Technology, Dairy Science College, KVAFSU, Hebbal, Bengaluru - 560024", "state": "Karnataka"},
-            {"name": "Mr. D. Senthil Kumar", "qualification": "", "membership_type": "entrepreneur", "organization": "Refindia Enterprises Pvt. Ltd, Namakkal", "state": "Tamil Nadu"},
-            {"name": "Mr. C. Balakrishnan", "qualification": "", "membership_type": "entrepreneur", "organization": "Krishna Food Products, Rasipuram, Namakkal", "state": "Tamil Nadu"},
-            {"name": "Mrs. A. Archana Karthikeyan", "qualification": "", "membership_type": "entrepreneur", "organization": "Thaai Herbals, Karur", "state": "Tamil Nadu"},
-            {"name": "Mr. K. M. Sajeeshkumar", "qualification": "", "membership_type": "entrepreneur", "organization": "Elanadu Milk Pvt. Ltd., Elanadu - Vaniyampara MLA Rd, Kerala - 680586", "state": "Kerala"},
-            {"name": "Mr. M. Karthikeyan", "qualification": "", "membership_type": "entrepreneur", "organization": "Healthy Day Milk Products, Sulur, Coimbatore", "state": "Tamil Nadu"},
-            {"name": "Mr. Pradeep Ponnusamy", "qualification": "", "membership_type": "entrepreneur", "organization": "Anyra Foods, 1/40, Komara Gaundan Palayam, Sokkanur (Po), Kunnathur - 638103, Tirupur District", "state": "Tamil Nadu"},
-            {"name": "Mr. M. Saravanan", "qualification": "", "membership_type": "entrepreneur", "organization": "STM Control Tech, 156, Sangeeth Nagar, 3rd street, Koodal Nagar, Madurai", "state": "Tamil Nadu"},
-        ]
-
-        # Create all as approved members if they don't exist
-        member_ids = {}
-        for i, person in enumerate(seed_people):
-            existing = await db.members.find_one({"name": person["name"]})
-            if existing:
-                member_ids[person["name"]] = existing["id"]
-            else:
-                m = Member(
-                    name=person["name"],
-                    qualification=person.get("qualification", ""),
-                    organization=person["organization"],
-                    email="",
-                    membership_type=person["membership_type"],
-                    status="approved",
-                    state=person.get("state", ""),
-                    membership_id=f"IDSEA-{str(i+1).zfill(4)}",
-                )
-                await db.members.insert_one(m.model_dump())
-                member_ids[person["name"]] = m.id
-
-        # Seed Founders
-        founders = [
-            {"name": "Dr. A. Elango", "designation": "Patron / Founder", "affiliation": "Dean, Veterinary College and Research Institute, Salem - 636112", "order": 1},
-            {"name": "Dr. G. Kumaresan", "designation": "Patron / Founder", "affiliation": "Professor and Head, Department of Livestock Products Technology (Dairy Science), VCRI, Namakkal - 637002", "order": 2},
-            {"name": "Dr. N. Karthikeyan", "designation": "Patron / Founder", "affiliation": "Professor, Department of Livestock Products Technology (Dairy Science), VCRI, Namakkal - 637002", "order": 3},
-            {"name": "Dr. C. Pandiyan", "designation": "Patron / Founder", "affiliation": "Professor, Department of Livestock Products Technology (Dairy Science), VCRI, Namakkal - 637002", "order": 4},
-            {"name": "Dr. C. R. Prasanna", "designation": "Patron / Founder", "affiliation": "Indian Administrative Service (IAS), Government of India", "order": 5},
-            {"name": "Dr. L. Vijay", "designation": "Patron / Founder", "affiliation": "Veterinary Assistant Surgeon, Department of Animal Husbandry, Government of Tamil Nadu", "order": 6},
-        ]
-        for f in founders:
-            await db.executive_committee.insert_one(ExecutiveCommittee(
-                member_id=member_ids.get(f["name"], ""),
-                name=f["name"], designation=f["designation"], affiliation=f["affiliation"],
-                category="founder", order=f["order"]
-            ).model_dump())
-
-        # Seed Executive Council
-        council = [
-            {"name": "Dr. A. Elango", "designation": "President", "affiliation": "Dean, Veterinary College and Research Institute, Salem - 636112", "order": 1},
-            {"name": "Dr. G. Kumaresan", "designation": "Vice President", "affiliation": "Professor and Head, Department of Livestock Products Technology (Dairy Science), VCRI, Namakkal - 637002", "order": 2},
-            {"name": "Dr. N. Karthikeyan", "designation": "General Secretary", "affiliation": "Professor, Department of Livestock Products Technology (Dairy Science), VCRI, Namakkal - 637002", "order": 3},
-            {"name": "Dr. C. Pandiyan", "designation": "Joint Secretary", "affiliation": "Professor, Department of Livestock Products Technology (Dairy Science), VCRI, Namakkal - 637002", "order": 4},
-            {"name": "Dr. L. Vijay", "designation": "Treasurer", "affiliation": "Veterinary Assistant Surgeon, Department of Animal Husbandry, Government of Tamil Nadu", "order": 5},
-            {"name": "Dr. R. Subash", "designation": "EC Member", "affiliation": "Assistant Professor, Bargur Cattle Research Station, Anthiyur Taluk, Erode District - 638501", "order": 6},
-            {"name": "Dr. T. Lokesh", "designation": "EC Member", "affiliation": "Veterinary Consultant, Tirupur District Co-operative Milk Producers Union Ltd., Tirupur", "order": 7},
-            {"name": "Dr. K. Prabu", "designation": "EC Member", "affiliation": "Veterinary Assistant Surgeon, Department of Animal Husbandry, Government of Tamil Nadu", "order": 8},
-            {"name": "Dr. B. R. Kadam", "designation": "EC Member", "affiliation": "Professor and Head, Department of Livestock Products Technology, KNP College of Veterinary Science, MAFSU, Shirwal, Satara District, Maharashtra", "order": 9},
-            {"name": "Dr. Neha Thakur", "designation": "EC Member", "affiliation": "Assistant Professor, Department of Livestock Products Technology, College of Veterinary Science, LUVASU, Hisar, Haryana - 125004", "order": 10},
-            {"name": "Dr. Anindita Mali", "designation": "EC Member", "affiliation": "Veterinary Officer, Assam Animal Husbandry and Veterinary Department, Government of Assam", "order": 11},
-            {"name": "Dr. A. R. Praveen", "designation": "EC Member", "affiliation": "Assistant Professor, Department of Dairy Technology, Dairy Science College, KVAFSU, Hebbal, Bengaluru - 560024", "order": 12},
-            {"name": "Mr. D. Senthil Kumar", "designation": "EC Member", "affiliation": "Refindia Enterprises Pvt. Ltd, Namakkal", "order": 13},
-            {"name": "Mr. C. Balakrishnan", "designation": "EC Member", "affiliation": "Krishna Food Products, Rasipuram, Namakkal", "order": 14},
-            {"name": "Mrs. A. Archana Karthikeyan", "designation": "EC Member", "affiliation": "Thaai Herbals, Karur", "order": 15},
-            {"name": "Mr. K. M. Sajeeshkumar", "designation": "EC Member", "affiliation": "Managing Director, Elanadu Milk Pvt. Ltd., Elanadu - Vaniyampara MLA Rd, Kerala - 680586", "order": 16},
-            {"name": "Mr. M. Karthikeyan", "designation": "EC Member", "affiliation": "Healthy Day Milk Products, Sulur, Coimbatore", "order": 17},
-            {"name": "Mr. Pradeep Ponnusamy", "designation": "EC Member", "affiliation": "Anyra Foods, 1/40, Komara Gaundan Palayam, Sokkanur (Po), Kunnathur - 638103, Tirupur District", "order": 18},
-            {"name": "Mr. M. Saravanan", "designation": "EC Member", "affiliation": "STM Control Tech, 156, Sangeeth Nagar, 3rd street, Koodal Nagar, Madurai", "order": 19},
-        ]
-        for c in council:
-            await db.executive_committee.insert_one(ExecutiveCommittee(
-                member_id=member_ids.get(c["name"], ""),
-                name=c["name"], designation=c["designation"], affiliation=c["affiliation"],
-                category="council", order=c["order"]
-            ).model_dump())
-        logger.info("Seeded %d founders and %d council members", len(founders), len(council))
-
-    if await db.cms_settings.count_documents({}) == 0:
-        await db.cms_settings.insert_one({
-            "website_name": "IDSEA",
-            "logo_url": "/api/uploads/idsea_logo.png",
-            "hero_title": "Indian Dairy Scientists and Entrepreneurs Association",
-            "hero_subtitle": "Bridging Dairy Science, Innovation & Entrepreneurship for Sustainable Growth",
-            "about_content": "IDSEA is a national professional and scientific body established to bridge the gap between dairy scientists and dairy entrepreneurs. We bring together dairy scientists, academicians, technologists, entrepreneurs, industry experts, startups, cooperatives, corporate bodies, and students under one umbrella.",
-            "vision": "To be a premier national and international platform integrating dairy science, innovation, and entrepreneurship for the sustainable growth of the Indian dairy sector.",
-            "mission": "To promote advancement and dissemination of knowledge in dairy science, facilitate academia-industry-startup collaboration, and support dairy entrepreneurs through knowledge sharing and capacity building.",
-            "contact_email": "info@idsea.org",
-            "contact_phone": "+91 98765 43210",
-            "contact_address": "Dept. of Livestock Products Technology (Dairy Science), VCRI, Namakkal - 637002, Tamil Nadu, India",
-            "facebook_url": "", "twitter_url": "", "linkedin_url": "",
-            "updated_at": now_iso()
-        })
-
-    # Seed default page contents
+    # Seed default CMS page contents (needed for site to render)
     default_pages = {
         "home": {
             "about_title": "About IDSEA",
