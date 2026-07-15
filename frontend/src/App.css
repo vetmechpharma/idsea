@@ -488,3 +488,14 @@ h1, h2, h3, h4, h5, h6 {
   .hero-slide-subtitle { font-size: 13px; margin-bottom: 16px; }
 }
 
+
+
+/* Event Detail Page responsive */
+.event-venue-grid { display: grid; gap: 28px; align-items: center; }
+.event-venue-grid.has-map { grid-template-columns: 1fr 1fr; }
+@media (max-width: 768px) {
+  .event-venue-grid.has-map { grid-template-columns: 1fr; }
+  .event-venue-grid .venue-text { text-align: center; }
+  .event-venue-grid .venue-text .venue-actions { justify-content: center; }
+  .event-venue-grid .venue-text .venue-qr { display: flex; justify-content: center; }
+}
