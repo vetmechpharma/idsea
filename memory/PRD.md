@@ -41,7 +41,8 @@ Build a full-stack website for IDSEA containing a public-facing site and compreh
 - **Nearby Sightseeing** cards with images and distances
 - **Travel info** (How to Reach, Weather) with styled info cards
 - **Registration fee table** with member/non-member/student/international columns
-- **Awards, Sponsorship packages, Contact persons** sections
+- **Awards as medal badges with ribbons** (gold, silver, bronze, purple, green, blue) - July 15, 2026
+- **Sponsorship packages with colored header cards** showing all tiers with benefits - July 15, 2026
 - **Register CTA** at bottom
 - **Mobile responsive** with proper grid stacking
 - **Admin EventDetailEditor** with member linking, photo upload, color picker for dates, map URL fields
@@ -88,9 +89,3 @@ Build a full-stack website for IDSEA containing a public-facing site and compreh
 - Razorpay (Payments) — Requires User API Key
 - SMTP (Email) — Requires User Credentials
 - AK Nexus WhatsApp API v2 — Requires User API Key
-
-## Known Technical Notes
-- Header Registration Number fetches from `page-content/about` → `cert_reg_number`
-- Event PDFs are temporary; records saved to certificate_records, PDF buffer returned and discarded
-- Backend event_details endpoint uses flexible dict storage with upsert
-- QR code for venue uses external API: `https://api.qrserver.com/v1/create-qr-code/`
