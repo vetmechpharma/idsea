@@ -158,25 +158,23 @@ export default function PublicFooter() {
       {/* ═══ IDSEA Line Art Divider ═══ */}
       <div data-testid="footer-lineart" style={{
         width: '100%',
-        background: '#0c3c60',
         overflow: 'hidden',
+        lineHeight: 0,
       }}>
-        <div style={{ width: '100%', lineHeight: 0 }}>
-          <img
-            src={`${BACKEND}/api/uploads/idsea_footer_banner.png`}
-            alt=""
-            aria-hidden="true"
-            style={{
-              width: '100%',
-              height: '80px',
-              objectFit: 'cover',
-              objectPosition: 'center center',
-              display: 'block',
-              opacity: 0.6,
-            }}
-            loading="lazy"
-          />
-        </div>
+        <img
+          src={`${BACKEND}/api/uploads/idsea_footer_art.png`}
+          alt=""
+          aria-hidden="true"
+          style={{
+            width: '100%',
+            height: '90px',
+            objectFit: 'cover',
+            objectPosition: 'center center',
+            display: 'block',
+            opacity: 0.35,
+          }}
+          loading="lazy"
+        />
       </div>
 
       {/* ═══ Copyright Bar ═══ */}
