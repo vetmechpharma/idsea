@@ -696,6 +696,93 @@ DEFAULT_EMAIL_TEMPLATES = {
   </div>
 </div>"""
     },
+    "membership_rejected": {
+        "name": "Membership Rejected",
+        "subject": "IDSEA - Membership Application Update",
+        "description": "Sent when membership application is rejected",
+        "variables": ["member_name", "email", "membership_type", "rejection_reason"],
+        "body": """<div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
+  <div style="background: #0c3c60; padding: 32px 24px; text-align: center;">
+    <h1 style="color: white; margin: 0; font-size: 22px; font-weight: 700;">IDSEA</h1>
+    <p style="color: rgba(255,255,255,0.8); margin: 6px 0 0; font-size: 12px;">Indian Dairy Scientists and Entrepreneurs Association</p>
+  </div>
+  <div style="padding: 36px 28px;">
+    <h2 style="color: #dc2626; font-size: 20px; margin: 0 0 12px;">Application Update</h2>
+    <p style="color: #4b5563; font-size: 14px; line-height: 1.7;">Dear <strong>{{member_name}}</strong>,</p>
+    <p style="color: #4b5563; font-size: 14px; line-height: 1.7;">We regret to inform you that your membership application for <strong>{{membership_type}}</strong> category could not be approved at this time.</p>
+    <div style="background: #fef2f2; border-radius: 10px; padding: 20px; margin: 24px 0; border-left: 4px solid #dc2626;">
+      <p style="color: #991b1b; font-size: 13px; margin: 0;"><strong>Reason:</strong> {{rejection_reason}}</p>
+    </div>
+    <p style="color: #4b5563; font-size: 14px; line-height: 1.7;">You may reapply after addressing the above concerns. For queries, please contact us.</p>
+    <p style="color: #4b5563; font-size: 14px; line-height: 1.7;">Regards,<br><strong style="color: #0c3c60;">IDSEA Team</strong></p>
+  </div>
+  <div style="background: #f8fafc; padding: 20px 28px; text-align: center; border-top: 1px solid #e5e7eb;">
+    <p style="color: #9ca3af; font-size: 11px; margin: 0;">Indian Dairy Scientists and Entrepreneurs Association (IDSEA)</p>
+  </div>
+</div>"""
+    },
+    "event_registration_confirmed": {
+        "name": "Event Registration Confirmed",
+        "subject": "IDSEA - Registration Confirmed for {{event_title}}",
+        "description": "Sent when someone successfully registers for an event",
+        "variables": ["participant_name", "participant_email", "event_title", "event_date", "event_venue", "registration_id", "registration_type", "amount_paid"],
+        "body": """<div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
+  <div style="background: #0c3c60; padding: 32px 24px; text-align: center;">
+    <h1 style="color: white; margin: 0; font-size: 22px; font-weight: 700;">IDSEA</h1>
+    <p style="color: rgba(255,255,255,0.8); margin: 6px 0 0; font-size: 12px;">Indian Dairy Scientists and Entrepreneurs Association</p>
+  </div>
+  <div style="padding: 36px 28px;">
+    <div style="text-align: center; margin-bottom: 24px;">
+      <div style="width: 64px; height: 64px; background: #d1fae5; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 28px;">&#10003;</div>
+    </div>
+    <h2 style="color: #1e7a4d; font-size: 20px; margin: 0 0 12px; text-align: center;">Registration Confirmed!</h2>
+    <p style="color: #4b5563; font-size: 14px; line-height: 1.7;">Dear <strong>{{participant_name}}</strong>,</p>
+    <p style="color: #4b5563; font-size: 14px; line-height: 1.7;">Your registration for the following event has been confirmed:</p>
+    <div style="background: #f0f9ff; border-radius: 10px; padding: 20px; margin: 20px 0; border-left: 4px solid #0c3c60;">
+      <h3 style="color: #0c3c60; margin: 0 0 14px; font-size: 17px;">{{event_title}}</h3>
+      <table style="width: 100%; font-size: 13px; color: #374151;">
+        <tr><td style="padding: 6px 0; color: #6b7280; width: 40%;">Registration ID</td><td style="padding: 6px 0; font-weight: 600;">{{registration_id}}</td></tr>
+        <tr><td style="padding: 6px 0; color: #6b7280;">Date</td><td style="padding: 6px 0;">{{event_date}}</td></tr>
+        <tr><td style="padding: 6px 0; color: #6b7280;">Venue</td><td style="padding: 6px 0;">{{event_venue}}</td></tr>
+        <tr><td style="padding: 6px 0; color: #6b7280;">Category</td><td style="padding: 6px 0;">{{registration_type}}</td></tr>
+        <tr><td style="padding: 6px 0; color: #6b7280;">Amount Paid</td><td style="padding: 6px 0; font-weight: 600; color: #1e7a4d;">{{amount_paid}}</td></tr>
+      </table>
+    </div>
+    <p style="color: #4b5563; font-size: 14px; line-height: 1.7;">Please save this email for your records. We look forward to seeing you!</p>
+    <p style="color: #4b5563; font-size: 14px; line-height: 1.7;">Warm regards,<br><strong style="color: #0c3c60;">IDSEA Team</strong></p>
+  </div>
+  <div style="background: #f8fafc; padding: 20px 28px; text-align: center; border-top: 1px solid #e5e7eb;">
+    <p style="color: #9ca3af; font-size: 11px; margin: 0;">Indian Dairy Scientists and Entrepreneurs Association (IDSEA)</p>
+  </div>
+</div>"""
+    },
+    "certificate_issued": {
+        "name": "Certificate Issued",
+        "subject": "IDSEA - Your Certificate is Ready",
+        "description": "Sent when a certificate is generated and available for download",
+        "variables": ["member_name", "certificate_type", "event_title", "certificate_id", "verify_url"],
+        "body": """<div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
+  <div style="background: #0c3c60; padding: 32px 24px; text-align: center;">
+    <h1 style="color: white; margin: 0; font-size: 22px; font-weight: 700;">IDSEA</h1>
+    <p style="color: rgba(255,255,255,0.8); margin: 6px 0 0; font-size: 12px;">Indian Dairy Scientists and Entrepreneurs Association</p>
+  </div>
+  <div style="padding: 36px 28px;">
+    <h2 style="color: #0c3c60; font-size: 20px; margin: 0 0 12px;">Certificate Issued</h2>
+    <p style="color: #4b5563; font-size: 14px; line-height: 1.7;">Dear <strong>{{member_name}}</strong>,</p>
+    <p style="color: #4b5563; font-size: 14px; line-height: 1.7;">Your <strong>{{certificate_type}}</strong> certificate has been issued.</p>
+    <div style="background: #f0fdf4; border-radius: 10px; padding: 24px; margin: 24px 0; text-align: center; border: 1px solid #bbf7d0;">
+      <p style="color: #6b7280; font-size: 12px; margin: 0 0 6px;">Certificate ID</p>
+      <p style="color: #0c3c60; font-size: 22px; font-weight: 800; margin: 0; letter-spacing: 1px;">{{certificate_id}}</p>
+      <p style="color: #6b7280; font-size: 12px; margin: 10px 0 0;">{{event_title}}</p>
+    </div>
+    <p style="color: #4b5563; font-size: 14px; line-height: 1.7;">You can verify your certificate online at: <a href="{{verify_url}}" style="color: #2563eb;">{{verify_url}}</a></p>
+    <p style="color: #4b5563; font-size: 14px; line-height: 1.7;">Warm regards,<br><strong style="color: #0c3c60;">IDSEA Team</strong></p>
+  </div>
+  <div style="background: #f8fafc; padding: 20px 28px; text-align: center; border-top: 1px solid #e5e7eb;">
+    <p style="color: #9ca3af; font-size: 11px; margin: 0;">Indian Dairy Scientists and Entrepreneurs Association (IDSEA)</p>
+  </div>
+</div>"""
+    },
 }
 
 
@@ -3275,17 +3362,24 @@ async def test_smtp_settings(admin=Depends(get_current_admin)):
 
 @api_router.get("/admin/email-templates")
 async def admin_get_email_templates(admin=Depends(get_current_admin)):
-    templates = await db.email_templates.find({}, {"_id": 0}).to_list(20)
-    # Merge with defaults for any missing templates
+    templates = await db.email_templates.find({}, {"_id": 0}).to_list(50)
     existing_keys = {t["key"] for t in templates}
+    # Merge with defaults for any missing templates
     for key, default in DEFAULT_EMAIL_TEMPLATES.items():
         if key not in existing_keys:
-            templates.append({"key": key, **default, "is_default": True})
+            templates.append({"key": key, **default, "is_default": True, "is_custom": False})
         else:
             for t in templates:
                 if t["key"] == key:
-                    t["is_default"] = False
-    return sorted(templates, key=lambda t: list(DEFAULT_EMAIL_TEMPLATES.keys()).index(t["key"]) if t["key"] in DEFAULT_EMAIL_TEMPLATES else 99)
+                    t["is_default"] = t.get("updated_at") is None
+                    t["is_custom"] = False
+    # Mark custom templates
+    for t in templates:
+        if t["key"] not in DEFAULT_EMAIL_TEMPLATES:
+            t["is_custom"] = True
+            t["is_default"] = False
+    default_keys = list(DEFAULT_EMAIL_TEMPLATES.keys())
+    return sorted(templates, key=lambda t: default_keys.index(t["key"]) if t["key"] in DEFAULT_EMAIL_TEMPLATES else 99)
 
 
 @api_router.get("/admin/email-templates/{template_key}")
@@ -3302,18 +3396,31 @@ async def admin_get_email_template(template_key: str, admin=Depends(get_current_
 
 @api_router.put("/admin/email-templates/{template_key}")
 async def admin_update_email_template(template_key: str, data: dict, admin=Depends(get_current_admin)):
-    if template_key not in DEFAULT_EMAIL_TEMPLATES:
-        raise HTTPException(status_code=400, detail="Unknown template key")
-    update = {
-        "key": template_key,
-        "name": data.get("name", DEFAULT_EMAIL_TEMPLATES[template_key]["name"]),
-        "subject": data.get("subject", ""),
-        "body": data.get("body", ""),
-        "description": data.get("description", ""),
-        "variables": DEFAULT_EMAIL_TEMPLATES[template_key]["variables"],
-        "updated_at": now_iso(),
-        "updated_by": admin["email"]
-    }
+    is_default = template_key in DEFAULT_EMAIL_TEMPLATES
+    if is_default:
+        update = {
+            "key": template_key,
+            "name": data.get("name", DEFAULT_EMAIL_TEMPLATES[template_key]["name"]),
+            "subject": data.get("subject", ""),
+            "body": data.get("body", ""),
+            "description": data.get("description", ""),
+            "variables": data.get("variables", DEFAULT_EMAIL_TEMPLATES[template_key]["variables"]),
+            "updated_at": now_iso(),
+            "updated_by": admin["email"]
+        }
+    else:
+        existing = await db.email_templates.find_one({"key": template_key})
+        if not existing:
+            raise HTTPException(status_code=404, detail="Template not found")
+        update = {
+            "name": data.get("name", existing.get("name", "")),
+            "subject": data.get("subject", ""),
+            "body": data.get("body", ""),
+            "description": data.get("description", ""),
+            "variables": data.get("variables", existing.get("variables", [])),
+            "updated_at": now_iso(),
+            "updated_by": admin["email"]
+        }
     await db.email_templates.update_one({"key": template_key}, {"$set": update}, upsert=True)
     return {"message": f"Template '{template_key}' updated"}
 
@@ -3353,13 +3460,265 @@ async def admin_preview_email_template(template_key: str, admin=Depends(get_curr
         "event_description": "A premier conference bringing together dairy scientists and entrepreneurs.",
         "registration_fee": "2,500",
         "speaker_details": "Dr. A. Elango, Dr. G. Kumaresan",
+        "venue_map_link": "",
+        "rejection_reason": "Incomplete documentation submitted",
+        "participant_name": "Dr. John Doe",
+        "participant_email": "john.doe@example.com",
+        "registration_id": "REG-20260001",
+        "registration_type": "Academic Member",
+        "amount_paid": "Rs. 2,500",
+        "certificate_type": "Participation",
+        "certificate_id": "CERT-20260001",
+        "verify_url": "https://idsea.org/verify/CERT-20260001",
     }
     rendered_subject = render_template(template.get("subject", ""), sample_vars)
     rendered_body = render_template(template.get("body", ""), sample_vars)
     return {"subject": rendered_subject, "body": rendered_body, "variables": template.get("variables", [])}
 
 
-# =================== ADVANCED REPORTS ===================
+# =================== CUSTOM TEMPLATE CREATION ===================
+
+@api_router.post("/admin/email-templates")
+async def admin_create_custom_template(data: dict, admin=Depends(get_current_admin)):
+    key = data.get("key", "").strip().lower().replace(" ", "_")
+    if not key or not data.get("name") or not data.get("subject"):
+        raise HTTPException(status_code=400, detail="Key, name, and subject required")
+    if key in DEFAULT_EMAIL_TEMPLATES:
+        raise HTTPException(status_code=400, detail="Cannot create template with reserved key")
+    existing = await db.email_templates.find_one({"key": key})
+    if existing:
+        raise HTTPException(status_code=400, detail="Template key already exists")
+    template = {
+        "key": key,
+        "name": data.get("name", ""),
+        "subject": data.get("subject", ""),
+        "body": data.get("body", DEFAULT_EMAIL_TEMPLATES["registration_submitted"]["body"]),
+        "description": data.get("description", ""),
+        "variables": data.get("variables", []),
+        "is_custom": True,
+        "created_at": now_iso(),
+        "created_by": admin["email"]
+    }
+    await db.email_templates.insert_one(template)
+    return {"message": f"Template '{key}' created", "key": key}
+
+
+@api_router.delete("/admin/email-templates/{template_key}")
+async def admin_delete_custom_template(template_key: str, admin=Depends(get_current_admin)):
+    if template_key in DEFAULT_EMAIL_TEMPLATES:
+        raise HTTPException(status_code=400, detail="Cannot delete default template. Use reset instead.")
+    result = await db.email_templates.delete_one({"key": template_key})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Template not found")
+    return {"message": f"Template '{template_key}' deleted"}
+
+
+# =================== EMAIL QUEUE & CAMPAIGNS ===================
+
+EMAIL_BATCH_SIZE = 50
+EMAIL_BATCH_INTERVAL = 300  # 5 minutes in seconds
+_email_scheduler_running = False
+
+
+async def process_email_queue():
+    """Background task: process pending emails in batches of 50 every 5 minutes"""
+    global _email_scheduler_running
+    _email_scheduler_running = True
+    while True:
+        try:
+            pending = await db.email_queue.find(
+                {"status": "pending"}
+            ).sort("created_at", 1).limit(EMAIL_BATCH_SIZE).to_list(EMAIL_BATCH_SIZE)
+
+            if pending:
+                smtp_settings = await db.smtp_settings.find_one({}, {"_id": 0})
+                sent_count = 0
+                failed_count = 0
+                for email_item in pending:
+                    try:
+                        await db.email_queue.update_one(
+                            {"id": email_item["id"]},
+                            {"$set": {"status": "processing"}}
+                        )
+                        success = send_email_smtp(
+                            [email_item["recipient_email"]],
+                            email_item["subject"],
+                            email_item["body"],
+                            smtp_settings
+                        )
+                        if success:
+                            await db.email_queue.update_one(
+                                {"id": email_item["id"]},
+                                {"$set": {"status": "sent", "sent_at": now_iso()}}
+                            )
+                            sent_count += 1
+                        else:
+                            await db.email_queue.update_one(
+                                {"id": email_item["id"]},
+                                {"$set": {"status": "failed", "error": "SMTP send returned False", "retry_count": email_item.get("retry_count", 0) + 1}}
+                            )
+                            failed_count += 1
+                    except Exception as e:
+                        await db.email_queue.update_one(
+                            {"id": email_item["id"]},
+                            {"$set": {"status": "failed", "error": str(e)[:200], "retry_count": email_item.get("retry_count", 0) + 1}}
+                        )
+                        failed_count += 1
+
+                logging.info(f"Email queue batch: sent={sent_count}, failed={failed_count}, remaining pending")
+
+        except Exception as e:
+            logging.error(f"Email queue processor error: {e}")
+
+        await asyncio.sleep(EMAIL_BATCH_INTERVAL)
+
+
+async def queue_email(recipient_email: str, recipient_name: str, subject: str, body: str, campaign_id: str = "", campaign_name: str = "", template_key: str = ""):
+    """Add an email to the queue for batch processing"""
+    await db.email_queue.insert_one({
+        "id": str(uuid.uuid4()),
+        "recipient_email": recipient_email,
+        "recipient_name": recipient_name,
+        "subject": subject,
+        "body": body,
+        "template_key": template_key,
+        "campaign_id": campaign_id,
+        "campaign_name": campaign_name,
+        "status": "pending",
+        "error": "",
+        "retry_count": 0,
+        "created_at": now_iso(),
+        "scheduled_at": now_iso(),
+        "sent_at": ""
+    })
+
+
+async def queue_bulk_emails(template_key: str, recipients: list, variables_list: list, campaign_name: str = ""):
+    """Queue bulk emails using a template for batch sending"""
+    template = await db.email_templates.find_one({"key": template_key}, {"_id": 0})
+    if not template:
+        template = DEFAULT_EMAIL_TEMPLATES.get(template_key)
+    if not template:
+        return 0
+
+    campaign_id = str(uuid.uuid4())
+    count = 0
+    for i, recipient in enumerate(recipients):
+        variables = variables_list[i] if i < len(variables_list) else {}
+        subject = render_template(template.get("subject", ""), variables)
+        body = render_template(template.get("body", ""), variables)
+        await queue_email(
+            recipient_email=recipient.get("email", ""),
+            recipient_name=recipient.get("name", ""),
+            subject=subject,
+            body=body,
+            campaign_id=campaign_id,
+            campaign_name=campaign_name or template.get("name", ""),
+            template_key=template_key
+        )
+        count += 1
+
+    await db.email_logs.insert_one({
+        "id": str(uuid.uuid4()),
+        "subject": campaign_name or template.get("name", ""),
+        "body": f"Queued {count} emails for batch sending",
+        "recipients_count": count,
+        "recipient_group": campaign_name,
+        "campaign_id": campaign_id,
+        "sent_by": "system",
+        "sent_at": now_iso(),
+        "status": "queued"
+    })
+    return count
+
+
+@api_router.get("/admin/email-queue")
+async def admin_get_email_queue(status: Optional[str] = None, limit: int = 100, admin=Depends(get_current_admin)):
+    query = {}
+    if status:
+        query["status"] = status
+    items = await db.email_queue.find(query, {"_id": 0}).sort("created_at", -1).limit(limit).to_list(limit)
+    return items
+
+
+@api_router.get("/admin/email-queue/stats")
+async def admin_email_queue_stats(admin=Depends(get_current_admin)):
+    pipeline = [{"$group": {"_id": "$status", "count": {"$sum": 1}}}]
+    stats = await db.email_queue.aggregate(pipeline).to_list(10)
+    result = {s["_id"]: s["count"] for s in stats}
+    result["total"] = sum(result.values())
+    result["batch_size"] = EMAIL_BATCH_SIZE
+    result["batch_interval_mins"] = EMAIL_BATCH_INTERVAL // 60
+    result["scheduler_running"] = _email_scheduler_running
+    return result
+
+
+@api_router.post("/admin/email-queue/{email_id}/retry")
+async def admin_retry_queued_email(email_id: str, admin=Depends(get_current_admin)):
+    result = await db.email_queue.update_one(
+        {"id": email_id, "status": "failed"},
+        {"$set": {"status": "pending", "error": ""}}
+    )
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Email not found or not in failed state")
+    return {"message": "Email re-queued for sending"}
+
+
+@api_router.post("/admin/email-queue/retry-all-failed")
+async def admin_retry_all_failed(admin=Depends(get_current_admin)):
+    result = await db.email_queue.update_many(
+        {"status": "failed"},
+        {"$set": {"status": "pending", "error": ""}}
+    )
+    return {"message": f"{result.modified_count} failed emails re-queued"}
+
+
+@api_router.delete("/admin/email-queue/clear-sent")
+async def admin_clear_sent_queue(admin=Depends(get_current_admin)):
+    result = await db.email_queue.delete_many({"status": "sent"})
+    return {"message": f"{result.deleted_count} sent emails cleared"}
+
+
+@api_router.post("/admin/email-campaign/send")
+async def admin_send_campaign(data: dict, background_tasks: BackgroundTasks, admin=Depends(get_current_admin)):
+    """Send email campaign to selected recipients using a template"""
+    template_key = data.get("template_key")
+    recipient_group = data.get("recipient_group", "all_members")
+    campaign_name = data.get("campaign_name", "Manual Campaign")
+    custom_variables = data.get("custom_variables", {})
+
+    if not template_key:
+        raise HTTPException(status_code=400, detail="template_key required")
+
+    query = {"status": "approved"}
+    if recipient_group == "academic":
+        query["membership_type"] = "academic"
+    elif recipient_group == "entrepreneur":
+        query["membership_type"] = "entrepreneur"
+    elif recipient_group == "corporate":
+        query["membership_type"] = "corporate"
+
+    members = await db.members.find(query, {"_id": 0}).to_list(10000)
+    members_with_email = [m for m in members if m.get("email")]
+
+    if not members_with_email:
+        raise HTTPException(status_code=400, detail="No recipients found")
+
+    recipients = [{"email": m["email"], "name": m.get("name", "")} for m in members_with_email]
+    variables_list = []
+    for m in members_with_email:
+        v = {
+            "member_name": m.get("name", "Member"),
+            "email": m.get("email", ""),
+            "membership_id": m.get("membership_id", ""),
+            "membership_type": m.get("membership_type", ""),
+            "phone": m.get("phone", ""),
+            **custom_variables,
+        }
+        variables_list.append(v)
+
+    count = await queue_bulk_emails(template_key, recipients, variables_list, campaign_name)
+    return {"message": f"Campaign '{campaign_name}' queued: {count} emails scheduled", "count": count}
 
 @api_router.get("/admin/reports/monthly-growth")
 async def admin_monthly_growth(admin=Depends(get_current_admin)):
@@ -3954,6 +4313,10 @@ logger = logging.getLogger(__name__)
 
 @app.on_event("startup")
 async def startup_event():
+    # Start email queue processor
+    asyncio.create_task(process_email_queue())
+    logging.info("Email queue scheduler started (batch=50, interval=5min)")
+
     if not await db.admins.find_one({"email": "admin@idsea.org"}):
         await db.admins.insert_one(AdminUser(
             username="Super Admin",
