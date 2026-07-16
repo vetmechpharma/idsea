@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import Slider from 'react-slick';
@@ -6,12 +6,46 @@ import 'slick-carousel/slick/slick.css';
 import 'slick-carousel/slick/slick-theme.css';
 import PublicNavbar from '../../components/public/PublicNavbar';
 import PublicFooter from '../../components/public/PublicFooter';
-import { Calendar, Users, BookOpen, ArrowRight, Award, FlaskConical, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, Users, BookOpen, ArrowRight, Award, FlaskConical, ChevronLeft, ChevronRight, GraduationCap, Briefcase, Building2, Globe } from 'lucide-react';
 import SEOHead from '../../components/SEOHead';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const FALLBACK_HERO = "https://images.unsplash.com/photo-1530836369250-ef72a3f5cda8?w=900&q=80";
+
+function AnimatedCounter({ target, duration = 2000 }) {
+  const [count, setCount] = useState(0);
+  const ref = useRef(null);
+  const started = useRef(false);
+
+  const startAnimation = useCallback(() => {
+    if (started.current || target <= 0) return;
+    started.current = true;
+    const steps = 60;
+    const increment = target / steps;
+    let current = 0;
+    const timer = setInterval(() => {
+      current += increment;
+      if (current >= target) {
+        setCount(target);
+        clearInterval(timer);
+      } else {
+        setCount(Math.floor(current));
+      }
+    }, duration / steps);
+  }, [target, duration]);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) startAnimation(); },
+      { threshold: 0.3 }
+    );
+    if (ref.current) observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, [startAnimation]);
+
+  return <span ref={ref}>{count.toLocaleString()}</span>;
+}
 
 function SlickArrow({ className, onClick, direction }) {
   return (
@@ -42,9 +76,11 @@ export default function HomePage() {
   const [sliders, setSliders] = useState([]);
   const [plans, setPlans] = useState([]);
   const [pc, setPc] = useState({});
+  const [memberStats, setMemberStats] = useState({ total: 0, categories: {} });
 
   useEffect(() => {
     axios.get(`${API}/public/stats`).then(r => setStats(r.data)).catch(() => {});
+    axios.get(`${API}/public/member-stats`).then(r => setMemberStats(r.data)).catch(() => {});
     axios.get(`${API}/public/events`).then(r => setEvents(r.data.slice(0, 3))).catch(() => {});
     axios.get(`${API}/public/news`).then(r => setNews(r.data.slice(0, 3))).catch(() => {});
     axios.get(`${API}/public/executive`).then(r => setExecutive(r.data.slice(0, 3))).catch(() => {});
@@ -327,6 +363,64 @@ export default function HomePage() {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Member Registration Infographic */}
+      {memberStats.total > 0 && (
+        <section data-testid="member-stats-section" style={{ background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 50%, #f0f9ff 100%)', padding: '80px 24px' }}>
+          <div style={{ maxWidth: '1100px', margin: '0 auto', textAlign: 'center' }}>
+            <h2 className="section-title" style={{ color: '#0c3c60' }}>Our Growing Community</h2>
+            <p className="section-subtitle" style={{ marginBottom: '48px' }}>Members registered across all categories</p>
+
+            {/* Total Members - Big Number */}
+            <div data-testid="total-members-counter" style={{ marginBottom: '48px' }}>
+              <div style={{ fontSize: 'clamp(48px, 6vw, 72px)', fontWeight: 800, fontFamily: 'Poppins, sans-serif', color: '#0c3c60', lineHeight: 1 }}>
+                <AnimatedCounter target={memberStats.total} />+
+              </div>
+              <div style={{ fontSize: '16px', color: '#64748b', fontFamily: 'Inter, sans-serif', marginTop: '8px', fontWeight: 500 }}>
+                Total Registered Members
+              </div>
+            </div>
+
+            {/* Category Cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', maxWidth: '900px', margin: '0 auto' }}>
+              {[
+                { key: 'academic', label: 'Academic', icon: GraduationCap, color: '#2563eb', bg: '#eff6ff', border: '#bfdbfe' },
+                { key: 'entrepreneur', label: 'Entrepreneur', icon: Briefcase, color: '#059669', bg: '#ecfdf5', border: '#a7f3d0' },
+                { key: 'corporate', label: 'Corporate', icon: Building2, color: '#7c3aed', bg: '#f5f3ff', border: '#c4b5fd' },
+                { key: 'international', label: 'International', icon: Globe, color: '#dc2626', bg: '#fef2f2', border: '#fecaca' },
+              ].map(cat => {
+                const count = memberStats.categories[cat.key] || 0;
+                const Icon = cat.icon;
+                return (
+                  <div key={cat.key} data-testid={`stat-${cat.key}`} style={{
+                    background: 'white', borderRadius: '16px', padding: '28px 20px',
+                    boxShadow: '0 4px 16px rgba(0,0,0,0.06)', border: `1px solid ${cat.border}`,
+                    transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+                    cursor: 'default',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 8px 32px rgba(0,0,0,0.1)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.06)'; }}
+                  >
+                    <div style={{ width: '52px', height: '52px', borderRadius: '14px', background: cat.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                      <Icon size={24} style={{ color: cat.color }} />
+                    </div>
+                    <div style={{ fontSize: 'clamp(28px, 3vw, 36px)', fontWeight: 800, fontFamily: 'Poppins, sans-serif', color: cat.color, lineHeight: 1 }}>
+                      <AnimatedCounter target={count} duration={1500} />
+                    </div>
+                    <div style={{ fontSize: '14px', color: '#64748b', fontFamily: 'Inter, sans-serif', marginTop: '8px', fontWeight: 500 }}>
+                      {cat.label}
+                    </div>
+                    {/* Mini progress bar */}
+                    <div style={{ marginTop: '14px', height: '4px', borderRadius: '2px', background: cat.bg, overflow: 'hidden' }}>
+                      <div style={{ height: '100%', borderRadius: '2px', background: cat.color, width: `${memberStats.total > 0 ? Math.max((count / memberStats.total) * 100, 5) : 0}%`, transition: 'width 2s ease' }} />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </section>

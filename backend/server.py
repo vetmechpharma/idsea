@@ -1021,6 +1021,21 @@ async def get_public_stats():
     }
 
 
+@api_router.get("/public/member-stats")
+async def get_public_member_stats():
+    """Category-wise member registration counts"""
+    pipeline = [
+        {"$group": {"_id": "$membership_type", "count": {"$sum": 1}}}
+    ]
+    results = await db.members.aggregate(pipeline).to_list(20)
+    category_counts = {r["_id"]: r["count"] for r in results if r["_id"]}
+    total = await db.members.count_documents({})
+    return {
+        "total": total,
+        "categories": category_counts
+    }
+
+
 @api_router.get("/public/members")
 async def get_public_members(
     state: Optional[str] = None,
