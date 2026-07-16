@@ -4027,7 +4027,11 @@ async def public_upload_pdf(file: UploadFile = File(...)):
 
 # =================== WHATSAPP (AK NEXUS) SERVICE ===================
 
-AKNEXUS_BASE_URL = "https://app.aknexus.in/api/v2"
+
+# WhatsApp Server Integration (whatsapp-server-4)
+
+
+WHATSAPP_SERVER_URL = os.environ.get("WHATSAPP_SERVER_URL", "")
 
 
 async def get_whatsapp_settings():
@@ -4035,123 +4039,152 @@ async def get_whatsapp_settings():
     return settings or {}
 
 
-async def aknexus_v2_post(endpoint: str, body: dict):
-    """Make POST request to AK Nexus v2 API with Bearer auth."""
+async def wa_server_post(endpoint: str, body: dict, is_json: bool = True):
+    """Make POST request to WhatsApp Server API with Bearer auth."""
     settings = await get_whatsapp_settings()
-    token = settings.get("access_token", "")
-    if not token:
-        return {"status": "error", "message": "WhatsApp access token not configured"}
-    url = f"{AKNEXUS_BASE_URL}/{endpoint}"
+    token = settings.get("api_key", "")
+    server_url = settings.get("server_url", "") or WHATSAPP_SERVER_URL
+    if not token or not server_url:
+        return {"ok": False, "error": "WhatsApp server URL or API key not configured"}
+    url = f"{server_url.rstrip('/')}/{endpoint.lstrip('/')}"
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
     async with httpx.AsyncClient(timeout=30) as client:
         try:
             resp = await client.post(url, json=body, headers=headers)
-            logging.info(f"AK Nexus v2 {endpoint} -> HTTP {resp.status_code}")
+            logging.info(f"WhatsApp Server {endpoint} -> HTTP {resp.status_code}")
             if resp.status_code == 401:
-                return {"status": "error", "message": "Authentication failed. Check access token."}
+                return {"ok": False, "error": "Authentication failed. Check API key."}
             if resp.status_code == 429:
-                return {"status": "error", "message": "Rate limited. Try again later."}
+                return {"ok": False, "error": "Rate limited. Try again later."}
             try:
                 return resp.json()
             except Exception:
-                return {"status": "error", "message": f"Invalid response: {resp.text[:200]}"}
+                return {"ok": False, "error": f"Invalid response: {resp.text[:200]}"}
         except httpx.TimeoutException:
-            return {"status": "error", "message": "Request timed out"}
+            return {"ok": False, "error": "Request timed out"}
         except Exception as e:
-            logging.error(f"AK Nexus v2 API error: {e}")
-            return {"status": "error", "message": str(e)}
+            logging.error(f"WhatsApp Server API error: {e}")
+            return {"ok": False, "error": str(e)}
 
 
-async def aknexus_v2_get(endpoint: str):
-    """Make GET request to AK Nexus v2 API."""
+async def wa_server_get(endpoint: str):
+    """Make GET request to WhatsApp Server API."""
     settings = await get_whatsapp_settings()
-    token = settings.get("access_token", "")
-    if not token:
-        return {"status": "error", "message": "WhatsApp access token not configured"}
-    url = f"{AKNEXUS_BASE_URL}/{endpoint}"
+    token = settings.get("api_key", "")
+    server_url = settings.get("server_url", "") or WHATSAPP_SERVER_URL
+    if not token or not server_url:
+        return {"ok": False, "error": "WhatsApp server URL or API key not configured"}
+    url = f"{server_url.rstrip('/')}/{endpoint.lstrip('/')}"
     headers = {"Authorization": f"Bearer {token}"}
     async with httpx.AsyncClient(timeout=30) as client:
         try:
             resp = await client.get(url, headers=headers)
             if resp.status_code == 401:
-                return {"status": "error", "message": "Auth failed"}
+                return {"ok": False, "error": "Auth failed"}
             try:
                 return resp.json()
             except Exception:
-                return {"status": "error", "message": resp.text[:200]}
+                return {"ok": False, "error": resp.text[:200]}
         except Exception as e:
-            return {"status": "error", "message": str(e)}
+            return {"ok": False, "error": str(e)}
 
 
-async def send_whatsapp_message(phone: str, message: str, instance_id: str = None):
-    """Send a WhatsApp text message via AK Nexus v2 /whatsapp/send/text endpoint."""
+async def send_whatsapp_message(phone: str, message: str, session_id: str = None):
+    """Send a WhatsApp text message via WhatsApp Server /api/v1/send/text."""
     settings = await get_whatsapp_settings()
     if not settings.get("enabled", False):
         return False
-    iid = instance_id or settings.get("instance_id", "")
-    if not iid:
-        return False
+    sid = session_id or settings.get("session_id", "primary")
     phone = phone.strip().replace("+", "").replace(" ", "").replace("-", "")
     if len(phone) == 10:
         phone = "91" + phone
-    body = {"instance_id": iid, "to": phone, "message": message}
-    result = await aknexus_v2_post("whatsapp/send/text", body)
-    is_success = result.get("status") == "success"
+    body = {"session_id": sid, "to": phone, "text": message}
+    result = await wa_server_post("api/v1/send/text", body)
+    is_success = result.get("ok", False)
     await db.whatsapp_logs.insert_one({
         "id": str(uuid.uuid4()), "phone": phone, "message": message[:200],
-        "instance_id": iid, "msg_type": "text",
+        "session_id": sid, "msg_type": "text",
         "status": "sent" if is_success else "failed",
         "response": str(result)[:500], "sent_at": now_iso()
     })
     if not is_success:
-        logging.warning(f"WhatsApp text to {phone}: {result.get('message', 'error')}")
+        logging.warning(f"WhatsApp text to {phone}: {result.get('error', 'unknown error')}")
     return is_success
 
 
-async def send_whatsapp_image(phone: str, media_url: str, caption: str = "", instance_id: str = None):
-    """Send image via AK Nexus v2 /whatsapp/send/image."""
+async def send_whatsapp_image(phone: str, media_url: str, caption: str = "", session_id: str = None):
+    """Send image via WhatsApp Server /api/v1/send/media."""
     settings = await get_whatsapp_settings()
     if not settings.get("enabled", False):
         return False
-    iid = instance_id or settings.get("instance_id", "")
-    if not iid:
-        return False
+    sid = session_id or settings.get("session_id", "primary")
     phone = phone.strip().replace("+", "").replace(" ", "").replace("-", "")
     if len(phone) == 10:
         phone = "91" + phone
-    body = {"instance_id": iid, "to": phone, "media_url": media_url}
-    if caption:
-        body["caption"] = caption
-    result = await aknexus_v2_post("whatsapp/send/image", body)
-    is_success = result.get("status") == "success"
+    # Download file and send via multipart
+    server_url = settings.get("server_url", "") or WHATSAPP_SERVER_URL
+    token = settings.get("api_key", "")
+    if not server_url or not token:
+        return False
+    url = f"{server_url.rstrip('/')}/api/v1/send/media"
+    async with httpx.AsyncClient(timeout=60) as client:
+        try:
+            # Download the image first
+            img_resp = await client.get(media_url)
+            if img_resp.status_code != 200:
+                logging.warning(f"Failed to download image from {media_url}")
+                return False
+            files = {"file": ("image.jpg", img_resp.content, "image/jpeg")}
+            data = {"session_id": sid, "to": phone, "media_type": "image"}
+            if caption:
+                data["caption"] = caption
+            resp = await client.post(url, headers={"Authorization": f"Bearer {token}"}, files=files, data=data)
+            result = resp.json() if resp.status_code == 200 else {"ok": False}
+        except Exception as e:
+            logging.error(f"WhatsApp image send error: {e}")
+            result = {"ok": False, "error": str(e)}
+    is_success = result.get("ok", False)
     await db.whatsapp_logs.insert_one({
         "id": str(uuid.uuid4()), "phone": phone, "message": caption[:200],
-        "instance_id": iid, "msg_type": "image", "media_url": media_url,
+        "session_id": sid, "msg_type": "image", "media_url": media_url,
         "status": "sent" if is_success else "failed",
         "response": str(result)[:500], "sent_at": now_iso()
     })
     return is_success
 
 
-async def send_whatsapp_document(phone: str, media_url: str, caption: str = "", instance_id: str = None):
-    """Send document via AK Nexus v2 /whatsapp/send/document."""
+async def send_whatsapp_document(phone: str, media_url: str, caption: str = "", session_id: str = None):
+    """Send document via WhatsApp Server /api/v1/send/media."""
     settings = await get_whatsapp_settings()
     if not settings.get("enabled", False):
         return False
-    iid = instance_id or settings.get("instance_id", "")
-    if not iid:
-        return False
+    sid = session_id or settings.get("session_id", "primary")
     phone = phone.strip().replace("+", "").replace(" ", "").replace("-", "")
     if len(phone) == 10:
         phone = "91" + phone
-    body = {"instance_id": iid, "to": phone, "media_url": media_url}
-    if caption:
-        body["caption"] = caption
-    result = await aknexus_v2_post("whatsapp/send/document", body)
-    is_success = result.get("status") == "success"
+    server_url = settings.get("server_url", "") or WHATSAPP_SERVER_URL
+    token = settings.get("api_key", "")
+    if not server_url or not token:
+        return False
+    url = f"{server_url.rstrip('/')}/api/v1/send/media"
+    async with httpx.AsyncClient(timeout=60) as client:
+        try:
+            doc_resp = await client.get(media_url)
+            if doc_resp.status_code != 200:
+                return False
+            files = {"file": ("document.pdf", doc_resp.content, "application/pdf")}
+            data = {"session_id": sid, "to": phone, "media_type": "document"}
+            if caption:
+                data["caption"] = caption
+            resp = await client.post(url, headers={"Authorization": f"Bearer {token}"}, files=files, data=data)
+            result = resp.json() if resp.status_code == 200 else {"ok": False}
+        except Exception as e:
+            logging.error(f"WhatsApp document send error: {e}")
+            result = {"ok": False, "error": str(e)}
+    is_success = result.get("ok", False)
     await db.whatsapp_logs.insert_one({
         "id": str(uuid.uuid4()), "phone": phone, "message": caption[:200],
-        "instance_id": iid, "msg_type": "document", "media_url": media_url,
+        "session_id": sid, "msg_type": "document", "media_url": media_url,
         "status": "sent" if is_success else "failed",
         "response": str(result)[:500], "sent_at": now_iso()
     })
@@ -4185,10 +4218,10 @@ async def send_whatsapp_notification(phone: str, notification_type: str, variabl
 async def admin_get_whatsapp_settings(admin=Depends(get_current_admin)):
     settings = await get_whatsapp_settings()
     if not settings:
-        settings = {"access_token": "", "instance_id": "", "enabled": False, "auto_notifications": {}}
-    token = settings.get("access_token", "")
-    settings["access_token_masked"] = ("*" * 8 + token[-5:]) if len(token) > 5 else token
-    settings["access_token"] = token
+        settings = {"server_url": "", "api_key": "", "session_id": "primary", "enabled": False, "auto_notifications": {}}
+    token = settings.get("api_key", "")
+    settings["api_key_masked"] = ("*" * 8 + token[-5:]) if len(token) > 5 else token
+    settings["api_key"] = token
     return settings
 
 
@@ -4196,6 +4229,7 @@ async def admin_get_whatsapp_settings(admin=Depends(get_current_admin)):
 async def admin_update_whatsapp_settings(data: dict, admin=Depends(get_current_admin)):
     update = {
         "enabled": data.get("enabled", False),
+        "session_id": data.get("session_id", "primary"),
         "auto_notifications": data.get("auto_notifications", {
             "membership_submitted": True, "membership_approved": True,
             "membership_denied": True, "event_registered": True,
@@ -4203,10 +4237,10 @@ async def admin_update_whatsapp_settings(data: dict, admin=Depends(get_current_a
         }),
         "updated_at": now_iso()
     }
-    if data.get("access_token") and not data["access_token"].startswith("*"):
-        update["access_token"] = data["access_token"]
-    if data.get("instance_id"):
-        update["instance_id"] = data["instance_id"]
+    if data.get("api_key") and not data["api_key"].startswith("*"):
+        update["api_key"] = data["api_key"]
+    if data.get("server_url"):
+        update["server_url"] = data["server_url"].rstrip("/")
     await db.whatsapp_settings.update_one({}, {"$set": update}, upsert=True)
     return {"message": "WhatsApp settings updated"}
 
@@ -4214,13 +4248,18 @@ async def admin_update_whatsapp_settings(data: dict, admin=Depends(get_current_a
 @api_router.get("/admin/whatsapp/status")
 async def admin_whatsapp_status(admin=Depends(get_current_admin)):
     settings = await get_whatsapp_settings()
-    iid = settings.get("instance_id", "")
-    if not iid:
-        return {"status": "not_configured", "instance_id": ""}
-    result = await aknexus_v2_get(f"whatsapp/instance/status/{iid}")
-    if result.get("status") == "error":
-        return {"status": "error", "instance_id": iid, "message": result.get("message", "Unknown error")}
-    return {"status": "success", "instance_id": iid, "message": "Instance is active", "data": result}
+    server_url = settings.get("server_url", "") or WHATSAPP_SERVER_URL
+    sid = settings.get("session_id", "primary")
+    if not server_url:
+        return {"status": "not_configured", "session_id": ""}
+    result = await wa_server_get(f"api/v1/sessions/{sid}/status")
+    if result.get("ok") is False:
+        # Try a simpler health check
+        result2 = await wa_server_get("api/v1/sessions")
+        if result2.get("ok") is False:
+            return {"status": "error", "session_id": sid, "message": result2.get("error", result.get("error", "Cannot reach server"))}
+        return {"status": "success", "session_id": sid, "message": "Server reachable", "data": result2}
+    return {"status": "success", "session_id": sid, "message": "Session active", "data": result}
 
 
 @api_router.post("/admin/whatsapp/send-test")
@@ -4232,16 +4271,14 @@ async def admin_whatsapp_send_test(data: dict, admin=Depends(get_current_admin))
     if not phone:
         raise HTTPException(status_code=400, detail="Phone number required")
     settings = await get_whatsapp_settings()
-    iid = settings.get("instance_id", "")
-    if not iid:
-        raise HTTPException(status_code=400, detail="No WhatsApp instance configured")
+    sid = settings.get("session_id", "primary")
 
     if media_type == "image" and media_url:
-        success = await send_whatsapp_image(phone, media_url, message, iid)
+        success = await send_whatsapp_image(phone, media_url, message, sid)
     elif media_type == "document" and media_url:
-        success = await send_whatsapp_document(phone, media_url, message, iid)
+        success = await send_whatsapp_document(phone, media_url, message, sid)
     else:
-        success = await send_whatsapp_message(phone, message, iid)
+        success = await send_whatsapp_message(phone, message, sid)
 
     if not success:
         return {"status": "error", "message": "Send failed"}

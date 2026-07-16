@@ -13,7 +13,7 @@ const BACKEND = process.env.REACT_APP_BACKEND_URL;
 export default function WhatsappAdmin() {
   const [activeTab, setActiveTab] = useState('config');
   const [settings, setSettings] = useState({
-    access_token: '', instance_id: '', enabled: false,
+    server_url: '', api_key: '', session_id: 'primary', enabled: false,
     auto_notifications: {
       membership_submitted: true, membership_approved: true, membership_denied: true,
       event_registered: true, room_allotment: true, payment_received: true,
@@ -241,14 +241,20 @@ export default function WhatsappAdmin() {
       {activeTab === 'config' && (
         <div style={{ maxWidth: '600px' }}>
           <div style={cardS}>
-            <h3 style={{ fontFamily: 'Poppins', fontSize: '14px', fontWeight: 700, color: '#0c3c60', marginBottom: '16px' }}>AK Nexus v2 API Settings</h3>
+            <h3 style={{ fontFamily: 'Poppins', fontSize: '14px', fontWeight: 700, color: '#0c3c60', marginBottom: '16px' }}>WhatsApp Server Settings</h3>
             <div style={{ marginBottom: '12px' }}>
-              <label style={labelS}>Access Token (Bearer)</label>
-              <input value={settings.access_token} onChange={e => setSettings(s => ({ ...s, access_token: e.target.value }))} style={inputS} placeholder="wz_d531b9da6..." data-testid="access-token-input" />
+              <label style={labelS}>Server URL</label>
+              <input value={settings.server_url} onChange={e => setSettings(s => ({ ...s, server_url: e.target.value }))} style={inputS} placeholder="https://your-whatsapp-server.com" data-testid="server-url-input" />
+              <span style={{ fontSize: '10px', color: '#9ca3af', marginTop: '2px', display: 'block' }}>Your WhatsApp server endpoint (whatsapp-server-4)</span>
             </div>
             <div style={{ marginBottom: '12px' }}>
-              <label style={labelS}>Instance ID</label>
-              <input value={settings.instance_id} onChange={e => setSettings(s => ({ ...s, instance_id: e.target.value }))} style={inputS} placeholder="Your WhatsApp instance ID" data-testid="instance-id-input" />
+              <label style={labelS}>API Key (Bearer Token)</label>
+              <input value={settings.api_key} onChange={e => setSettings(s => ({ ...s, api_key: e.target.value }))} style={inputS} placeholder="YOUR_API_KEY" data-testid="api-key-input" />
+            </div>
+            <div style={{ marginBottom: '12px' }}>
+              <label style={labelS}>Session ID</label>
+              <input value={settings.session_id} onChange={e => setSettings(s => ({ ...s, session_id: e.target.value }))} style={inputS} placeholder="primary" data-testid="session-id-input" />
+              <span style={{ fontSize: '10px', color: '#9ca3af', marginTop: '2px', display: 'block' }}>WhatsApp session slug (default: primary)</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px', cursor: 'pointer' }} onClick={() => setSettings(s => ({ ...s, enabled: !s.enabled }))}>
               {settings.enabled ? <ToggleRight size={28} color="#22c55e" /> : <ToggleLeft size={28} color="#9ca3af" />}
