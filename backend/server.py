@@ -4192,23 +4192,39 @@ async def send_whatsapp_document(phone: str, media_url: str, caption: str = "", 
 
 
 async def send_whatsapp_notification(phone: str, notification_type: str, variables: dict):
-    templates = {
-        "membership_submitted": "Hello {name},\n\nThank you for applying for IDSEA {membership_type} membership.\n\nYour application has been received and is under review. We will notify you once it is processed.\n\nRegards,\nIDSEA Team",
-        "membership_approved": "Congratulations {name}!\n\nYour IDSEA membership has been approved.\n\nMembership ID: {membership_id}\nType: {membership_type}\n\nWelcome to the IDSEA family!\n\nRegards,\nIDSEA Team",
-        "membership_denied": "Dear {name},\n\nWe regret to inform you that your IDSEA membership application has been denied.\n\nPlease contact us at info@idsea.org for more details.\n\nRegards,\nIDSEA Team",
-        "event_registered": "Hello {name},\n\nYou have been successfully registered for:\n\n*{event_title}*\nDate: {event_date}\nVenue: {event_venue}\n{venue_map_link}\nTotal Amount: Rs. {total_amount}\n\nPayment Status: {payment_status}\n\nRegards,\nIDSEA Team",
-        "room_allotment": "Hello {name},\n\nYour accommodation details for *{event_title}*:\n\nRoom No: {room_no}\nLocation: {location}\n{map_link}\n\nRegards,\nIDSEA Team",
-        "payment_received": "Hello {name},\n\nWe have received your payment of Rs. {amount}.\n\nTransaction Reference: {reference}\n\nThank you!\nIDSEA Team",
-    }
-    template = templates.get(notification_type, "")
-    if not template:
+    """Send WhatsApp notification using DB-stored templates with optional attachment."""
+    # Try DB template first
+    db_template = await db.whatsapp_templates.find_one({"key": notification_type}, {"_id": 0})
+    if db_template and db_template.get("enabled", True):
+        template_text = db_template.get("message", "")
+        attachment_url = db_template.get("attachment_url", "")
+        attachment_type = db_template.get("attachment_type", "")
+    else:
+        # Fallback to hardcoded defaults
+        defaults = {
+            "membership_submitted": "Hello {name},\n\nThank you for applying for IDSEA {membership_type} membership.\n\nYour application has been received and is under review. We will notify you once it is processed.\n\nRegards,\nIDSEA Team",
+            "membership_approved": "Congratulations {name}!\n\nYour IDSEA membership has been approved.\n\nMembership ID: {membership_id}\nType: {membership_type}\n\nWelcome to the IDSEA family!\n\nRegards,\nIDSEA Team",
+            "membership_denied": "Dear {name},\n\nWe regret to inform you that your IDSEA membership application has been denied.\n\nPlease contact us at info@idsea.org for more details.\n\nRegards,\nIDSEA Team",
+            "event_registered": "Hello {name},\n\nYou have been successfully registered for:\n\n*{event_title}*\nDate: {event_date}\nVenue: {event_venue}\n{venue_map_link}\nTotal Amount: Rs. {total_amount}\n\nPayment Status: {payment_status}\n\nRegards,\nIDSEA Team",
+            "room_allotment": "Hello {name},\n\nYour accommodation details for *{event_title}*:\n\nRoom No: {room_no}\nLocation: {location}\n{map_link}\n\nRegards,\nIDSEA Team",
+            "payment_received": "Hello {name},\n\nWe have received your payment of Rs. {amount}.\n\nTransaction Reference: {reference}\n\nThank you!\nIDSEA Team",
+        }
+        template_text = defaults.get(notification_type, "")
+        attachment_url = ""
+        attachment_type = ""
+    if not template_text:
         return False
     try:
-        message = template.format(**variables)
+        message = template_text.format(**variables)
     except KeyError:
-        message = template
+        message = template_text
         for k, v in variables.items():
             message = message.replace("{" + k + "}", str(v))
+    # Send with attachment if configured
+    if attachment_url and attachment_type == "image":
+        return await send_whatsapp_image(phone, attachment_url, message)
+    elif attachment_url and attachment_type == "document":
+        return await send_whatsapp_document(phone, attachment_url, message)
     return await send_whatsapp_message(phone, message)
 
 
@@ -4459,6 +4475,132 @@ async def whatsapp_webhook(data: dict):
         "id": str(uuid.uuid4()), "data": data, "received_at": now_iso()
     })
     return {"status": "ok"}
+
+
+
+# =================== WHATSAPP TEMPLATES CRUD ===================
+
+WA_DEFAULT_TEMPLATES = [
+    {
+        "key": "membership_submitted", "name": "Membership Submitted",
+        "message": "Hello {name},\n\nThank you for applying for IDSEA {membership_type} membership.\n\nYour application has been received and is under review. We will notify you once it is processed.\n\nRegards,\nIDSEA Team",
+        "variables": ["name", "membership_type", "email", "phone"],
+        "description": "Sent when a new membership application is received",
+        "attachment_url": "", "attachment_type": "", "enabled": True,
+    },
+    {
+        "key": "membership_approved", "name": "Membership Approved",
+        "message": "Congratulations {name}!\n\nYour IDSEA membership has been approved.\n\nMembership ID: {membership_id}\nType: {membership_type}\n\nWelcome to the IDSEA family!\n\nRegards,\nIDSEA Team",
+        "variables": ["name", "membership_id", "membership_type"],
+        "description": "Sent when membership is approved by admin",
+        "attachment_url": "", "attachment_type": "", "enabled": True,
+    },
+    {
+        "key": "membership_denied", "name": "Membership Denied",
+        "message": "Dear {name},\n\nWe regret to inform you that your IDSEA membership application has been denied.\n\nPlease contact us at info@idsea.org for more details.\n\nRegards,\nIDSEA Team",
+        "variables": ["name", "membership_type"],
+        "description": "Sent when membership is denied by admin",
+        "attachment_url": "", "attachment_type": "", "enabled": True,
+    },
+    {
+        "key": "event_registered", "name": "Event Registration Confirmed",
+        "message": "Hello {name},\n\nYou have been successfully registered for:\n\n*{event_title}*\nDate: {event_date}\nVenue: {event_venue}\n{venue_map_link}\nTotal Amount: Rs. {total_amount}\n\nPayment Status: {payment_status}\n\nRegards,\nIDSEA Team",
+        "variables": ["name", "event_title", "event_date", "event_venue", "venue_map_link", "total_amount", "payment_status"],
+        "description": "Sent after successful event registration",
+        "attachment_url": "", "attachment_type": "", "enabled": True,
+    },
+    {
+        "key": "room_allotment", "name": "Room Allotment",
+        "message": "Hello {name},\n\nYour accommodation details for *{event_title}*:\n\nRoom No: {room_no}\nLocation: {location}\n{map_link}\n\nRegards,\nIDSEA Team",
+        "variables": ["name", "event_title", "room_no", "location", "map_link"],
+        "description": "Sent when room is allotted for an event",
+        "attachment_url": "", "attachment_type": "", "enabled": True,
+    },
+    {
+        "key": "payment_received", "name": "Payment Received",
+        "message": "Hello {name},\n\nWe have received your payment of Rs. {amount}.\n\nTransaction Reference: {reference}\n\nThank you!\nIDSEA Team",
+        "variables": ["name", "amount", "reference"],
+        "description": "Sent when payment is confirmed",
+        "attachment_url": "", "attachment_type": "", "enabled": True,
+    },
+]
+
+
+@api_router.get("/admin/whatsapp-templates")
+async def admin_get_whatsapp_templates(admin=Depends(get_current_admin)):
+    templates = await db.whatsapp_templates.find({}, {"_id": 0}).to_list(50)
+    # Merge defaults with DB entries
+    db_keys = {t["key"] for t in templates}
+    result = list(templates)
+    for d in WA_DEFAULT_TEMPLATES:
+        if d["key"] not in db_keys:
+            result.append(d)
+    result.sort(key=lambda t: next((i for i, d in enumerate(WA_DEFAULT_TEMPLATES) if d["key"] == t["key"]), 99))
+    return result
+
+
+@api_router.get("/admin/whatsapp-templates/{template_key}")
+async def admin_get_whatsapp_template(template_key: str, admin=Depends(get_current_admin)):
+    template = await db.whatsapp_templates.find_one({"key": template_key}, {"_id": 0})
+    if not template:
+        default = next((d for d in WA_DEFAULT_TEMPLATES if d["key"] == template_key), None)
+        if default:
+            return default
+        raise HTTPException(404, "Template not found")
+    return template
+
+
+@api_router.put("/admin/whatsapp-templates/{template_key}")
+async def admin_update_whatsapp_template(template_key: str, data: dict, admin=Depends(get_current_admin)):
+    update = {
+        "key": template_key,
+        "name": data.get("name", template_key),
+        "message": data.get("message", ""),
+        "description": data.get("description", ""),
+        "attachment_url": data.get("attachment_url", ""),
+        "attachment_type": data.get("attachment_type", ""),
+        "enabled": data.get("enabled", True),
+        "updated_at": now_iso(),
+    }
+    # Preserve variables from default if not provided
+    default = next((d for d in WA_DEFAULT_TEMPLATES if d["key"] == template_key), None)
+    update["variables"] = data.get("variables", default["variables"] if default else [])
+    await db.whatsapp_templates.update_one({"key": template_key}, {"$set": update}, upsert=True)
+    return {"message": f"WhatsApp template '{template_key}' updated"}
+
+
+@api_router.post("/admin/whatsapp-templates/{template_key}/reset")
+async def admin_reset_whatsapp_template(template_key: str, admin=Depends(get_current_admin)):
+    await db.whatsapp_templates.delete_one({"key": template_key})
+    return {"message": f"Template '{template_key}' reset to default"}
+
+
+@api_router.post("/admin/whatsapp-templates/{template_key}/preview")
+async def admin_preview_whatsapp_template(template_key: str, admin=Depends(get_current_admin)):
+    template = await db.whatsapp_templates.find_one({"key": template_key}, {"_id": 0})
+    if not template:
+        default = next((d for d in WA_DEFAULT_TEMPLATES if d["key"] == template_key), None)
+        if not default:
+            raise HTTPException(404, "Template not found")
+        template = default
+    sample_vars = {
+        "name": "Dr. Sample Person", "membership_type": "Academic",
+        "membership_id": "ACD/IDSEA/0001", "email": "sample@idsea.org",
+        "phone": "919876543210", "event_title": "IDSEA Conference 2026",
+        "event_date": "15 March 2026", "event_venue": "VCRI Namakkal",
+        "venue_map_link": "https://maps.google.com", "total_amount": "3,100",
+        "payment_status": "Paid", "room_no": "A-101", "location": "Guest House Block A",
+        "map_link": "https://maps.google.com", "amount": "3,100", "reference": "TXN-123456",
+    }
+    message = template.get("message", "")
+    try:
+        preview = message.format(**sample_vars)
+    except KeyError:
+        preview = message
+        for k, v in sample_vars.items():
+            preview = preview.replace("{" + k + "}", v)
+    return {"preview": preview, "attachment_url": template.get("attachment_url", ""), "attachment_type": template.get("attachment_type", "")}
+
 
 
 

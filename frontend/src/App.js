@@ -41,6 +41,7 @@ import SliderAdmin from './pages/admin/SliderAdmin';
 import EventRegistrations from './pages/admin/EventRegistrations';
 import PaymentSettings from './pages/admin/PaymentSettings';
 import WhatsappAdmin from './pages/admin/WhatsappAdmin';
+import WhatsappTemplatesAdmin from './pages/admin/WhatsappTemplatesAdmin';
 import MembershipAdmin from './pages/admin/MembershipAdmin';
 import CertificateDesigner from './pages/admin/CertificateDesigner';
 import EventDetailEditor from './pages/admin/EventDetailEditor';
@@ -98,6 +99,7 @@ function App() {
             <Route path="sliders" element={<SliderAdmin />} />
             <Route path="payment-settings" element={<PaymentSettings />} />
             <Route path="whatsapp" element={<WhatsappAdmin />} />
+            <Route path="whatsapp-templates" element={<WhatsappTemplatesAdmin />} />
             <Route path="membership-plans" element={<MembershipAdmin />} />
             <Route path="backup" element={<BackupAdmin />} />
             <Route path="journal" element={<JournalAdmin />} />

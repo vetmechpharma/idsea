@@ -26,6 +26,7 @@ const navItems = [
   { path: '/admin/sliders', icon: SlidersHorizontal, label: 'Slider Management' },
   { path: '/admin/payment-settings', icon: CreditCard, label: 'Payment Settings' },
   { path: '/admin/whatsapp', icon: MessageSquare, label: 'WhatsApp' },
+  { path: '/admin/whatsapp-templates', icon: FileText, label: 'WA Templates' },
   { path: '/admin/backup', icon: HardDrive, label: 'Backup & Restore' },
   { path: '/admin/roles', icon: Shield, label: 'Admin Roles' },
 ];
