@@ -4279,15 +4279,22 @@ async def admin_whatsapp_status(admin=Depends(get_current_admin)):
     settings = await get_whatsapp_settings()
     server_url = settings.get("server_url", "") or WHATSAPP_SERVER_URL
     sid = settings.get("session_id", "primary")
-    if not server_url:
-        return {"status": "not_configured", "session_id": ""}
-    # Try session status check
-    result = await wa_server_get(f"api/v1/sessions/{sid}/status")
-    if result.get("ok") is True:
-        return {"status": "success", "session_id": sid, "message": "Session active", "data": result}
-    # Session status failed — report actual error
-    error_msg = result.get("error", "Unknown error")
-    return {"status": "error", "session_id": sid, "message": error_msg}
+    token = settings.get("api_key", "")
+    if not server_url or not token:
+        return {"status": "not_configured", "session_id": sid}
+    # WhatsApp server may not have a status endpoint — verify by checking server reachability
+    url = f"{server_url.rstrip('/')}/api/v1/send/text"
+    async with httpx.AsyncClient(timeout=10) as client:
+        try:
+            # OPTIONS/HEAD to check server is alive without sending a message
+            resp = await client.options(url, headers={"Authorization": f"Bearer {token}"})
+            if resp.status_code in (200, 204, 405):
+                return {"status": "success", "session_id": sid, "message": f"Server reachable, session: {sid}"}
+            if resp.status_code == 401:
+                return {"status": "error", "session_id": sid, "message": "API key invalid"}
+            return {"status": "error", "session_id": sid, "message": f"Server returned HTTP {resp.status_code}"}
+        except Exception as e:
+            return {"status": "error", "session_id": sid, "message": f"Cannot reach server: {str(e)[:100]}"}
 
 
 @api_router.post("/admin/whatsapp/send-test")
