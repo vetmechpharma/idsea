@@ -4057,9 +4057,16 @@ async def wa_server_post(endpoint: str, body: dict, is_json: bool = True):
             if resp.status_code == 429:
                 return {"ok": False, "error": "Rate limited. Try again later."}
             try:
-                return resp.json()
+                data = resp.json()
             except Exception:
                 return {"ok": False, "error": f"Invalid response: {resp.text[:200]}"}
+            # Normalize: if response has 'detail' (error), convert to standard format
+            if resp.status_code >= 400 or "detail" in data:
+                return {"ok": False, "error": data.get("detail", data.get("error", f"HTTP {resp.status_code}"))}
+            # Ensure ok field exists
+            if "ok" not in data:
+                data["ok"] = resp.status_code < 300
+            return data
         except httpx.TimeoutException:
             return {"ok": False, "error": "Request timed out"}
         except Exception as e:
@@ -4080,11 +4087,16 @@ async def wa_server_get(endpoint: str):
         try:
             resp = await client.get(url, headers=headers)
             if resp.status_code == 401:
-                return {"ok": False, "error": "Auth failed"}
+                return {"ok": False, "error": "Auth failed. Check API key."}
             try:
-                return resp.json()
+                data = resp.json()
             except Exception:
                 return {"ok": False, "error": resp.text[:200]}
+            if resp.status_code >= 400 or "detail" in data:
+                return {"ok": False, "error": data.get("detail", data.get("error", f"HTTP {resp.status_code}"))}
+            if "ok" not in data:
+                data["ok"] = resp.status_code < 300
+            return data
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
@@ -4100,11 +4112,12 @@ async def send_whatsapp_message(phone: str, message: str, session_id: str = None
         phone = "91" + phone
     body = {"session_id": sid, "to": phone, "text": message}
     result = await wa_server_post("api/v1/send/text", body)
-    is_success = result.get("ok", False)
+    is_success = result.get("ok", False) is True
     await db.whatsapp_logs.insert_one({
         "id": str(uuid.uuid4()), "phone": phone, "message": message[:200],
         "session_id": sid, "msg_type": "text",
         "status": "sent" if is_success else "failed",
+        "error": "" if is_success else result.get("error", ""),
         "response": str(result)[:500], "sent_at": now_iso()
     })
     if not is_success:
@@ -4268,14 +4281,13 @@ async def admin_whatsapp_status(admin=Depends(get_current_admin)):
     sid = settings.get("session_id", "primary")
     if not server_url:
         return {"status": "not_configured", "session_id": ""}
+    # Try session status check
     result = await wa_server_get(f"api/v1/sessions/{sid}/status")
-    if result.get("ok") is False:
-        # Try a simpler health check
-        result2 = await wa_server_get("api/v1/sessions")
-        if result2.get("ok") is False:
-            return {"status": "error", "session_id": sid, "message": result2.get("error", result.get("error", "Cannot reach server"))}
-        return {"status": "success", "session_id": sid, "message": "Server reachable", "data": result2}
-    return {"status": "success", "session_id": sid, "message": "Session active", "data": result}
+    if result.get("ok") is True:
+        return {"status": "success", "session_id": sid, "message": "Session active", "data": result}
+    # Session status failed — report actual error
+    error_msg = result.get("error", "Unknown error")
+    return {"status": "error", "session_id": sid, "message": error_msg}
 
 
 @api_router.post("/admin/whatsapp/send-test")

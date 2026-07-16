@@ -223,7 +223,9 @@ export default function WhatsappAdmin() {
         <h1 className="page-title" data-testid="page-title">WhatsApp Management</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span style={{ width: 8, height: 8, borderRadius: '50%', background: status?.status === 'success' ? '#22c55e' : '#ef4444' }} />
-          <span style={{ fontSize: '12px', color: '#6b7280' }}>{status?.status === 'success' ? 'Connected' : 'Disconnected'}</span>
+          <span style={{ fontSize: '12px', color: '#6b7280' }}>
+            {status?.status === 'success' ? 'Connected' : status?.status === 'not_configured' ? 'Not Configured' : status?.message || 'Disconnected'}
+          </span>
         </div>
       </div>
 
@@ -499,7 +501,7 @@ export default function WhatsappAdmin() {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
                 <thead>
                   <tr style={{ background: '#f9fafb' }}>
-                    {['Phone', 'Type', 'Message', 'Status', 'Time'].map(h => (
+                    {['Phone', 'Type', 'Message', 'Status', 'Error', 'Time'].map(h => (
                       <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 700, color: '#6b7280', borderBottom: '1px solid #e5e7eb', fontSize: '11px', whiteSpace: 'nowrap' }}>{h}</th>
                     ))}
                   </tr>
@@ -515,10 +517,11 @@ export default function WhatsappAdmin() {
                           {l.status === 'sent' ? <CheckCircle2 size={12} /> : <XCircle size={12} />} {l.status}
                         </span>
                       </td>
+                      <td style={{ padding: '8px 12px', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '11px', color: '#dc2626' }}>{l.error || '-'}</td>
                       <td style={{ padding: '8px 12px', fontSize: '11px', color: '#9ca3af', whiteSpace: 'nowrap' }}>{l.sent_at ? new Date(l.sent_at).toLocaleString() : '-'}</td>
                     </tr>
                   ))}
-                  {logs.length === 0 && <tr><td colSpan={5} style={{ padding: '30px', textAlign: 'center', color: '#9ca3af' }}>No logs yet</td></tr>}
+                  {logs.length === 0 && <tr><td colSpan={6} style={{ padding: '30px', textAlign: 'center', color: '#9ca3af' }}>No logs yet</td></tr>}
                 </tbody>
               </table>
             </div>
