@@ -1323,6 +1323,44 @@ async def approve_member(member_id: str, background_tasks: BackgroundTasks, admi
         {"$set": {"status": "approved", "membership_id": membership_id, "state": state, "updated_at": now_iso()}}
     )
 
+    # Generate membership certificate using Certificate Designer template (if linked)
+    cert_pdf = None
+    cert_id = ""
+    cert_filename = f"IDSEA_Membership_Certificate_{membership_id.replace('/', '_')}.pdf"
+    cert_template = await db.certificate_templates.find_one({"linked_membership_type": mtype}, {"_id": 0})
+    if cert_template:
+        cert_id = _gen_cert_id("MEM")
+        cert_data = {
+            "name": f"{member.get('prefix', '')} {member.get('name', '')}".strip(),
+            "membership_id": membership_id,
+            "date": datetime.now().strftime("%d.%m.%Y"), "year": str(datetime.now().year),
+            "email": member.get("email", ""), "phone": member.get("phone", ""),
+            "qualification": member.get("qualification", ""), "specialization": member.get("specialization", ""),
+            "organization": member.get("organization", ""), "membership_type": mtype,
+            "state": state, "country": member.get("country", "India"),
+            "certificate_id": cert_id,
+        }
+        try:
+            cert_pdf = generate_template_pdf(cert_template, cert_data, cert_id=cert_id)
+            # Store certificate record
+            await db.certificate_records.insert_one({
+                "cert_id": cert_id, "type": "membership", "template_id": cert_template.get("id", ""),
+                "member_id": member_id, "recipient_name": cert_data["name"],
+                "membership_id": membership_id, "membership_type": mtype,
+                "issued_date": now_iso(), "data": cert_data,
+            })
+            logging.info(f"Certificate {cert_id} generated for member {member_id} using designer template")
+        except Exception as e:
+            logging.error(f"Certificate Designer template generation failed: {e}")
+            cert_pdf = None
+    # Fallback to basic certificate if no template linked or generation failed
+    if not cert_pdf:
+        cert_pdf = generate_certificate_pdf_bytes(
+            member_name=member.get("name", ""),
+            membership_id=membership_id,
+            cert_type="membership",
+        )
+
     # Send welcome email with membership certificate attached
     if member.get("email"):
         variables = {
@@ -1335,20 +1373,27 @@ async def approve_member(member_id: str, background_tasks: BackgroundTasks, admi
             "state": member.get("state", ""),
             "join_date": datetime.now().strftime("%d %B %Y"),
         }
-        # Generate certificate on-the-fly (NOT stored in DB)
-        cert_pdf = generate_certificate_pdf_bytes(
-            member_name=member.get("name", ""),
-            membership_id=membership_id,
-            cert_type="membership",
-        )
-        attachments = [{"filename": f"IDSEA_Membership_Certificate_{membership_id}.pdf", "data": cert_pdf}]
+        attachments = [{"filename": cert_filename, "data": cert_pdf}]
         background_tasks.add_task(send_templated_email, "membership_approved", [member["email"]], variables, attachments)
 
-    # Send WhatsApp notification on approval
+    # Send WhatsApp notification with certificate attached
     if member.get("phone"):
+        wa_variables = {"name": member.get("name", ""), "membership_id": membership_id, "membership_type": mtype}
+        # Build WhatsApp message from template
+        db_wa_template = await db.whatsapp_templates.find_one({"key": "membership_approved"}, {"_id": 0})
+        wa_msg_text = ""
+        if db_wa_template and db_wa_template.get("enabled", True):
+            wa_msg_text = db_wa_template.get("message", "")
+        else:
+            wa_msg_text = "Congratulations {name}!\n\nYour IDSEA membership has been approved.\n\nMembership ID: {membership_id}\nType: {membership_type}\n\nWelcome to the IDSEA family!\n\nRegards,\nIDSEA Team"
+        try:
+            wa_msg_text = wa_msg_text.format(**wa_variables)
+        except KeyError:
+            for k, v in wa_variables.items():
+                wa_msg_text = wa_msg_text.replace("{" + k + "}", str(v))
+        # Send WhatsApp with certificate PDF attached
         background_tasks.add_task(
-            send_whatsapp_notification, member["phone"], "membership_approved",
-            {"name": member.get("name", ""), "membership_id": membership_id, "membership_type": member.get("membership_type", "")}
+            send_whatsapp_document_bytes, member["phone"], cert_pdf, cert_filename, wa_msg_text
         )
 
     return {"message": "Member approved", "membership_id": membership_id}
@@ -4194,10 +4239,45 @@ async def send_whatsapp_document(phone: str, media_url: str, caption: str = "", 
         except Exception as e:
             logging.error(f"WhatsApp document send error: {e}")
             result = {"ok": False, "error": str(e)}
-    is_success = result.get("ok", False)
+    is_success = result.get("ok", False) is True
     await db.whatsapp_logs.insert_one({
         "id": str(uuid.uuid4()), "phone": phone, "message": caption[:200],
         "session_id": sid, "msg_type": "document", "media_url": media_url,
+        "status": "sent" if is_success else "failed",
+        "response": str(result)[:500], "sent_at": now_iso()
+    })
+    return is_success
+
+
+async def send_whatsapp_document_bytes(phone: str, file_bytes: bytes, filename: str, caption: str = "", session_id: str = None):
+    """Send document from raw bytes via WhatsApp Server /api/v1/send/media."""
+    settings = await get_whatsapp_settings()
+    if not settings.get("enabled", False):
+        return False
+    sid = session_id or settings.get("session_id", "primary")
+    phone = phone.strip().replace("+", "").replace(" ", "").replace("-", "")
+    if len(phone) == 10:
+        phone = "91" + phone
+    server_url = settings.get("server_url", "") or WHATSAPP_SERVER_URL
+    token = settings.get("api_key", "")
+    if not server_url or not token:
+        return False
+    url = f"{server_url.rstrip('/')}/api/v1/send/media"
+    async with httpx.AsyncClient(timeout=60) as client:
+        try:
+            files = {"file": (filename, file_bytes, "application/pdf")}
+            data = {"session_id": sid, "to": phone, "media_type": "document"}
+            if caption:
+                data["caption"] = caption
+            resp = await client.post(url, headers={"Authorization": f"Bearer {token}"}, files=files, data=data)
+            result = resp.json() if resp.status_code < 300 else {"ok": False, "error": f"HTTP {resp.status_code}"}
+        except Exception as e:
+            logging.error(f"WhatsApp document bytes send error: {e}")
+            result = {"ok": False, "error": str(e)}
+    is_success = result.get("ok", False) is True
+    await db.whatsapp_logs.insert_one({
+        "id": str(uuid.uuid4()), "phone": phone, "message": caption[:200],
+        "session_id": sid, "msg_type": "document",
         "status": "sent" if is_success else "failed",
         "response": str(result)[:500], "sent_at": now_iso()
     })
