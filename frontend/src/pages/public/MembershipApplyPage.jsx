@@ -114,6 +114,7 @@ export default function MembershipApplyPage() {
   const [idProofUploading, setIdProofUploading] = useState(false);
   const [plans, setPlans] = useState([]);
   const [plansLoading, setPlansLoading] = useState(true);
+  const [photoPreview, setPhotoPreview] = useState('');
   const fileInputRef = useRef(null);
   const idProofRef = useRef(null);
 
@@ -151,13 +152,19 @@ export default function MembershipApplyPage() {
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) { setError('Photo must be under 5MB'); return; }
     if (!file.type.startsWith('image/')) { setError('Only image files allowed'); return; }
+    // Instant local preview
+    const localUrl = URL.createObjectURL(file);
+    setPhotoPreview(localUrl);
     setPhotoUploading(true); setError('');
     try {
       const formData = new FormData();
       formData.append('file', file);
       const r = await axios.post(`${API}/public/upload-photo`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
       setForm(f => ({ ...f, photo_url: r.data.file_url }));
-    } catch (err) { setError(err.response?.data?.detail || 'Photo upload failed'); }
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Photo upload failed');
+      setPhotoPreview('');
+    }
     setPhotoUploading(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
@@ -229,7 +236,7 @@ export default function MembershipApplyPage() {
   };
   const handlePaymentSkip = () => { setPaymentStatus('pending'); setStep('success'); };
 
-  const photoUrl = form.photo_url ? (form.photo_url.startsWith('/api') ? `${API.replace('/api', '')}${form.photo_url}` : form.photo_url) : '';
+  const photoUrl = photoPreview || (form.photo_url ? (form.photo_url.startsWith('/api') ? `${API.replace('/api', '')}${form.photo_url}` : form.photo_url) : '');
 
   if (step === 'success') {
     return (
@@ -395,8 +402,8 @@ export default function MembershipApplyPage() {
                   >
                     {photoUrl ? (
                       <>
-                        <img src={photoUrl} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        <div onClick={(e) => { e.stopPropagation(); setForm(f => ({ ...f, photo_url: '' })); }} style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.6)', borderRadius: '50%', width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><X size={12} color="white" /></div>
+                        <img src={photoUrl} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.target.style.display = 'none'; }} />
+                        <div onClick={(e) => { e.stopPropagation(); setForm(f => ({ ...f, photo_url: '' })); setPhotoPreview(''); }} style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.6)', borderRadius: '50%', width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><X size={12} color="white" /></div>
                       </>
                     ) : photoUploading ? (
                       <span style={{ fontSize: '12px', color: '#9ca3af' }}>Uploading...</span>
