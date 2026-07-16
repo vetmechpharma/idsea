@@ -264,7 +264,7 @@ export default function CMSAdmin() {
 
   const DEFAULT_MENU = [
     { id: '1', label: 'Home', to: '/', type: 'internal', visible: true, order: 0 },
-    { id: '2', label: 'About IDSEA', to: '/about', type: 'internal', visible: true, order: 1, parent: 'about' },
+    { id: '2', label: 'About IDSEA', to: '/about', type: 'internal', visible: true, order: 1 },
     { id: '3', label: 'EC Members', to: '/ec-members', type: 'internal', visible: true, order: 2, parent: 'about' },
     { id: '4', label: 'Membership', to: '/members', type: 'internal', visible: true, order: 3 },
     { id: '5', label: 'Events', to: '/events', type: 'internal', visible: true, order: 4 },
