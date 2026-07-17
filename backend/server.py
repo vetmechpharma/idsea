@@ -934,6 +934,17 @@ async def batch_event_notification(event: dict, membership_type_filter: str = "a
             "sent_at": now_iso(),
             "status": "sent"
         })
+        # WhatsApp event invite for members with phone
+        for member in batch:
+            if member.get("phone"):
+                await send_whatsapp_notification(member["phone"], "event_invite", {
+                    "name": member.get("name", "Member"),
+                    "event_title": event.get("title", ""),
+                    "event_date": event.get("date", ""),
+                    "event_venue": event.get("venue", ""),
+                    "event_description": event.get("description", "")[:200],
+                })
+                await asyncio.sleep(0.5)
         logging.info(f"Event notification batch {i // batch_size + 1}: sent to {len(batch)} members ({sent_count}/{len(members_with_email)})")
 
         if i + batch_size < len(members_with_email):
@@ -974,6 +985,23 @@ async def send_event_participation_certificates(event: dict):
             )
             attachments = [{"filename": f"IDSEA_Certificate_{event.get('title', 'Event').replace(' ', '_')}.pdf", "data": cert_pdf}]
             send_email_smtp([member["email"]], subject, body, smtp_settings, attachments)
+
+            # WhatsApp: Send participation certificate
+            if member.get("phone"):
+                wa_vars = {
+                    "name": member.get("name", ""),
+                    "event_title": event.get("title", ""),
+                    "event_date": event.get("date", ""),
+                    "event_venue": event.get("venue", ""),
+                }
+                wa_msg = await _render_wa_template("event_certificate", wa_vars)
+                if wa_msg:
+                    await send_whatsapp_document_bytes(
+                        member["phone"], cert_pdf,
+                        f"IDSEA_Certificate_{event.get('title', 'Event').replace(' ', '_')}.pdf",
+                        wa_msg
+                    )
+                    await asyncio.sleep(0.5)
 
         await db.email_logs.insert_one({
             "id": str(uuid.uuid4()),
@@ -1471,6 +1499,77 @@ async def send_member_email(member_id: str, data: dict, background_tasks: Backgr
         "status": "sent", "sent_at": now_iso(), "template": "custom"
     })
     return {"message": f"Email sent to {member['email']}"}
+
+
+@api_router.post("/admin/members/{member_id}/send-whatsapp")
+async def send_member_whatsapp(member_id: str, data: dict, admin=Depends(get_current_admin)):
+    """Send a custom WhatsApp message to a specific member"""
+    member = await db.members.find_one({"id": member_id}, {"_id": 0})
+    if not member:
+        raise HTTPException(status_code=404, detail="Member not found")
+    if not member.get("phone"):
+        raise HTTPException(status_code=400, detail="Member has no phone number")
+    message = data.get("message", "")
+    if not message:
+        raise HTTPException(status_code=400, detail="Message is required")
+    # Use custom_message template
+    success = await send_whatsapp_notification(member["phone"], "custom_message", {
+        "name": member.get("name", ""), "message": message
+    })
+    return {"status": "success" if success else "error", "message": "WhatsApp sent" if success else "Send failed"}
+
+
+@api_router.post("/admin/members/send-payment-reminder")
+async def send_payment_reminders(data: dict, background_tasks: BackgroundTasks, admin=Depends(get_current_admin)):
+    """Send payment reminder to members with pending payments"""
+    target = data.get("target", "all")  # all, specific member_ids list
+    member_ids = data.get("member_ids", [])
+    query = {"payment_status": {"$ne": "paid"}, "status": {"$in": ["pending", "approved"]}}
+    if target == "specific" and member_ids:
+        query["id"] = {"$in": member_ids}
+    members = await db.members.find(query, {"_id": 0}).to_list(10000)
+    sent_count = 0
+
+    async def _send_reminders():
+        nonlocal sent_count
+        plans = {p["key"]: p for p in await db.membership_plans.find({}, {"_id": 0}).to_list(20)}
+        for m in members:
+            mtype = m.get("membership_type", "academic")
+            plan = plans.get(mtype, {})
+            fee = plan.get("fee_inr", 0) if mtype != "international" else plan.get("fee_usd", 100)
+            if m.get("phone"):
+                await send_whatsapp_notification(m["phone"], "payment_reminder", {
+                    "name": m.get("name", ""), "membership_type": mtype,
+                    "amount": str(fee), "membership_id": m.get("membership_id", ""),
+                })
+                sent_count += 1
+                await asyncio.sleep(0.5)
+
+    background_tasks.add_task(_send_reminders)
+    return {"message": f"Payment reminders being sent to {len(members)} members"}
+
+
+@api_router.post("/admin/members/send-renewal-reminder")
+async def send_renewal_reminders(data: dict, background_tasks: BackgroundTasks, admin=Depends(get_current_admin)):
+    """Send membership renewal reminders to approved members"""
+    member_ids = data.get("member_ids", [])
+    query = {"status": "approved"}
+    if member_ids:
+        query["id"] = {"$in": member_ids}
+    members = await db.members.find(query, {"_id": 0}).to_list(10000)
+
+    async def _send_renewals():
+        for m in members:
+            if m.get("phone"):
+                await send_whatsapp_notification(m["phone"], "membership_renewal", {
+                    "name": m.get("name", ""),
+                    "membership_type": m.get("membership_type", ""),
+                    "membership_id": m.get("membership_id", ""),
+                })
+                await asyncio.sleep(0.5)
+
+    background_tasks.add_task(_send_renewals)
+    return {"message": f"Renewal reminders being sent to {len(members)} members"}
 
 
 # =================== ADMIN EVENT ROUTES ===================
@@ -2344,11 +2443,27 @@ async def verify_payment(data: PaymentVerify):
                 {"id": payment["member_id"]},
                 {"$set": {"payment_status": "paid", "amount_paid": payment["amount"]}}
             )
+            # WhatsApp: Payment received for membership
+            member = await db.members.find_one({"id": payment["member_id"]}, {"_id": 0})
+            if member and member.get("phone"):
+                await send_whatsapp_notification(member["phone"], "payment_received", {
+                    "name": member.get("name", ""), "amount": str(payment.get("amount", 0)),
+                    "reference": data.razorpay_payment_id,
+                })
         if payment.get("event_registration_id"):
             await db.event_registrations.update_one(
                 {"id": payment["event_registration_id"]},
                 {"$set": {"payment_status": "paid", "payment_mode": "razorpay"}}
             )
+            # WhatsApp: Event payment confirmed
+            reg = await db.event_registrations.find_one({"id": payment["event_registration_id"]}, {"_id": 0})
+            if reg and reg.get("phone"):
+                event = await db.events.find_one({"id": reg.get("event_id", "")}, {"_id": 0})
+                await send_whatsapp_notification(reg["phone"], "event_payment_confirmed", {
+                    "name": reg.get("name", ""), "event_title": event.get("title", "") if event else "",
+                    "amount": str(payment.get("amount", 0)), "transaction_id": data.razorpay_payment_id,
+                    "registration_id": reg.get("id", ""),
+                })
     return {"message": "Payment verified", "status": "paid"}
 
 
@@ -2473,8 +2588,25 @@ async def admin_verify_utr(payment_id: str, data: dict, admin=Depends(get_curren
         await db.payments.update_one({"id": payment_id}, {"$set": {"status": "paid"}})
         if payment.get("member_id"):
             await db.members.update_one({"id": payment["member_id"]}, {"$set": {"payment_status": "paid", "amount_paid": payment["amount"]}})
+            # WhatsApp: Payment received
+            member = await db.members.find_one({"id": payment["member_id"]}, {"_id": 0})
+            if member and member.get("phone"):
+                await send_whatsapp_notification(member["phone"], "payment_received", {
+                    "name": member.get("name", ""), "amount": str(payment.get("amount", 0)),
+                    "reference": payment.get("utr_number", payment_id[:8]),
+                })
         if payment.get("event_registration_id"):
             await db.event_registrations.update_one({"id": payment["event_registration_id"]}, {"$set": {"payment_status": "paid"}})
+            # WhatsApp: Event payment confirmed
+            reg = await db.event_registrations.find_one({"id": payment["event_registration_id"]}, {"_id": 0})
+            if reg and reg.get("phone"):
+                event = await db.events.find_one({"id": reg.get("event_id", "")}, {"_id": 0})
+                await send_whatsapp_notification(reg["phone"], "event_payment_confirmed", {
+                    "name": reg.get("name", ""), "event_title": event.get("title", "") if event else "",
+                    "amount": str(payment.get("amount", 0)),
+                    "transaction_id": payment.get("utr_number", payment_id[:8]),
+                    "registration_id": reg.get("id", ""),
+                })
         return {"message": "Payment approved"}
     else:
         await db.payments.update_one({"id": payment_id}, {"$set": {"status": "rejected"}})
@@ -3135,6 +3267,14 @@ async def gen_cert_member(tpl_id: str, member_id: str, admin=Depends(get_current
     })
     pdf = generate_template_pdf(t, data, cert_id=cert_id)
     fn = f"certificate_{m.get('name','member').replace(' ','_')}.pdf"
+    # WhatsApp: Certificate issued notification with PDF
+    if m.get("phone"):
+        wa_msg = await _render_wa_template("certificate_issued", {
+            "name": data["name"], "certificate_type": "Membership",
+            "certificate_id": cert_id,
+        })
+        if wa_msg:
+            await send_whatsapp_document_bytes(m["phone"], pdf, fn, wa_msg)
     return StreamingResponse(io.BytesIO(pdf), media_type="application/pdf",
                              headers={"Content-Disposition": f'attachment; filename="{fn}"'})
 
@@ -4284,6 +4424,24 @@ async def send_whatsapp_document_bytes(phone: str, file_bytes: bytes, filename: 
     return is_success
 
 
+async def _render_wa_template(template_key: str, variables: dict) -> str:
+    """Render a WhatsApp template message with variables. Returns empty string if template disabled."""
+    db_tpl = await db.whatsapp_templates.find_one({"key": template_key}, {"_id": 0})
+    if db_tpl and db_tpl.get("enabled", True):
+        text = db_tpl.get("message", "")
+    else:
+        defaults = {d["key"]: d["message"] for d in WA_DEFAULT_TEMPLATES}
+        text = defaults.get(template_key, "")
+    if not text:
+        return ""
+    try:
+        return text.format(**variables)
+    except KeyError:
+        for k, v in variables.items():
+            text = text.replace("{" + k + "}", str(v))
+        return text
+
+
 async def send_whatsapp_notification(phone: str, notification_type: str, variables: dict):
     """Send WhatsApp notification using DB-stored templates with optional attachment."""
     # Try DB template first
@@ -4294,14 +4452,7 @@ async def send_whatsapp_notification(phone: str, notification_type: str, variabl
         attachment_type = db_template.get("attachment_type", "")
     else:
         # Fallback to hardcoded defaults
-        defaults = {
-            "membership_submitted": "Hello {name},\n\nThank you for applying for IDSEA {membership_type} membership.\n\nYour application has been received and is under review. We will notify you once it is processed.\n\nRegards,\nIDSEA Team",
-            "membership_approved": "Congratulations {name}!\n\nYour IDSEA membership has been approved.\n\nMembership ID: {membership_id}\nType: {membership_type}\n\nWelcome to the IDSEA family!\n\nRegards,\nIDSEA Team",
-            "membership_denied": "Dear {name},\n\nWe regret to inform you that your IDSEA membership application has been denied.\n\nPlease contact us at info@idsea.org for more details.\n\nRegards,\nIDSEA Team",
-            "event_registered": "Hello {name},\n\nYou have been successfully registered for:\n\n*{event_title}*\nDate: {event_date}\nVenue: {event_venue}\n{venue_map_link}\nTotal Amount: Rs. {total_amount}\n\nPayment Status: {payment_status}\n\nRegards,\nIDSEA Team",
-            "room_allotment": "Hello {name},\n\nYour accommodation details for *{event_title}*:\n\nRoom No: {room_no}\nLocation: {location}\n{map_link}\n\nRegards,\nIDSEA Team",
-            "payment_received": "Hello {name},\n\nWe have received your payment of Rs. {amount}.\n\nTransaction Reference: {reference}\n\nThank you!\nIDSEA Team",
-        }
+        defaults = {d["key"]: d["message"] for d in WA_DEFAULT_TEMPLATES}
         template_text = defaults.get(notification_type, "")
         attachment_url = ""
         attachment_type = ""
@@ -4343,6 +4494,8 @@ async def admin_update_whatsapp_settings(data: dict, admin=Depends(get_current_a
             "membership_submitted": True, "membership_approved": True,
             "membership_denied": True, "event_registered": True,
             "room_allotment": True, "payment_received": True,
+            "event_invite": True, "event_certificate": True,
+            "event_payment_confirmed": True, "certificate_issued": True,
         }),
         "updated_at": now_iso()
     }
@@ -4591,7 +4744,7 @@ WA_DEFAULT_TEMPLATES = [
         "key": "membership_approved", "name": "Membership Approved",
         "message": "Congratulations {name}!\n\nYour IDSEA membership has been approved.\n\nMembership ID: {membership_id}\nType: {membership_type}\n\nWelcome to the IDSEA family!\n\nRegards,\nIDSEA Team",
         "variables": ["name", "membership_id", "membership_type"],
-        "description": "Sent when membership is approved by admin",
+        "description": "Sent when membership is approved (certificate auto-attached)",
         "attachment_url": "", "attachment_type": "", "enabled": True,
     },
     {
@@ -4619,7 +4772,56 @@ WA_DEFAULT_TEMPLATES = [
         "key": "payment_received", "name": "Payment Received",
         "message": "Hello {name},\n\nWe have received your payment of Rs. {amount}.\n\nTransaction Reference: {reference}\n\nThank you!\nIDSEA Team",
         "variables": ["name", "amount", "reference"],
-        "description": "Sent when payment is confirmed",
+        "description": "Sent when membership payment is confirmed",
+        "attachment_url": "", "attachment_type": "", "enabled": True,
+    },
+    {
+        "key": "payment_reminder", "name": "Payment Reminder",
+        "message": "Dear {name},\n\nThis is a friendly reminder that your IDSEA {membership_type} membership payment of Rs. {amount} is pending.\n\nPlease complete your payment at your earliest convenience.\n\nRegards,\nIDSEA Team",
+        "variables": ["name", "membership_type", "amount", "membership_id"],
+        "description": "Sent as a reminder for pending membership payments",
+        "attachment_url": "", "attachment_type": "", "enabled": True,
+    },
+    {
+        "key": "event_invite", "name": "Event Invitation",
+        "message": "Dear {name},\n\nWe are pleased to invite you to:\n\n*{event_title}*\nDate: {event_date}\nVenue: {event_venue}\n\n{event_description}\n\nRegister now to secure your spot!\n\nRegards,\nIDSEA Team",
+        "variables": ["name", "event_title", "event_date", "event_venue", "event_description"],
+        "description": "Sent when admin broadcasts a new event to members",
+        "attachment_url": "", "attachment_type": "", "enabled": True,
+    },
+    {
+        "key": "event_certificate", "name": "Event Participation Certificate",
+        "message": "Dear {name},\n\nThank you for participating in *{event_title}* held on {event_date} at {event_venue}.\n\nPlease find your participation certificate attached.\n\nWe look forward to seeing you at future IDSEA events!\n\nRegards,\nIDSEA Team",
+        "variables": ["name", "event_title", "event_date", "event_venue"],
+        "description": "Sent with participation certificate when event is closed",
+        "attachment_url": "", "attachment_type": "", "enabled": True,
+    },
+    {
+        "key": "membership_renewal", "name": "Membership Renewal Reminder",
+        "message": "Dear {name},\n\nYour IDSEA {membership_type} membership (ID: {membership_id}) is due for renewal.\n\nPlease renew your membership to continue enjoying all IDSEA benefits.\n\nRegards,\nIDSEA Team",
+        "variables": ["name", "membership_type", "membership_id"],
+        "description": "Sent as a reminder before membership expiry",
+        "attachment_url": "", "attachment_type": "", "enabled": True,
+    },
+    {
+        "key": "event_payment_confirmed", "name": "Event Payment Confirmed",
+        "message": "Hello {name},\n\nYour payment of Rs. {amount} for *{event_title}* has been confirmed.\n\nTransaction ID: {transaction_id}\nRegistration ID: {registration_id}\n\nSee you at the event!\n\nRegards,\nIDSEA Team",
+        "variables": ["name", "event_title", "amount", "transaction_id", "registration_id"],
+        "description": "Sent when event registration payment is verified",
+        "attachment_url": "", "attachment_type": "", "enabled": True,
+    },
+    {
+        "key": "certificate_issued", "name": "Certificate Issued",
+        "message": "Dear {name},\n\nYour {certificate_type} certificate has been issued by IDSEA.\n\nCertificate ID: {certificate_id}\n\nPlease find the certificate attached.\n\nRegards,\nIDSEA Team",
+        "variables": ["name", "certificate_type", "certificate_id"],
+        "description": "Sent when any certificate is manually generated for a member",
+        "attachment_url": "", "attachment_type": "", "enabled": True,
+    },
+    {
+        "key": "custom_message", "name": "Custom Admin Message",
+        "message": "Dear {name},\n\n{message}\n\nRegards,\nIDSEA Team",
+        "variables": ["name", "message"],
+        "description": "Sent when admin sends a direct message to a member",
         "attachment_url": "", "attachment_type": "", "enabled": True,
     },
 ]
@@ -4690,6 +4892,10 @@ async def admin_preview_whatsapp_template(template_key: str, admin=Depends(get_c
         "venue_map_link": "https://maps.google.com", "total_amount": "3,100",
         "payment_status": "Paid", "room_no": "A-101", "location": "Guest House Block A",
         "map_link": "https://maps.google.com", "amount": "3,100", "reference": "TXN-123456",
+        "event_description": "Join us for the annual IDSEA conference featuring keynote speakers and workshops.",
+        "transaction_id": "PAY-RZP-ABC123", "registration_id": "REG-2026-0001",
+        "certificate_type": "Membership", "certificate_id": "IDSEA-MEM-A3K7X9",
+        "message": "This is a custom message from the IDSEA admin team.",
     }
     message = template.get("message", "")
     try:

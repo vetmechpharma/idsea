@@ -12,6 +12,13 @@ const TYPE_COLORS = {
   event_registered: { color: '#0c3c60', bg: '#dbeafe', label: 'Event Reg' },
   room_allotment: { color: '#7c3aed', bg: '#ede9fe', label: 'Room' },
   payment_received: { color: '#059669', bg: '#d1fae5', label: 'Payment' },
+  payment_reminder: { color: '#ea580c', bg: '#fff7ed', label: 'Reminder' },
+  event_invite: { color: '#2563eb', bg: '#eff6ff', label: 'Event Invite' },
+  event_certificate: { color: '#7c3aed', bg: '#f5f3ff', label: 'Event Cert' },
+  membership_renewal: { color: '#b45309', bg: '#fef3c7', label: 'Renewal' },
+  event_payment_confirmed: { color: '#16a34a', bg: '#f0fdf4', label: 'Event Pay' },
+  certificate_issued: { color: '#0369a1', bg: '#e0f2fe', label: 'Certificate' },
+  custom_message: { color: '#6b7280', bg: '#f3f4f6', label: 'Custom' },
 };
 
 export default function WhatsappTemplatesAdmin() {
