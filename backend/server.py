@@ -1129,17 +1129,25 @@ async def apply_membership(data: MemberCreate, background_tasks: BackgroundTasks
 @api_router.post("/public/upload-photo")
 async def public_upload_photo(file: UploadFile = File(...)):
     """Public photo upload for membership applications (images only, max 5MB)"""
-    ext = Path(file.filename).suffix.lower()
-    if ext not in ['.jpg', '.jpeg', '.png', '.webp']:
-        raise HTTPException(status_code=400, detail="Only image files (jpg, png, webp) allowed")
-    content = await file.read()
-    if len(content) > 5 * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="File too large (max 5MB)")
-    unique_name = f"member_{uuid.uuid4().hex[:12]}{ext}"
-    file_path = UPLOAD_DIR / unique_name
-    async with aiofiles.open(file_path, 'wb') as f:
-        await f.write(content)
-    return {"file_url": f"/api/uploads/{unique_name}"}
+    try:
+        ext = Path(file.filename).suffix.lower()
+        if ext not in ['.jpg', '.jpeg', '.png', '.webp']:
+            raise HTTPException(status_code=400, detail="Only image files (jpg, png, webp) allowed")
+        content = await file.read()
+        if len(content) > 5 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail="File too large (max 5MB)")
+        UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+        unique_name = f"member_{uuid.uuid4().hex[:12]}{ext}"
+        file_path = UPLOAD_DIR / unique_name
+        async with aiofiles.open(file_path, 'wb') as f:
+            await f.write(content)
+        logging.info(f"Photo uploaded: {unique_name} ({len(content)} bytes)")
+        return {"file_url": f"/api/uploads/{unique_name}"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Photo upload failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
 
 @api_router.get("/public/events")
@@ -3456,30 +3464,36 @@ MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 
 @api_router.post("/upload")
 async def upload_file(file: UploadFile = File(...), admin=Depends(get_current_admin)):
-    ext = Path(file.filename).suffix.lower()
-    if ext not in ALLOWED_EXTENSIONS:
-        raise HTTPException(status_code=400, detail=f"File type {ext} not allowed")
-    content = await file.read()
-    if len(content) > MAX_FILE_SIZE:
-        raise HTTPException(status_code=400, detail="File too large (max 10MB)")
-
-    unique_name = f"{uuid.uuid4().hex[:12]}{ext}"
-    file_path = UPLOAD_DIR / unique_name
-    async with aiofiles.open(file_path, 'wb') as f:
-        await f.write(content)
-
-    file_record = {
-        "id": str(uuid.uuid4()),
-        "original_name": file.filename,
-        "stored_name": unique_name,
-        "file_url": f"/api/uploads/{unique_name}",
-        "file_type": ext,
-        "file_size": len(content),
-        "uploaded_by": admin["email"],
-        "uploaded_at": now_iso()
-    }
-    await db.uploads.insert_one(file_record)
-    return {"file_url": file_record["file_url"], "original_name": file.filename, "id": file_record["id"]}
+    try:
+        ext = Path(file.filename).suffix.lower()
+        if ext not in ALLOWED_EXTENSIONS:
+            raise HTTPException(status_code=400, detail=f"File type {ext} not allowed")
+        content = await file.read()
+        if len(content) > MAX_FILE_SIZE:
+            raise HTTPException(status_code=400, detail="File too large (max 10MB)")
+        UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+        unique_name = f"{uuid.uuid4().hex[:12]}{ext}"
+        file_path = UPLOAD_DIR / unique_name
+        async with aiofiles.open(file_path, 'wb') as f:
+            await f.write(content)
+        file_record = {
+            "id": str(uuid.uuid4()),
+            "original_name": file.filename,
+            "stored_name": unique_name,
+            "file_url": f"/api/uploads/{unique_name}",
+            "file_type": ext,
+            "file_size": len(content),
+            "uploaded_by": admin["email"],
+            "uploaded_at": now_iso()
+        }
+        await db.uploads.insert_one(file_record)
+        logging.info(f"Admin upload: {unique_name} ({len(content)} bytes) by {admin['email']}")
+        return {"file_url": file_record["file_url"], "original_name": file.filename, "id": file_record["id"]}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Admin upload failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
 
 @api_router.get("/uploads/{filename}")
@@ -4197,17 +4211,25 @@ async def admin_update_membership_id_prefix(membership_type: str, data: dict, ad
 # Public PDF upload for registration documents
 @api_router.post("/public/upload-pdf")
 async def public_upload_pdf(file: UploadFile = File(...)):
-    if not file.filename.lower().endswith('.pdf'):
-        raise HTTPException(status_code=400, detail="Only PDF files are allowed")
-    if file.size and file.size > 10 * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="File too large. Max 10MB.")
-    ext = os.path.splitext(file.filename)[1]
-    fname = f"{uuid.uuid4()}{ext}"
-    fpath = UPLOAD_DIR / fname
-    with open(fpath, "wb") as f:
+    try:
+        if not file.filename.lower().endswith('.pdf'):
+            raise HTTPException(status_code=400, detail="Only PDF files are allowed")
         content = await file.read()
-        f.write(content)
-    return {"url": f"/api/uploads/{fname}", "filename": fname}
+        if len(content) > 10 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail="File too large. Max 10MB.")
+        UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+        ext = os.path.splitext(file.filename)[1]
+        fname = f"{uuid.uuid4()}{ext}"
+        fpath = UPLOAD_DIR / fname
+        async with aiofiles.open(fpath, 'wb') as f:
+            await f.write(content)
+        logging.info(f"PDF uploaded: {fname} ({len(content)} bytes)")
+        return {"url": f"/api/uploads/{fname}", "file_url": f"/api/uploads/{fname}", "filename": fname}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"PDF upload failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
 
 # =================== WHATSAPP (AK NEXUS) SERVICE ===================

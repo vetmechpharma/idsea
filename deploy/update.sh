@@ -12,6 +12,12 @@ cd $APP_DIR/backend
 source venv/bin/activate
 pip install -r requirements.txt --quiet
 deactivate
+
+# Fix upload directory permissions
+sudo mkdir -p $APP_DIR/backend/uploads
+sudo chown -R www-data:www-data $APP_DIR/backend/uploads
+sudo chmod -R 755 $APP_DIR/backend/uploads
+
 sudo supervisorctl restart idsea-backend
 
 cd $APP_DIR/frontend
@@ -19,7 +25,9 @@ printf "REACT_APP_BACKEND_URL=https://%s\nREACT_APP_RAZORPAY_KEY_ID=\n" "$DOMAIN
 yarn install --frozen-lockfile 2>/dev/null || yarn install
 yarn build
 
-sudo systemctl reload nginx
+# Update nginx config
+sudo cp $APP_DIR/deploy/nginx-idsea.conf /etc/nginx/sites-available/idsea
+sudo nginx -t && sudo systemctl reload nginx
 sleep 2
 
 echo ""
