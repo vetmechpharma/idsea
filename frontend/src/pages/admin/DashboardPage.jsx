@@ -6,13 +6,30 @@ import { API } from '../../contexts/AuthContext';
 export default function DashboardPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    axios.get(`${API}/admin/dashboard`).then(r => { setData(r.data); setLoading(false); }).catch(() => setLoading(false));
+    const token = localStorage.getItem('idsea_token');
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    axios.get(`${API}/admin/dashboard`, { headers })
+      .then(r => { setData(r.data); setLoading(false); })
+      .catch(err => {
+        const msg = err.response?.data?.detail || err.response?.statusText || err.message || 'Connection failed';
+        setError(`${msg} (${err.response?.status || 'network'})`);
+        setLoading(false);
+      });
   }, []);
 
   if (loading) return <div className="loading-spinner">Loading dashboard...</div>;
-  if (!data) return <div className="loading-spinner">Failed to load dashboard.</div>;
+  if (!data) return (
+    <div className="loading-spinner" data-testid="dashboard-error">
+      <p>Failed to load dashboard</p>
+      <p style={{ fontSize: '12px', color: '#ef4444', marginTop: '8px' }}>{error}</p>
+      <button onClick={() => window.location.reload()} style={{ marginTop: '12px', padding: '8px 16px', background: '#0c3c60', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '13px' }}>
+        Retry
+      </button>
+    </div>
+  );
 
   const statCards = [
     { label: 'Total Members', value: data.total_members, icon: Users, color: '#0c3c60', bg: '#dbeafe', change: `+${data.new_this_month} this month` },
