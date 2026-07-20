@@ -17,15 +17,17 @@ const ACCENT_COLORS = [
 ];
 
 export default function AboutPage() {
-  const [cms, setCms] = useState({});
-  const [pc, setPc] = useState({});
+  const [cms, setCms] = useState(null);
+  const [pc, setPc] = useState(null);
   const [founders, setFounders] = useState([]);
 
   useEffect(() => {
-    axios.get(`${API}/public/cms`).then(r => setCms(r.data)).catch(() => {});
-    axios.get(`${API}/public/page-content/about`).then(r => setPc(r.data)).catch(() => {});
+    axios.get(`${API}/public/cms`).then(r => setCms(r.data)).catch(() => setCms({}));
+    axios.get(`${API}/public/page-content/about`).then(r => setPc(r.data)).catch(() => setPc({}));
     axios.get(`${API}/public/founders`).then(r => setFounders(r.data || [])).catch(() => {});
   }, []);
+
+  if (!cms || !pc) return <div><PublicNavbar /><div style={{ minHeight: '60vh' }} /></div>;
 
   const objectives = (pc.objectives || '').split('\n').filter(o => o.trim());
   const certImg = pc.cert_image_url ? (pc.cert_image_url.startsWith('/') ? `${process.env.REACT_APP_BACKEND_URL}${pc.cert_image_url}` : pc.cert_image_url) : '';
