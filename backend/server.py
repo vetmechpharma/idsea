@@ -986,19 +986,31 @@ async def send_templated_email(template_key: str, recipients: list, variables: d
     body = render_template(template.get("body", ""), variables)
     smtp_settings = await db.smtp_settings.find_one({}, {"_id": 0})
 
+    log_id = str(uuid.uuid4())
     log = {
-        "id": str(uuid.uuid4()),
+        "id": log_id,
         "subject": subject,
         "body": body[:300],
         "recipients_count": len(recipients),
         "recipient_group": template_key,
         "sent_by": "system",
-        "sent_at": now_iso(),
-        "status": "queued"
+        "created_at": now_iso(),
+        "sent_at": "",
+        "status": "sending"
     }
     await db.email_logs.insert_one(log)
-    send_email_smtp(recipients, subject, body, smtp_settings, attachments)
-    logging.info(f"Templated email [{template_key}] sent to {len(recipients)} recipients")
+
+    try:
+        success = send_email_smtp(recipients, subject, body, smtp_settings, attachments)
+        if success:
+            await db.email_logs.update_one({"id": log_id}, {"$set": {"status": "sent", "sent_at": now_iso()}})
+            logging.info(f"Templated email [{template_key}] sent to {len(recipients)} recipients")
+        else:
+            await db.email_logs.update_one({"id": log_id}, {"$set": {"status": "failed", "error": "SMTP send returned False"}})
+            logging.warning(f"Templated email [{template_key}] FAILED for {len(recipients)} recipients")
+    except Exception as e:
+        await db.email_logs.update_one({"id": log_id}, {"$set": {"status": "failed", "error": str(e)[:200]}})
+        logging.error(f"Templated email [{template_key}] error: {e}")
 
 
 async def batch_event_notification(event: dict, membership_type_filter: str = "all"):
@@ -3952,13 +3964,19 @@ async def admin_get_email_queue(status: Optional[str] = None, limit: int = 100, 
 @api_router.get("/admin/email-queue/stats")
 async def admin_email_queue_stats(admin=Depends(get_current_admin)):
     pipeline = [{"$group": {"_id": "$status", "count": {"$sum": 1}}}]
-    stats = await db.email_queue.aggregate(pipeline).to_list(10)
-    result = {s["_id"]: s["count"] for s in stats}
-    result["total"] = sum(result.values())
-    result["batch_size"] = EMAIL_BATCH_SIZE
-    result["batch_interval_mins"] = EMAIL_BATCH_INTERVAL // 60
-    result["scheduler_running"] = _email_scheduler_running
-    return result
+    queue_stats = await db.email_queue.aggregate(pipeline).to_list(10)
+    log_stats = await db.email_logs.aggregate(pipeline).to_list(10)
+    queue_counts = {s["_id"]: s["count"] for s in queue_stats if s["_id"]}
+    log_counts = {s["_id"]: s["count"] for s in log_stats if s["_id"]}
+    return {
+        "queue": queue_counts,
+        "queue_total": sum(queue_counts.values()),
+        "logs": log_counts,
+        "logs_total": sum(log_counts.values()),
+        "batch_size": EMAIL_BATCH_SIZE,
+        "batch_interval_mins": EMAIL_BATCH_INTERVAL // 60,
+        "scheduler_running": _email_scheduler_running,
+    }
 
 
 @api_router.post("/admin/email-queue/{email_id}/retry")
