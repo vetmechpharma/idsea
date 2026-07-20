@@ -1243,7 +1243,6 @@ async def apply_membership(data: MemberCreate, background_tasks: BackgroundTasks
 
 @api_router.post("/public/upload-photo")
 async def public_upload_photo(file: UploadFile = File(...)):
-    """Public photo upload for membership applications (images only, max 5MB)"""
     try:
         ext = Path(file.filename).suffix.lower()
         if ext not in ['.jpg', '.jpeg', '.png', '.webp']:
@@ -1254,9 +1253,11 @@ async def public_upload_photo(file: UploadFile = File(...)):
         UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
         unique_name = f"member_{uuid.uuid4().hex[:12]}{ext}"
         file_path = UPLOAD_DIR / unique_name
-        async with aiofiles.open(file_path, 'wb') as f:
-            await f.write(content)
-        logging.info(f"Photo uploaded: {unique_name} ({len(content)} bytes)")
+        with open(file_path, 'wb') as f:
+            f.write(content)
+        if not file_path.exists():
+            raise HTTPException(status_code=500, detail="File verification failed")
+        logging.info(f"Photo upload OK: {file_path} size={len(content)}")
         return {"file_url": f"/api/uploads/{unique_name}"}
     except HTTPException:
         raise
@@ -3574,8 +3575,10 @@ async def upload_file(file: UploadFile = File(...), admin=Depends(get_current_ad
         UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
         unique_name = f"{uuid.uuid4().hex[:12]}{ext}"
         file_path = UPLOAD_DIR / unique_name
-        async with aiofiles.open(file_path, 'wb') as f:
-            await f.write(content)
+        with open(file_path, 'wb') as f:
+            f.write(content)
+        if not file_path.exists():
+            raise HTTPException(status_code=500, detail="File verification failed")
         file_record = {
             "id": str(uuid.uuid4()),
             "original_name": file.filename,
@@ -3587,7 +3590,7 @@ async def upload_file(file: UploadFile = File(...), admin=Depends(get_current_ad
             "uploaded_at": now_iso()
         }
         await db.uploads.insert_one(file_record)
-        logging.info(f"Admin upload: {unique_name} ({len(content)} bytes) by {admin['email']}")
+        logging.info(f"Upload OK: {file_path} size={len(content)} exists={file_path.exists()}")
         return {"file_url": file_record["file_url"], "original_name": file.filename, "id": file_record["id"]}
     except HTTPException:
         raise
@@ -3600,7 +3603,8 @@ async def upload_file(file: UploadFile = File(...), admin=Depends(get_current_ad
 async def serve_upload(filename: str):
     file_path = UPLOAD_DIR / filename
     if not file_path.exists():
-        raise HTTPException(status_code=404, detail="File not found")
+        logging.error(f"Upload not found: {file_path} (UPLOAD_DIR={UPLOAD_DIR}, exists={UPLOAD_DIR.exists()}, files={len(list(UPLOAD_DIR.iterdir())) if UPLOAD_DIR.exists() else 0})")
+        raise HTTPException(status_code=404, detail=f"File not found: {filename}")
     ext = file_path.suffix.lower()
     content_types = {
         '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png',
@@ -3611,6 +3615,20 @@ async def serve_upload(filename: str):
     ct = content_types.get(ext, 'application/octet-stream')
     headers = {"Cache-Control": "public, max-age=2592000", "Access-Control-Allow-Origin": "*"}
     return StreamingResponse(open(file_path, 'rb'), media_type=ct, headers=headers)
+
+
+@api_router.get("/admin/upload-debug")
+async def upload_debug(admin=Depends(get_current_admin)):
+    """Debug endpoint to check upload directory on VPS"""
+    files = list(UPLOAD_DIR.iterdir()) if UPLOAD_DIR.exists() else []
+    return {
+        "upload_dir": str(UPLOAD_DIR),
+        "exists": UPLOAD_DIR.exists(),
+        "writable": os.access(str(UPLOAD_DIR), os.W_OK) if UPLOAD_DIR.exists() else False,
+        "file_count": len(files),
+        "recent_files": [f.name for f in sorted(files, key=lambda x: x.stat().st_mtime, reverse=True)[:10]] if files else [],
+        "dir_owner": str(UPLOAD_DIR.stat().st_uid) if UPLOAD_DIR.exists() else "N/A",
+    }
 
 
 # =================== SMTP SETTINGS ===================
@@ -4322,9 +4340,11 @@ async def public_upload_pdf(file: UploadFile = File(...)):
         ext = os.path.splitext(file.filename)[1]
         fname = f"{uuid.uuid4()}{ext}"
         fpath = UPLOAD_DIR / fname
-        async with aiofiles.open(fpath, 'wb') as f:
-            await f.write(content)
-        logging.info(f"PDF uploaded: {fname} ({len(content)} bytes)")
+        with open(fpath, 'wb') as f:
+            f.write(content)
+        if not fpath.exists():
+            raise HTTPException(status_code=500, detail="File verification failed")
+        logging.info(f"PDF upload OK: {fpath} size={len(content)}")
         return {"url": f"/api/uploads/{fname}", "file_url": f"/api/uploads/{fname}", "filename": fname}
     except HTTPException:
         raise
