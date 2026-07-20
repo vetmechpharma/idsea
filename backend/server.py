@@ -1371,6 +1371,79 @@ async def get_public_page_content(page: str):
     return doc.get("content", {}) if doc else {}
 
 
+@api_router.post("/public/contact")
+async def submit_contact_form(data: dict, background_tasks: BackgroundTasks):
+    name = data.get("name", "").strip()
+    email = data.get("email", "").strip()
+    subject = data.get("subject", "").strip()
+    message = data.get("message", "").strip()
+    if not name or not email or not subject or not message:
+        raise HTTPException(status_code=400, detail="All fields are required")
+
+    # Store in DB
+    contact_entry = {
+        "id": str(uuid.uuid4()),
+        "name": name, "email": email, "subject": subject, "message": message,
+        "status": "new", "created_at": now_iso()
+    }
+    await db.contact_messages.insert_one(contact_entry)
+
+    # Send email to IDSEA admin with CC to sender
+    to_email = "idsea2026@gmail.com"
+    smtp_settings = await db.smtp_settings.find_one({}, {"_id": 0})
+    email_body = f"""<div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+  <div style="background: #0c3c60; padding: 24px; text-align: center;">
+    <h1 style="color: white; margin: 0; font-size: 20px;">New Contact Message</h1>
+  </div>
+  <div style="padding: 28px; background: white;">
+    <table style="width: 100%; font-size: 14px; color: #374151; border-collapse: collapse;">
+      <tr><td style="padding: 10px 0; color: #6b7280; width: 100px; vertical-align: top; font-weight: 600;">Name</td><td style="padding: 10px 0;">{name}</td></tr>
+      <tr><td style="padding: 10px 0; color: #6b7280; vertical-align: top; font-weight: 600;">Email</td><td style="padding: 10px 0;"><a href="mailto:{email}">{email}</a></td></tr>
+      <tr><td style="padding: 10px 0; color: #6b7280; vertical-align: top; font-weight: 600;">Subject</td><td style="padding: 10px 0; font-weight: 600;">{subject}</td></tr>
+      <tr><td style="padding: 10px 0; color: #6b7280; vertical-align: top; font-weight: 600;">Message</td><td style="padding: 10px 0; line-height: 1.7;">{message}</td></tr>
+    </table>
+    <div style="margin-top: 20px; padding: 14px; background: #f0f9ff; border-radius: 8px; font-size: 12px; color: #6b7280;">
+      Received on {datetime.now().strftime('%d %B %Y at %I:%M %p')}
+    </div>
+  </div>
+  <div style="padding: 16px; background: #f8fafc; text-align: center; font-size: 11px; color: #9ca3af;">
+    IDSEA Contact Form | www.idsea.in
+  </div>
+</div>"""
+
+    async def _send_contact_email():
+        try:
+            host = smtp_settings.get("smtp_host", SMTP_HOST) if smtp_settings else SMTP_HOST
+            port = int(smtp_settings.get("smtp_port", SMTP_PORT_VAL) if smtp_settings else SMTP_PORT_VAL)
+            user = smtp_settings.get("smtp_user", SMTP_USER) if smtp_settings else SMTP_USER
+            passwd = smtp_settings.get("smtp_pass", SMTP_PASS) if smtp_settings else SMTP_PASS
+            from_email = smtp_settings.get("from_email", FROM_EMAIL) if smtp_settings else FROM_EMAIL
+            if not host or not user:
+                logging.warning("SMTP not configured, contact email skipped")
+                return
+            msg = MIMEMultipart('mixed')
+            msg['Subject'] = f"[IDSEA Contact] {subject}"
+            msg['From'] = f"IDSEA Website <{from_email}>"
+            msg['To'] = to_email
+            msg['Cc'] = email
+            msg['Reply-To'] = email
+            msg.attach(MIMEText(email_body, 'html'))
+            with smtplib.SMTP(host, port) as server:
+                server.starttls()
+                server.login(user, passwd)
+                server.sendmail(from_email, [to_email, email], msg.as_string())
+            await db.contact_messages.update_one({"id": contact_entry["id"]}, {"$set": {"status": "emailed"}})
+            logging.info(f"Contact form email sent to {to_email}, CC: {email}")
+        except Exception as e:
+            logging.error(f"Contact form email error: {e}")
+            await db.contact_messages.update_one({"id": contact_entry["id"]}, {"$set": {"status": "email_failed", "error": str(e)[:200]}})
+
+    background_tasks.add_task(_send_contact_email)
+    return {"message": "Your message has been sent. We'll get back to you soon."}
+
+
+
+
 @api_router.get("/public/robots.txt")
 async def get_robots_txt():
     from fastapi.responses import PlainTextResponse

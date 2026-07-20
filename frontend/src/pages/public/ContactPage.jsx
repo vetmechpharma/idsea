@@ -2,28 +2,48 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import PublicNavbar from '../../components/public/PublicNavbar';
 import PublicFooter from '../../components/public/PublicFooter';
-import { Mail, Phone, MapPin, Send } from 'lucide-react';
+import { Mail, Phone, MapPin, Send, Loader2 } from 'lucide-react';
 import SEOHead from '../../components/SEOHead';
 import { API } from '../../contexts/AuthContext';
 
 export default function ContactPage() {
-  const [cms, setCms] = useState({});
-  const [pc, setPc] = useState({});
+  const [cms, setCms] = useState(null);
+  const [pc, setPc] = useState(null);
   const [form, setForm] = useState({ name: '', email: '', subject: '', message: '' });
   const [sent, setSent] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    axios.get(`${API}/public/cms`).then(r => setCms(r.data)).catch(() => {});
-    axios.get(`${API}/public/page-content/contact`).then(r => setPc(r.data)).catch(() => {});
+    axios.get(`${API}/public/cms`).then(r => setCms(r.data)).catch(() => setCms({}));
+    axios.get(`${API}/public/page-content/contact`).then(r => setPc(r.data)).catch(() => setPc({}));
   }, []);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setSent(true);
+    setError('');
+    setSending(true);
+    try {
+      await axios.post(`${API}/public/contact`, form);
+      setSent(true);
+      setForm({ name: '', email: '', subject: '', message: '' });
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to send message. Please try again.');
+    }
+    setSending(false);
   };
+
+  if (!cms || !pc) return <div><PublicNavbar /><div style={{ minHeight: '60vh' }} /></div>;
+
+  const contactInfo = [
+    { icon: MapPin, label: 'Address', value: cms.contact_address },
+    { icon: Mail, label: 'Email', value: cms.contact_email },
+    { icon: Phone, label: 'Phone', value: cms.contact_phone },
+  ].filter(c => c.value);
 
   return (
     <div style={{ background: '#f8fafc' }}>
+      <SEOHead title={pc.meta_title || 'Contact Us | IDSEA'} description={pc.meta_description || 'Get in touch with IDSEA'} />
       <PublicNavbar />
       <div>
         <div style={{ background: '#0c3c60', padding: '180px 24px 40px', textAlign: 'center', color: 'white' }}>
@@ -36,11 +56,7 @@ export default function ContactPage() {
           <div>
             <h2 style={{ fontFamily: 'Poppins, sans-serif', fontSize: '22px', fontWeight: 700, color: '#0c3c60', marginBottom: '24px' }}>Contact Information</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              {[
-                { icon: MapPin, label: 'Address', value: cms.contact_address || 'Dept. of Livestock Products Technology (Dairy Science), VCRI, Namakkal - 637002, Tamil Nadu, India' },
-                { icon: Mail, label: 'Email', value: cms.contact_email || 'info@idsea.org' },
-                { icon: Phone, label: 'Phone', value: cms.contact_phone || '+91 98765 43210' },
-              ].map(({ icon: Icon, label, value }) => (
+              {contactInfo.map(({ icon: Icon, label, value }) => (
                 <div key={label} style={{ display: 'flex', gap: '14px', padding: '16px', background: 'white', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', border: '1px solid #e5e7eb' }}>
                   <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#d1fae5', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <Icon size={18} style={{ color: '#1e7a4d' }} />
@@ -76,24 +92,25 @@ export default function ContactPage() {
               </div>
             ) : (
               <form onSubmit={handleSubmit}>
+                {error && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '12px', marginBottom: '16px', color: '#dc2626', fontSize: '13px' }}>{error}</div>}
                 <div className="form-group">
                   <label className="form-label">Full Name</label>
-                  <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="form-input" placeholder="Your full name" required />
+                  <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="form-input" placeholder="Your full name" required data-testid="contact-name" />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Email Address</label>
-                  <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="form-input" placeholder="your@email.com" required />
+                  <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="form-input" placeholder="your@email.com" required data-testid="contact-email" />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Subject</label>
-                  <input value={form.subject} onChange={e => setForm({ ...form, subject: e.target.value })} className="form-input" placeholder="Subject of your message" required />
+                  <input value={form.subject} onChange={e => setForm({ ...form, subject: e.target.value })} className="form-input" placeholder="Subject of your message" required data-testid="contact-subject" />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Message</label>
-                  <textarea value={form.message} onChange={e => setForm({ ...form, message: e.target.value })} className="form-textarea" placeholder="Your message..." required rows={5} />
+                  <textarea value={form.message} onChange={e => setForm({ ...form, message: e.target.value })} className="form-textarea" placeholder="Your message..." required rows={5} data-testid="contact-message" />
                 </div>
-                <button type="submit" className="btn-primary" style={{ width: '100%', justifyContent: 'center' }} data-testid="contact-submit-btn">
-                  Send Message <Send size={16} />
+                <button type="submit" disabled={sending} className="btn-primary" style={{ width: '100%', justifyContent: 'center' }} data-testid="contact-submit-btn">
+                  {sending ? <><Loader2 size={16} className="animate-spin" /> Sending...</> : <><Send size={16} /> Send Message</>}
                 </button>
               </form>
             )}
