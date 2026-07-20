@@ -1587,22 +1587,7 @@ async def change_member_type(member_id: str, data: dict, admin=Depends(get_curre
     update = {"membership_type": new_type, "updated_at": now_iso()}
     # Regenerate ID if already approved
     if member.get("status") == "approved":
-        prefix_map = {"academic": "ACD", "entrepreneur": "ENT", "corporate": "COP"}
-        type_prefix = prefix_map.get(new_type, "MEM")
-        year = datetime.now().year
-        all_members = await db.members.find(
-            {"status": "approved", "membership_id": {"$regex": f"^{type_prefix}/IDSEA/"}},
-            {"_id": 0, "membership_id": 1}
-        ).to_list(None)
-        max_serial = 0
-        for m in all_members:
-            try:
-                s = int(m["membership_id"].split("/")[-1])
-                if s > max_serial:
-                    max_serial = s
-            except (ValueError, IndexError):
-                pass
-        update["membership_id"] = f"{type_prefix}/IDSEA/{year}/{str(max_serial + 1).zfill(4)}"
+        update["membership_id"] = await generate_membership_id(new_type)
     await db.members.update_one({"id": member_id}, {"$set": update})
     return {"message": "Membership type changed", "membership_id": update.get("membership_id", member.get("membership_id", ""))}
 
