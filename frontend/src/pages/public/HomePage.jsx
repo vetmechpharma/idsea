@@ -73,10 +73,10 @@ export default function HomePage() {
   const [events, setEvents] = useState([]);
   const [news, setNews] = useState([]);
   const [executive, setExecutive] = useState([]);
-  const [sliders, setSliders] = useState([]);
+  const [sliders, setSliders] = useState(null);
   const [plans, setPlans] = useState([]);
-  const [pc, setPc] = useState({});
-  const [memberStats, setMemberStats] = useState({ total: 0, categories: {} });
+  const [pc, setPc] = useState(null);
+  const [memberStats, setMemberStats] = useState(null);
 
   useEffect(() => {
     axios.get(`${API}/public/stats`).then(r => setStats(r.data)).catch(() => {});
@@ -90,7 +90,7 @@ export default function HomePage() {
   }, []);
 
   const sliderSettings = {
-    dots: true, infinite: sliders.length > 1, speed: 600,
+    dots: true, infinite: (sliders || []).length > 1, speed: 600,
     slidesToShow: 1, slidesToScroll: 1, autoplay: true, autoplaySpeed: 5000,
     pauseOnHover: true, fade: true,
     prevArrow: <SlickArrow direction="prev" />,
@@ -114,6 +114,10 @@ export default function HomePage() {
   const PLAN_BGS = ['#dbeafe', '#d1fae5', '#ede9fe', '#fef3c7'];
 
   const renderHero = () => {
+    // Loading state — show minimal placeholder (no flash of fallback)
+    if (sliders === null) {
+      return <section style={{ height: 'clamp(300px, 45vw, 520px)', background: '#0c3c60' }} />;
+    }
     if (sliders.length === 0) {
       return (
         <section data-testid="hero-fallback" className="hero-slide-outer" style={{ position: 'relative', display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
@@ -129,7 +133,6 @@ export default function HomePage() {
               </p>
               <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                 <Link to="/apply" data-testid="hero-join-btn" className="btn-primary" style={{ textDecoration: 'none', padding: '14px 28px', fontSize: '15px' }}>Become a Member <ArrowRight size={16} /></Link>
-                <Link to="/about" style={{ background: 'rgba(255,255,255,0.1)', color: 'white', textDecoration: 'none', padding: '14px 28px', borderRadius: '8px', fontWeight: 600, fontFamily: 'Poppins, sans-serif', fontSize: '15px', border: '1px solid rgba(255,255,255,0.3)' }}>Learn More</Link>
               </div>
             </div>
           </div>
@@ -146,12 +149,12 @@ export default function HomePage() {
         <Slider {...sliderSettings} className="hero-slider">
           {sliders.map((slide, idx) => (
             <div key={slide.id}>
-              <div style={{ width: '100%', height: 'clamp(300px, 50vw, 550px)', position: 'relative', overflow: 'hidden' }}>
+              <div style={{ width: '100%', position: 'relative', overflow: 'hidden' }}>
                 <img
                   src={resolveImg(slide.image_url)}
                   alt={`Slide ${idx + 1}`}
                   data-testid={`slider-image-${idx}`}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                  style={{ width: '100%', height: 'auto', display: 'block', maxHeight: '600px', objectFit: 'cover' }}
                 />
               </div>
             </div>
@@ -195,9 +198,9 @@ export default function HomePage() {
       <section style={{ padding: '80px 24px' }}>
         <div style={{ maxWidth: '1280px', margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '60px', alignItems: 'center' }}>
           <div>
-            <div style={{ color: '#1e7a4d', fontWeight: 600, fontSize: '13px', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '12px', fontFamily: 'Poppins, sans-serif' }}>{pc.about_title || 'About IDSEA'}</div>
+            <div style={{ color: '#1e7a4d', fontWeight: 600, fontSize: '13px', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '12px', fontFamily: 'Poppins, sans-serif' }}>{pc?.about_title || 'About IDSEA'}</div>
             <h2 style={{ fontFamily: 'Poppins, sans-serif', fontSize: 'clamp(24px, 3vw, 36px)', fontWeight: 700, color: '#0c3c60', lineHeight: 1.3, marginBottom: '20px' }}>
-              {pc.about_subtitle || 'A Platform for Dairy Science & Entrepreneurship'}
+              {pc?.about_subtitle || 'A Platform for Dairy Science & Entrepreneurship'}
             </h2>
             <div style={{ color: '#4b5563', fontSize: '15px', lineHeight: 1.8, marginBottom: '16px', fontFamily: 'Inter, sans-serif' }} dangerouslySetInnerHTML={{ __html: pc.about_description || 'IDSEA is a national professional and scientific body that bridges the gap between dairy scientists and industry professionals.' }} />
             <div style={{ color: '#4b5563', fontSize: '15px', lineHeight: 1.8, marginBottom: '28px', fontFamily: 'Inter, sans-serif' }} dangerouslySetInnerHTML={{ __html: pc.about_description2 || 'Headquartered at VCRI, Namakkal, Tamil Nadu, we operate with an all-India mandate to foster innovation, research, and sustainable growth.' }} />
@@ -209,7 +212,7 @@ export default function HomePage() {
             </div>
           </div>
           <div style={{ position: 'relative' }}>
-            <img src={pc.about_image || 'https://images.unsplash.com/photo-1532094349884-543559059a6d?w=600&q=80'} alt="Dairy Science" style={{ width: '100%', borderRadius: '16px', boxShadow: '0 20px 40px rgba(0,0,0,0.12)', objectFit: 'cover', height: '400px' }} />
+            <img src={pc?.about_image || 'https://images.unsplash.com/photo-1532094349884-543559059a6d?w=600&q=80'} alt="Dairy Science" style={{ width: '100%', borderRadius: '16px', boxShadow: '0 20px 40px rgba(0,0,0,0.12)', objectFit: 'cover', height: '400px' }} />
             <div style={{
               position: 'absolute', bottom: '-20px', left: '-20px',
               background: '#1e7a4d', color: 'white', padding: '20px 24px', borderRadius: '12px',
@@ -226,8 +229,8 @@ export default function HomePage() {
       <section style={{ background: '#f8fafc', padding: '80px 24px' }}>
         <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: '48px' }}>
-            <h2 className="section-title">{pc.membership_title || 'Membership Types'}</h2>
-            <p className="section-subtitle">{pc.membership_subtitle || "Join IDSEA and be part of India's premier dairy science community"}</p>
+            <h2 className="section-title">{pc?.membership_title || 'Membership Types'}</h2>
+            <p className="section-subtitle">{pc?.membership_subtitle || "Join IDSEA and be part of India's premier dairy science community"}</p>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '24px' }}>
             {(plans.length > 0 ? plans : [
@@ -290,8 +293,8 @@ export default function HomePage() {
           <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '40px', flexWrap: 'wrap', gap: '16px' }}>
               <div>
-                <h2 className="section-title">{pc.events_title || 'Upcoming Events'}</h2>
-                <p style={{ color: '#6b7280', margin: 0, fontFamily: 'Inter, sans-serif' }}>{pc.events_subtitle || 'Conferences, workshops, and seminars'}</p>
+                <h2 className="section-title">{pc?.events_title || 'Upcoming Events'}</h2>
+                <p style={{ color: '#6b7280', margin: 0, fontFamily: 'Inter, sans-serif' }}>{pc?.events_subtitle || 'Conferences, workshops, and seminars'}</p>
               </div>
               <Link to="/events" style={{ color: '#1e7a4d', textDecoration: 'none', fontWeight: 600, fontSize: '14px', fontFamily: 'Poppins, sans-serif', display: 'flex', alignItems: 'center', gap: '4px' }}>
                 View All <ArrowRight size={14} />
@@ -331,8 +334,8 @@ export default function HomePage() {
           <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '40px', flexWrap: 'wrap', gap: '16px' }}>
               <div>
-                <h2 className="section-title">{pc.news_title || 'Latest News'}</h2>
-                <p style={{ color: '#6b7280', margin: 0, fontFamily: 'Inter, sans-serif' }}>{pc.news_subtitle || 'Scientific updates and announcements'}</p>
+                <h2 className="section-title">{pc?.news_title || 'Latest News'}</h2>
+                <p style={{ color: '#6b7280', margin: 0, fontFamily: 'Inter, sans-serif' }}>{pc?.news_subtitle || 'Scientific updates and announcements'}</p>
               </div>
               <Link to="/events" style={{ color: '#1e7a4d', textDecoration: 'none', fontWeight: 600, fontSize: '14px', fontFamily: 'Poppins, sans-serif', display: 'flex', alignItems: 'center', gap: '4px' }}>
                 View All <ArrowRight size={14} />
@@ -356,7 +359,7 @@ export default function HomePage() {
       )}
 
       {/* Member Registration Infographic */}
-      {memberStats.total > 0 && (
+      {memberStats && memberStats.total > 0 && (
         <section data-testid="member-stats-section" style={{ background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 50%, #f0f9ff 100%)', padding: '80px 24px' }}>
           <div style={{ maxWidth: '1100px', margin: '0 auto', textAlign: 'center' }}>
             <h2 className="section-title" style={{ color: '#0c3c60' }}>Our Growing Community</h2>
@@ -417,17 +420,17 @@ export default function HomePage() {
       <section style={{ background: '#0c3c60', padding: '80px 24px', textAlign: 'center' }}>
         <div style={{ maxWidth: '640px', margin: '0 auto' }}>
           <h2 style={{ fontFamily: 'Poppins, sans-serif', color: 'white', fontSize: 'clamp(24px, 3vw, 36px)', fontWeight: 700, marginBottom: '16px' }}>
-            {pc.cta_title || 'Join the IDSEA Community Today'}
+            {pc?.cta_title || 'Join the IDSEA Community Today'}
           </h2>
           <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: '15px', lineHeight: 1.7, marginBottom: '32px', fontFamily: 'Inter, sans-serif' }}>
-            {pc.cta_description || 'Become part of India\'s premier dairy science and entrepreneurship network. Connect, collaborate, and grow.'}
+            {pc?.cta_description || 'Become part of India\'s premier dairy science and entrepreneurship network. Connect, collaborate, and grow.'}
           </p>
           <div style={{ display: 'flex', gap: '14px', justifyContent: 'center', flexWrap: 'wrap' }}>
-            <Link to={pc.cta_button_link || '/apply'} data-testid="cta-apply-btn" style={{
+            <Link to={pc?.cta_button_link || '/apply'} data-testid="cta-apply-btn" style={{
               background: '#1e7a4d', color: 'white', textDecoration: 'none',
               padding: '14px 32px', borderRadius: '8px', fontWeight: 700,
               fontFamily: 'Poppins, sans-serif', fontSize: '15px', transition: 'background 0.2s ease'
-            }}>{pc.cta_button_text || 'Apply for Membership'}</Link>
+            }}>{pc?.cta_button_text || 'Apply for Membership'}</Link>
             <Link to="/contact" style={{
               background: 'rgba(255,255,255,0.1)', color: 'white', textDecoration: 'none',
               padding: '14px 32px', borderRadius: '8px', fontWeight: 600,
