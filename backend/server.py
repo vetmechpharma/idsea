@@ -796,6 +796,116 @@ def render_template(template_body: str, variables: dict) -> str:
     return rendered
 
 
+def generate_registration_pdf(member: dict) -> bytes:
+    """Generate a membership application form PDF with all filled data."""
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4, topMargin=40, bottomMargin=40, leftMargin=40, rightMargin=40)
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle('TitleStyle', parent=styles['Title'], fontName='Helvetica-Bold', fontSize=18, textColor=colors.HexColor('#0c3c60'), spaceAfter=4, alignment=TA_CENTER)
+    subtitle_style = ParagraphStyle('SubStyle', parent=styles['Normal'], fontName='Helvetica', fontSize=10, textColor=colors.HexColor('#6b7280'), spaceAfter=20, alignment=TA_CENTER)
+    section_style = ParagraphStyle('SectionStyle', parent=styles['Heading2'], fontName='Helvetica-Bold', fontSize=12, textColor=colors.HexColor('#0c3c60'), spaceBefore=16, spaceAfter=8, borderPadding=(0, 0, 4, 0))
+    elements = []
+
+    # Header
+    elements.append(Paragraph("IDSEA Membership Application", title_style))
+    elements.append(Paragraph("Indian Dairy Scientists and Entrepreneurs Association", subtitle_style))
+    elements.append(Spacer(1, 4))
+
+    # Personal Information
+    elements.append(Paragraph("Personal Information", section_style))
+    full_name = f"{member.get('prefix', '')} {member.get('name', '')}".strip()
+    personal_data = [
+        ["Full Name", full_name],
+        ["Email", member.get("email", "")],
+        ["Phone", member.get("phone", "")],
+        ["Qualification", member.get("qualification", "")],
+        ["Specialization", member.get("specialization", "")],
+        ["Organization", member.get("organization", "")],
+        ["Country", member.get("country", "India")],
+    ]
+    t = Table(personal_data, colWidths=[140, 370])
+    t.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor('#374151')),
+        ('TEXTCOLOR', (1, 0), (1, -1), colors.HexColor('#111827')),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ('LINEBELOW', (0, 0), (-1, -2), 0.5, colors.HexColor('#e5e7eb')),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+    ]))
+    elements.append(t)
+
+    # Address
+    def format_addr(addr):
+        if not addr or not isinstance(addr, dict):
+            return ""
+        parts = [addr.get("line1", ""), addr.get("line2", ""), addr.get("line3", "")]
+        parts = [p for p in parts if p]
+        loc = ", ".join([addr.get("district", ""), addr.get("state", ""), addr.get("pincode", "")])
+        loc = ", ".join([p for p in loc.split(", ") if p])
+        if loc:
+            parts.append(loc)
+        return ", ".join(parts)
+
+    perm_addr = format_addr(member.get("permanent_address"))
+    cont_addr = format_addr(member.get("contact_address"))
+
+    if perm_addr or cont_addr:
+        elements.append(Paragraph("Address Details", section_style))
+        addr_data = []
+        if perm_addr:
+            addr_data.append(["Permanent Address", perm_addr])
+        if cont_addr and cont_addr != perm_addr:
+            addr_data.append(["Contact Address", cont_addr])
+        elif member.get("contact_same_as_permanent"):
+            addr_data.append(["Contact Address", "Same as Permanent Address"])
+        if addr_data:
+            t2 = Table(addr_data, colWidths=[140, 370])
+            t2.setStyle(TableStyle([
+                ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+                ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 0), (-1, -1), 10),
+                ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor('#374151')),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+                ('TOPPADDING', (0, 0), (-1, -1), 6),
+                ('LINEBELOW', (0, 0), (-1, -2), 0.5, colors.HexColor('#e5e7eb')),
+                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ]))
+            elements.append(t2)
+
+    # Membership Details
+    elements.append(Paragraph("Membership Details", section_style))
+    mtype_labels = {"academic": "Academic", "entrepreneur": "Entrepreneur", "corporate": "Corporate", "international": "International"}
+    mem_data = [
+        ["Membership Type", mtype_labels.get(member.get("membership_type", ""), member.get("membership_type", ""))],
+        ["Application Date", member.get("join_date", datetime.now().strftime("%Y-%m-%d"))],
+        ["Payment Status", member.get("payment_status", "pending").capitalize()],
+        ["Application Status", member.get("status", "pending").capitalize()],
+    ]
+    t3 = Table(mem_data, colWidths=[140, 370])
+    t3.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor('#374151')),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ('LINEBELOW', (0, 0), (-1, -2), 0.5, colors.HexColor('#e5e7eb')),
+    ]))
+    elements.append(t3)
+
+    # Footer
+    elements.append(Spacer(1, 30))
+    footer_style = ParagraphStyle('FooterStyle', parent=styles['Normal'], fontName='Helvetica', fontSize=8, textColor=colors.HexColor('#9ca3af'), alignment=TA_CENTER)
+    elements.append(Paragraph(f"This is a computer-generated application form. Generated on {datetime.now().strftime('%d %B %Y at %I:%M %p')}", footer_style))
+    elements.append(Paragraph("Indian Dairy Scientists and Entrepreneurs Association (IDSEA) | www.idsea.in", footer_style))
+
+    doc.build(elements)
+    return buf.getvalue()
+
+
 def generate_certificate_pdf_bytes(member_name: str, membership_id: str, cert_type: str = "membership", event_name: str = "", issue_date: str = "") -> bytes:
     """Generate certificate PDF in memory and return bytes (NOT stored in DB)"""
     buf = io.BytesIO()
@@ -1100,7 +1210,7 @@ async def apply_membership(data: MemberCreate, background_tasks: BackgroundTasks
         member.state = data.permanent_address["state"]
     await db.members.insert_one(member.model_dump())
 
-    # Send registration email
+    # Send registration email with application form PDF
     if member.email:
         variables = {
             "member_name": f"{member.prefix} {member.name}".strip() if member.prefix else member.name,
@@ -1113,14 +1223,19 @@ async def apply_membership(data: MemberCreate, background_tasks: BackgroundTasks
             "payment_status": member.payment_status,
             "application_date": member.join_date,
         }
-        background_tasks.add_task(send_templated_email, "registration_submitted", [member.email], variables)
+        # Generate application form PDF with all filled data
+        app_pdf = generate_registration_pdf(member.model_dump())
+        pdf_filename = f"IDSEA_Application_{member.name.replace(' ', '_')}.pdf"
+        attachments = [{"filename": pdf_filename, "data": app_pdf}]
+        background_tasks.add_task(send_templated_email, "registration_submitted", [member.email], variables, attachments)
 
-    # Send WhatsApp notification
+    # Send WhatsApp notification with application PDF
     if member.phone:
+        app_pdf_wa = generate_registration_pdf(member.model_dump()) if not member.email else app_pdf
         background_tasks.add_task(
-            send_whatsapp_notification, member.phone, "membership_submitted",
-            {"name": f"{member.prefix} {member.name}".strip() if member.prefix else member.name,
-             "membership_type": member.membership_type}
+            send_whatsapp_document_bytes, member.phone, app_pdf_wa,
+            f"IDSEA_Application_{member.name.replace(' ', '_')}.pdf",
+            f"Hello {member.prefix} {member.name}!\n\nThank you for applying for IDSEA {member.membership_type} membership. Please find your application form attached.\n\nRegards,\nIDSEA Team"
         )
 
     return {"message": "Application submitted successfully", "id": member.id}
