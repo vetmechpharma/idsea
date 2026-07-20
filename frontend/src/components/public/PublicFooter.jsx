@@ -34,12 +34,10 @@ const SOCIAL_ICONS = [
 export default function PublicFooter() {
   const [cms, setCms] = useState({});
   const [pc, setPc] = useState({});
-  const [plans, setPlans] = useState([]);
 
   useEffect(() => {
     axios.get(`${API}/public/cms`).then(r => setCms(r.data)).catch(() => {});
     axios.get(`${API}/public/page-content/footer`).then(r => setPc(r.data)).catch(() => {});
-    axios.get(`${API}/public/membership-plans`).then(r => setPlans(r.data)).catch(() => {});
   }, []);
 
   const logoUrl = cms.logo_url
@@ -91,26 +89,36 @@ export default function PublicFooter() {
             </div>
           </div>
 
-          {/* Membership */}
+          {/* Map Location */}
           <div>
-            <h4 style={{ fontFamily: 'Poppins, sans-serif', fontSize: '14px', fontWeight: 600, marginBottom: '16px', color: 'white', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Membership</h4>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {(plans.length > 0 ? plans : [
-                { label: 'Academic Member', fee_inr: 3100, key: 'academic' },
-                { label: 'Entrepreneur Member', fee_inr: 5100, key: 'entrepreneur' },
-                { label: 'Corporate Member', fee_inr: 25100, key: 'corporate' },
-              ]).map(plan => (
-                <span key={plan.key || plan.label} style={{ color: 'rgba(255,255,255,0.7)', fontSize: '13px' }}>
-                  {plan.label || plan.name} - {plan.key === 'international' ? `$${plan.fee_usd}` : `\u20B9${(plan.fee_inr || 0).toLocaleString()}`}
-                </span>
-              ))}
-              <Link to="/apply" style={{ marginTop: '8px', background: '#1e7a4d', color: 'white', textDecoration: 'none', padding: '8px 16px', borderRadius: '6px', fontSize: '13px', fontWeight: 600, fontFamily: 'Poppins, sans-serif', display: 'inline-block', textAlign: 'center', transition: 'background 0.2s ease' }}
-                onMouseEnter={e => e.currentTarget.style.background = '#166534'}
-                onMouseLeave={e => e.currentTarget.style.background = '#1e7a4d'}
-              >
-                Apply Now
-              </Link>
-            </div>
+            <h4 style={{ fontFamily: 'Poppins, sans-serif', fontSize: '14px', fontWeight: 600, marginBottom: '16px', color: 'white', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Location</h4>
+            {cms.map_embed_url ? (
+              <div style={{ borderRadius: '10px', overflow: 'hidden', border: '2px solid rgba(255,255,255,0.15)', marginBottom: '12px' }}>
+                <iframe
+                  src={cms.map_embed_url}
+                  width="100%"
+                  height="160"
+                  style={{ border: 0, display: 'block' }}
+                  allowFullScreen=""
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                  title="IDSEA Location"
+                />
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', gap: '10px', color: 'rgba(255,255,255,0.7)', fontSize: '13px' }}>
+                  <MapPin size={16} style={{ marginTop: '2px', flexShrink: 0, color: '#4ade80' }} />
+                  <span style={{ lineHeight: 1.6 }}>{cms.contact_address || 'VCRI, Namakkal - 637002, Tamil Nadu, India'}</span>
+                </div>
+              </div>
+            )}
+            <Link to="/apply" style={{ marginTop: '8px', background: '#1e7a4d', color: 'white', textDecoration: 'none', padding: '8px 16px', borderRadius: '6px', fontSize: '13px', fontWeight: 600, fontFamily: 'Poppins, sans-serif', display: 'inline-block', textAlign: 'center', transition: 'background 0.2s ease' }}
+              onMouseEnter={e => e.currentTarget.style.background = '#166534'}
+              onMouseLeave={e => e.currentTarget.style.background = '#1e7a4d'}
+            >
+              Join IDSEA
+            </Link>
           </div>
 
           {/* Contact */}

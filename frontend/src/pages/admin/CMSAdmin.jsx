@@ -1,8 +1,50 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
-import { Save, Globe, Home, Info, Calendar, Image, BookOpen, Users, Phone, Navigation, Footprints, Loader2, Search, Code } from 'lucide-react';
+import { Save, Globe, Home, Info, Calendar, Image, BookOpen, Users, Phone, Navigation, Footprints, Loader2, Search, Code, Bold, Italic, Heading1, Type, Link2, List, Palette, FileText as FT } from 'lucide-react';
 import { API } from '../../contexts/AuthContext';
 import { FileUpload } from '../../components/admin/FileUpload';
+
+function CMSRichToolbar({ textareaRef, value, onChange }) {
+  const insert = (before, after = '') => {
+    const el = textareaRef.current;
+    if (!el) return;
+    const s = el.selectionStart, e = el.selectionEnd;
+    const sel = value.substring(s, e) || 'text';
+    onChange(value.substring(0, s) + before + sel + after + value.substring(e));
+    setTimeout(() => { el.focus(); el.setSelectionRange(s + before.length, s + before.length + sel.length); }, 50);
+  };
+  const insertAt = (text) => {
+    const el = textareaRef.current;
+    if (!el) return;
+    const s = el.selectionStart;
+    onChange(value.substring(0, s) + text + value.substring(s));
+    setTimeout(() => { el.focus(); el.setSelectionRange(s + text.length, s + text.length); }, 50);
+  };
+  const btn = { background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '5px', padding: '4px 7px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#475569' };
+  return (
+    <div style={{ display: 'flex', gap: '2px', flexWrap: 'wrap', padding: '6px 8px', background: '#f8fafc', borderRadius: '8px 8px 0 0', border: '1px solid #d1d5db', borderBottom: 'none', alignItems: 'center' }}>
+      <button type="button" onClick={() => insert('<strong>', '</strong>')} style={btn} title="Bold"><Bold size={13} /></button>
+      <button type="button" onClick={() => insert('<em>', '</em>')} style={btn} title="Italic"><Italic size={13} /></button>
+      <button type="button" onClick={() => insert('<span style="color:#0c3c60;font-weight:700;">', '</span>')} style={btn} title="Highlight Blue"><Palette size={13} /><span style={{ width: 7, height: 7, borderRadius: 2, background: '#0c3c60', marginLeft: 2 }} /></button>
+      <button type="button" onClick={() => insert('<span style="color:#1e7a4d;font-weight:700;">', '</span>')} style={btn} title="Highlight Green"><Palette size={13} /><span style={{ width: 7, height: 7, borderRadius: 2, background: '#1e7a4d', marginLeft: 2 }} /></button>
+      <button type="button" onClick={() => insert('<span style="color:#dc2626;font-weight:700;">', '</span>')} style={btn} title="Highlight Red"><Palette size={13} /><span style={{ width: 7, height: 7, borderRadius: 2, background: '#dc2626', marginLeft: 2 }} /></button>
+      <button type="button" onClick={() => insert('<h3 style="color:#0c3c60;font-size:18px;margin:12px 0 6px;">', '</h3>')} style={btn} title="Heading"><Heading1 size={13} /></button>
+      <button type="button" onClick={() => insertAt('<ul style="padding-left:20px;margin:8px 0;">\n  <li>Item</li>\n</ul>')} style={btn} title="List"><List size={13} /></button>
+      <button type="button" onClick={() => insert('<a href="URL" style="color:#2563eb;text-decoration:underline;">', '</a>')} style={btn} title="Link"><Link2 size={13} /></button>
+    </div>
+  );
+}
+
+function RichTextArea({ label, value, onChange, rows = 4, placeholder }) {
+  const ref = useRef(null);
+  return (
+    <div className="form-group">
+      <label className="form-label">{label}</label>
+      <CMSRichToolbar textareaRef={ref} value={value || ''} onChange={onChange} />
+      <textarea ref={ref} value={value || ''} onChange={e => onChange(e.target.value)} className="form-input" rows={rows} placeholder={placeholder || 'Supports HTML: <strong>bold</strong>, <em>italic</em>, colors...'} style={{ borderRadius: '0 0 8px 8px', borderTop: 'none', fontFamily: 'monospace', fontSize: '12px', lineHeight: 1.7, resize: 'vertical' }} />
+    </div>
+  );
+}
 
 const PAGES = [
   { key: 'global', label: 'Branding & Global', icon: Globe },
@@ -121,12 +163,12 @@ export default function CMSAdmin() {
       </Section>
 
       <Section title="About IDSEA">
-        <Field label="About Content" value={cmsForm.about_content} onChange={v => updateCms('about_content', v)} type="textarea" rows={4} />
+        <RichTextArea label="About Content" value={cmsForm.about_content} onChange={v => updateCms('about_content', v)} rows={5} />
       </Section>
 
       <Section title="Vision & Mission">
-        <Field label="Vision" value={cmsForm.vision} onChange={v => updateCms('vision', v)} type="textarea" rows={3} />
-        <Field label="Mission" value={cmsForm.mission} onChange={v => updateCms('mission', v)} type="textarea" rows={3} />
+        <RichTextArea label="Vision" value={cmsForm.vision} onChange={v => updateCms('vision', v)} rows={4} />
+        <RichTextArea label="Mission" value={cmsForm.mission} onChange={v => updateCms('mission', v)} rows={4} />
       </Section>
 
       <Section title="Contact Details">
@@ -140,9 +182,16 @@ export default function CMSAdmin() {
       <Section title="Social Media Links">
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
           <Field label="Facebook URL" value={cmsForm.facebook_url} onChange={v => updateCms('facebook_url', v)} type="url" placeholder="https://facebook.com/..." />
-          <Field label="Twitter URL" value={cmsForm.twitter_url} onChange={v => updateCms('twitter_url', v)} type="url" placeholder="https://twitter.com/..." />
+          <Field label="Twitter / X URL" value={cmsForm.twitter_url} onChange={v => updateCms('twitter_url', v)} type="url" placeholder="https://twitter.com/..." />
           <Field label="LinkedIn URL" value={cmsForm.linkedin_url} onChange={v => updateCms('linkedin_url', v)} type="url" placeholder="https://linkedin.com/..." />
+          <Field label="YouTube URL" value={cmsForm.youtube_url} onChange={v => updateCms('youtube_url', v)} type="url" placeholder="https://youtube.com/..." />
+          <Field label="Instagram URL" value={cmsForm.instagram_url} onChange={v => updateCms('instagram_url', v)} type="url" placeholder="https://instagram.com/..." />
         </div>
+      </Section>
+
+      <Section title="Map Location (Footer)">
+        <Field label="Google Maps Embed URL" value={cmsForm.map_embed_url} onChange={v => updateCms('map_embed_url', v)} type="url" placeholder="https://www.google.com/maps/embed?pb=..." />
+        <span style={{ fontSize: '10px', color: '#9ca3af' }}>Go to Google Maps → Share → Embed a map → Copy the src URL from the iframe code</span>
       </Section>
     </>
   );

@@ -97,6 +97,21 @@ export default function AnnouncementDetailPage() {
             style={{ fontSize: '15px', color: '#374151', lineHeight: 1.9, fontFamily: 'Inter, sans-serif' }}
             dangerouslySetInnerHTML={{ __html: item.content }}
           />
+          {item.pdf_url && (
+            <div style={{ marginTop: '24px', padding: '16px', background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#0c3c60', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: '14px', fontWeight: 600, color: '#0c3c60', fontFamily: 'Poppins' }}>PDF Document Attached</div>
+                <div style={{ fontSize: '12px', color: '#6b7280' }}>{item.pdf_url.split('/').pop()}</div>
+              </div>
+              <a href={item.pdf_url.startsWith('http') ? item.pdf_url : `${process.env.REACT_APP_BACKEND_URL}${item.pdf_url}`} target="_blank" rel="noreferrer"
+                style={{ background: '#0c3c60', color: 'white', padding: '10px 20px', borderRadius: '8px', textDecoration: 'none', fontSize: '13px', fontWeight: 600, fontFamily: 'Poppins' }}>
+                Download PDF
+              </a>
+            </div>
+          )}
         </article>
 
         {/* Share + Back */}

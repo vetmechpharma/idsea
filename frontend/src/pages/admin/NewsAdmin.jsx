@@ -4,7 +4,7 @@ import { Plus, Edit, Trash2, X, Save, Eye, Bold, Italic, Heading1, Link2, List, 
 import { API } from '../../contexts/AuthContext';
 
 const BACKEND = API.replace('/api', '');
-const initForm = { title: '', content: '', category: 'general', image_url: '', published_date: new Date().toISOString().split('T')[0], status: 'published', meta_title: '', meta_description: '', meta_keywords: '' };
+const initForm = { title: '', content: '', category: 'general', image_url: '', pdf_url: '', published_date: new Date().toISOString().split('T')[0], status: 'published', meta_title: '', meta_description: '', meta_keywords: '' };
 const CATEGORIES = ['general', 'scientific', 'conference', 'industry', 'academic', 'event', 'achievement'];
 
 function RichToolbar({ textareaRef, value, onChange }) {
@@ -43,6 +43,7 @@ function RichToolbar({ textareaRef, value, onChange }) {
       <button type="button" onClick={() => insertAt('<blockquote style="border-left:4px solid #0c3c60;padding:12px 16px;margin:16px 0;background:#f0f9ff;border-radius:0 8px 8px 0;font-style:italic;color:#374151;">Quote text</blockquote>')} style={{ ...btn, fontSize: '11px', fontFamily: 'Poppins', gap: '3px' }}><Code size={12} /> Quote</button>
       <button type="button" onClick={() => insertAt('<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:16px;margin:16px 0;">\n  <p>Highlight box content</p>\n</div>')} style={{ ...btn, fontSize: '11px', fontFamily: 'Poppins', gap: '3px' }}><FileText size={12} /> Box</button>
       <button type="button" onClick={() => insertAt('<hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0;" />')} style={{ ...btn, fontSize: '11px', fontFamily: 'Poppins' }}>HR</button>
+      <button type="button" onClick={() => insertAt('<a href="PDF_URL" target="_blank" style="display:inline-flex;align-items:center;gap:6px;background:#0c3c60;color:white;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:600;font-size:13px;">Download PDF</a>')} style={{ ...btn, fontSize: '11px', fontFamily: 'Poppins', gap: '3px' }}><FileText size={12} /> PDF Link</button>
     </div>
   );
 }
@@ -66,7 +67,7 @@ export default function NewsAdmin() {
   const openEdit = (n) => {
     setEditItem(n);
     setForm({
-      title: n.title, content: n.content, category: n.category, image_url: n.image_url || '',
+      title: n.title, content: n.content, category: n.category, image_url: n.image_url || '', pdf_url: n.pdf_url || '',
       published_date: n.published_date, status: n.status,
       meta_title: n.meta_title || '', meta_description: n.meta_description || '', meta_keywords: n.meta_keywords || '',
     });
@@ -96,7 +97,7 @@ export default function NewsAdmin() {
     fd.append('file', file);
     try {
       const r = await axios.post(`${API}/public/upload-photo`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-      setForm({ ...form, image_url: r.data.url });
+      setForm(f => ({ ...f, image_url: r.data.file_url || r.data.url }));
       showToast('Image uploaded');
     } catch { showToast('Upload failed'); }
   };
@@ -188,6 +189,28 @@ export default function NewsAdmin() {
                 <button onClick={() => setForm({ ...form, image_url: '' })} style={{ position: 'absolute', top: '-6px', right: '-6px', background: '#dc2626', color: 'white', border: 'none', borderRadius: '50%', width: '20px', height: '20px', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>x</button>
               </div>
             )}
+
+            {/* PDF Attachment */}
+            <div style={{ marginBottom: '14px' }}>
+              <label style={{ fontSize: '11px', color: '#6b7280', fontWeight: 600, display: 'block', marginBottom: '4px' }}>PDF Attachment</label>
+              {form.pdf_url ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px' }}>
+                  <FileText size={16} style={{ color: '#065f46' }} />
+                  <a href={resolveImg(form.pdf_url)} target="_blank" rel="noreferrer" style={{ flex: 1, fontSize: '12px', color: '#065f46', fontWeight: 600 }}>{form.pdf_url.split('/').pop()}</a>
+                  <button onClick={() => setForm({ ...form, pdf_url: '' })} style={{ background: '#fee2e2', color: '#dc2626', border: 'none', borderRadius: '6px', padding: '4px 8px', cursor: 'pointer', fontSize: '11px' }}>Remove</button>
+                </div>
+              ) : (
+                <input type="file" accept=".pdf" onChange={async (e) => {
+                  const file = e.target.files?.[0]; if (!file) return;
+                  const fd = new FormData(); fd.append('file', file);
+                  try {
+                    const r = await axios.post(`${API}/public/upload-pdf`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+                    setForm(f => ({ ...f, pdf_url: r.data.file_url || r.data.url }));
+                    showToast('PDF uploaded');
+                  } catch { showToast('PDF upload failed'); }
+                }} style={{ fontSize: '11px', width: '100%' }} data-testid="news-pdf-upload" />
+              )}
+            </div>
 
             {/* Content Editor */}
             <div style={{ marginBottom: '14px' }}>
