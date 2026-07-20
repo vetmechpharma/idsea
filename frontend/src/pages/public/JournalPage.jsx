@@ -91,57 +91,6 @@ export default function JournalPage() {
               {s.description && <p style={{ fontSize: '15px', color: '#374151', lineHeight: 1.8, margin: 0, flex: 1 }}>{s.description}</p>}
             </div>
           )}
-
-          {/* Editorial Board Sections */}
-          {board.map((section, sIdx) => (
-            <div key={section.id || sIdx} data-testid={`board-section-${sIdx}`} style={{ marginBottom: '40px' }}>
-              <h2 style={{ fontFamily: 'Poppins', fontSize: '22px', fontWeight: 800, color: '#0c3c60', marginBottom: '6px', textAlign: 'center' }}>{section.title}</h2>
-              <div style={{ width: '50px', height: '4px', background: '#1e7a4d', borderRadius: '2px', margin: '0 auto 24px' }} />
-
-              {/* If section has 1-2 members, show them large/centered */}
-              {(section.members || []).length <= 2 ? (
-                <div style={{ display: 'flex', gap: '24px', justifyContent: 'center', flexWrap: 'wrap' }}>
-                  {(section.members || []).map((m, mIdx) => (
-                    <div key={m.id || mIdx} style={{ background: 'white', borderRadius: '16px', padding: '28px 24px', textAlign: 'center', boxShadow: '0 2px 12px rgba(0,0,0,0.05)', border: '1px solid #e5e7eb', width: '300px' }}>
-                      <Avatar src={m.photo_url} name={m.name} size={90} />
-                      <h3 style={{ fontFamily: 'Poppins', fontSize: '17px', fontWeight: 700, color: '#111827', margin: '14px 0 4px' }}>{m.name}</h3>
-                      {m.designation && <div style={{ fontSize: '13px', color: '#1e7a4d', fontWeight: 600, marginBottom: '6px' }}>{m.designation}</div>}
-                      {m.organization && <div style={{ fontSize: '13px', color: '#6b7280', lineHeight: 1.6, marginBottom: '10px' }}>{m.organization}</div>}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
-                        {m.phone && <span style={{ fontSize: '12px', color: '#9ca3af', display: 'flex', alignItems: 'center', gap: '4px' }}><Phone size={11} /> {m.phone}</span>}
-                        {m.email && <span style={{ fontSize: '12px', color: '#9ca3af', display: 'flex', alignItems: 'center', gap: '4px' }}><Mail size={11} /> {m.email}</span>}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                /* 3+ members: compact grid */
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '14px' }}>
-                  {(section.members || []).map((m, mIdx) => (
-                    <div key={m.id || mIdx} style={{ background: 'white', borderRadius: '12px', padding: '16px', display: 'flex', gap: '14px', alignItems: 'flex-start', border: '1px solid #e5e7eb' }}>
-                      <Avatar src={m.photo_url} name={m.name} size={52} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <h4 style={{ fontFamily: 'Poppins', fontSize: '14px', fontWeight: 700, color: '#111827', margin: '0 0 2px' }}>{m.name}</h4>
-                        {m.designation && <div style={{ fontSize: '12px', color: '#1e7a4d', fontWeight: 600, marginBottom: '2px' }}>{m.designation}</div>}
-                        {m.organization && <div style={{ fontSize: '12px', color: '#6b7280', lineHeight: 1.5, marginBottom: '4px' }}>{m.organization}</div>}
-                        <div style={{ fontSize: '11px', color: '#9ca3af' }}>
-                          {m.phone && <span style={{ marginRight: '8px' }}>{m.phone}</span>}
-                          {m.email && <span>{m.email}</span>}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
-
-          {board.length === 0 && (
-            <div style={{ textAlign: 'center', color: '#9ca3af', padding: '40px' }}>
-              <BookOpen size={40} style={{ marginBottom: '10px', opacity: 0.3 }} />
-              <p>Editorial board details coming soon.</p>
-            </div>
-          )}
         </div>
       )}
 

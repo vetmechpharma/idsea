@@ -146,20 +146,13 @@ export default function HomePage() {
         <Slider {...sliderSettings} className="hero-slider">
           {sliders.map((slide, idx) => (
             <div key={slide.id}>
-              <div className="hero-slide-outer">
-                <div style={{ position: 'absolute', inset: 0, background: '#0c3c60', zIndex: 0 }} />
-                <div style={{ position: 'absolute', inset: 0, zIndex: 1, backgroundImage: `url(${resolveImg(slide.image_url)})`, backgroundSize: 'cover', backgroundPosition: 'center', opacity: 0.35 }} />
-                <div style={{ position: 'absolute', inset: 0, zIndex: 2, background: 'linear-gradient(to right, rgba(12,60,96,0.85) 0%, rgba(12,60,96,0.4) 100%)' }} />
-                <div className="hero-slide-content">
-                  <div style={{ maxWidth: '680px' }}>
-                    {slide.title && <h1 data-testid={`slider-title-${idx}`} className="hero-slide-title">{slide.title}</h1>}
-                    {slide.subtitle && <p data-testid={`slider-subtitle-${idx}`} className="hero-slide-subtitle">{slide.subtitle}</p>}
-                    <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                      <Link to={slide.link_url || '/apply'} data-testid="hero-join-btn" className="btn-primary" style={{ textDecoration: 'none', padding: '14px 28px', fontSize: '15px' }}>Become a Member <ArrowRight size={16} /></Link>
-                      <Link to="/about" style={{ background: 'rgba(255,255,255,0.1)', color: 'white', textDecoration: 'none', padding: '14px 28px', borderRadius: '8px', fontWeight: 600, fontFamily: 'Poppins, sans-serif', fontSize: '15px', border: '1px solid rgba(255,255,255,0.3)' }}>Learn More</Link>
-                    </div>
-                  </div>
-                </div>
+              <div style={{ width: '100%', height: 'clamp(300px, 50vw, 550px)', position: 'relative', overflow: 'hidden' }}>
+                <img
+                  src={resolveImg(slide.image_url)}
+                  alt={`Slide ${idx + 1}`}
+                  data-testid={`slider-image-${idx}`}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                />
               </div>
             </div>
           ))}

@@ -11,7 +11,7 @@ export default function SliderAdmin() {
   const [editing, setEditing] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [toast, setToast] = useState('');
-  const [form, setForm] = useState({ title: '', subtitle: '', image_url: '', link_url: '', order: 0, is_active: true });
+  const [form, setForm] = useState({ image_url: '', order: 0, is_active: true });
 
   const token = localStorage.getItem('idsea_token');
   const headers = { Authorization: `Bearer ${token}` };
@@ -30,13 +30,13 @@ export default function SliderAdmin() {
 
   const openAdd = () => {
     setEditing(null);
-    setForm({ title: '', subtitle: '', image_url: '', link_url: '', order: sliders.length, is_active: true });
+    setForm({ image_url: '', order: sliders.length, is_active: true });
     setShowModal(true);
   };
 
   const openEdit = (slider) => {
     setEditing(slider);
-    setForm({ title: slider.title || '', subtitle: slider.subtitle || '', image_url: slider.image_url || '', link_url: slider.link_url || '', order: slider.order || 0, is_active: slider.is_active !== false });
+    setForm({ image_url: slider.image_url || '', order: slider.order || 0, is_active: slider.is_active !== false });
     setShowModal(true);
   };
 
@@ -54,6 +54,8 @@ export default function SliderAdmin() {
     setUploading(false);
   };
 
+  const resolveImg = (url) => url ? (url.startsWith('http') ? url : `${process.env.REACT_APP_BACKEND_URL}${url}`) : '';
+
   const handleSave = async () => {
     if (!form.image_url) { showToast('Please upload an image'); return; }
     try {
@@ -62,7 +64,7 @@ export default function SliderAdmin() {
         showToast('Slider updated');
       } else {
         await axios.post(`${API}/admin/sliders`, form, { headers });
-        showToast('Slider created');
+        showToast('Slider added');
       }
       setShowModal(false);
       fetchSliders();
@@ -103,75 +105,68 @@ export default function SliderAdmin() {
     <div>
       <div className="page-header">
         <h2 className="page-title" data-testid="slider-admin-title">Slider Management</h2>
-        <button className="btn-primary" onClick={openAdd} data-testid="add-slider-btn"><Plus size={16} /> Add Slider</button>
+        <button className="btn-primary" onClick={openAdd} data-testid="add-slider-btn"><Plus size={16} /> Add Image</button>
       </div>
 
       {sliders.length === 0 ? (
         <div className="admin-card" style={{ textAlign: 'center', padding: '60px 24px' }}>
-          <p style={{ color: '#6b7280', fontSize: '15px', fontFamily: 'Inter, sans-serif' }}>No sliders yet. Add your first homepage slider.</p>
-          <button className="btn-primary" onClick={openAdd} style={{ marginTop: '16px' }}><Plus size={16} /> Add Slider</button>
+          <p style={{ color: '#6b7280', fontSize: '15px', fontFamily: 'Inter, sans-serif' }}>No slider images yet. Add your first homepage slider image.</p>
+          <button className="btn-primary" onClick={openAdd} style={{ marginTop: '16px' }}><Plus size={16} /> Add Image</button>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
           {sliders.map((slider, idx) => (
             <div key={slider.id} className="admin-card" data-testid={`slider-item-${idx}`}
-              style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px', opacity: slider.is_active ? 1 : 0.6 }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <button onClick={() => handleMove(idx, -1)} disabled={idx === 0} data-testid={`slider-up-${idx}`}
-                  style={{ background: 'none', border: 'none', cursor: idx === 0 ? 'default' : 'pointer', color: idx === 0 ? '#d1d5db' : '#6b7280', padding: '2px' }}>
-                  <ArrowUp size={16} />
-                </button>
-                <GripVertical size={16} style={{ color: '#9ca3af' }} />
-                <button onClick={() => handleMove(idx, 1)} disabled={idx === sliders.length - 1} data-testid={`slider-down-${idx}`}
-                  style={{ background: 'none', border: 'none', cursor: idx === sliders.length - 1 ? 'default' : 'pointer', color: idx === sliders.length - 1 ? '#d1d5db' : '#6b7280', padding: '2px' }}>
-                  <ArrowDown size={16} />
-                </button>
+              style={{ padding: '0', overflow: 'hidden', opacity: slider.is_active ? 1 : 0.5, position: 'relative' }}>
+              <div style={{ width: '100%', height: '160px', background: '#f1f5f9' }}>
+                {slider.image_url && <img src={resolveImg(slider.image_url)} alt={`Slide ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
               </div>
-              <div style={{ width: '120px', height: '68px', borderRadius: '8px', overflow: 'hidden', flexShrink: 0, background: '#f1f5f9' }}>
-                {slider.image_url && <img src={slider.image_url.startsWith('/') ? `${process.env.REACT_APP_BACKEND_URL}${slider.image_url}` : slider.image_url} alt={slider.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 600, fontSize: '15px', color: '#111827' }}>{slider.title || '(No title)'}</div>
-                {slider.subtitle && <div style={{ fontSize: '13px', color: '#6b7280', fontFamily: 'Inter, sans-serif', marginTop: '2px' }}>{slider.subtitle}</div>}
-                <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
-                  <span className={`badge ${slider.is_active ? 'badge-approved' : 'badge-rejected'}`}>{slider.is_active ? 'Active' : 'Inactive'}</span>
-                  <span style={{ fontSize: '12px', color: '#9ca3af' }}>Order: {slider.order}</span>
+              <div style={{ padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                  <button onClick={() => handleMove(idx, -1)} disabled={idx === 0} data-testid={`slider-up-${idx}`}
+                    style={{ background: 'none', border: 'none', cursor: idx === 0 ? 'default' : 'pointer', color: idx === 0 ? '#d1d5db' : '#6b7280', padding: '2px' }}>
+                    <ArrowUp size={14} />
+                  </button>
+                  <span style={{ fontSize: '12px', color: '#9ca3af', fontFamily: 'Poppins' }}>#{idx + 1}</span>
+                  <button onClick={() => handleMove(idx, 1)} disabled={idx === sliders.length - 1} data-testid={`slider-down-${idx}`}
+                    style={{ background: 'none', border: 'none', cursor: idx === sliders.length - 1 ? 'default' : 'pointer', color: idx === sliders.length - 1 ? '#d1d5db' : '#6b7280', padding: '2px' }}>
+                    <ArrowDown size={14} />
+                  </button>
+                  <span className={`badge ${slider.is_active ? 'badge-approved' : 'badge-rejected'}`} style={{ fontSize: '10px' }}>{slider.is_active ? 'Active' : 'Off'}</span>
                 </div>
-              </div>
-              <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
-                <button onClick={() => handleToggleActive(slider)} title={slider.is_active ? 'Deactivate' : 'Activate'} data-testid={`slider-toggle-${idx}`}
-                  style={{ background: 'none', border: '1px solid #e5e7eb', borderRadius: '6px', padding: '6px 8px', cursor: 'pointer', color: slider.is_active ? '#1e7a4d' : '#9ca3af' }}>
-                  {slider.is_active ? <Eye size={16} /> : <EyeOff size={16} />}
-                </button>
-                <button onClick={() => openEdit(slider)} data-testid={`slider-edit-${idx}`}
-                  style={{ background: 'none', border: '1px solid #e5e7eb', borderRadius: '6px', padding: '6px 8px', cursor: 'pointer', color: '#0c3c60' }}>
-                  <Edit2 size={16} />
-                </button>
-                <button onClick={() => handleDelete(slider.id)} data-testid={`slider-delete-${idx}`}
-                  style={{ background: 'none', border: '1px solid #fee2e2', borderRadius: '6px', padding: '6px 8px', cursor: 'pointer', color: '#ef4444' }}>
-                  <Trash2 size={16} />
-                </button>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <button onClick={() => handleToggleActive(slider)} data-testid={`slider-toggle-${idx}`}
+                    style={{ background: 'none', border: '1px solid #e5e7eb', borderRadius: '6px', padding: '5px', cursor: 'pointer', color: slider.is_active ? '#1e7a4d' : '#9ca3af' }}>
+                    {slider.is_active ? <Eye size={14} /> : <EyeOff size={14} />}
+                  </button>
+                  <button onClick={() => openEdit(slider)} data-testid={`slider-edit-${idx}`}
+                    style={{ background: 'none', border: '1px solid #e5e7eb', borderRadius: '6px', padding: '5px', cursor: 'pointer', color: '#0c3c60' }}>
+                    <Edit2 size={14} />
+                  </button>
+                  <button onClick={() => handleDelete(slider.id)} data-testid={`slider-delete-${idx}`}
+                    style={{ background: 'none', border: '1px solid #fee2e2', borderRadius: '6px', padding: '5px', cursor: 'pointer', color: '#ef4444' }}>
+                    <Trash2 size={14} />
+                  </button>
+                </div>
               </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* Modal */}
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} data-testid="slider-modal">
+          <div className="modal-content" onClick={e => e.stopPropagation()} data-testid="slider-modal" style={{ maxWidth: '480px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h3 style={{ margin: 0, fontFamily: 'Poppins, sans-serif', color: '#0c3c60', fontSize: '18px' }}>{editing ? 'Edit Slider' : 'Add Slider'}</h3>
+              <h3 style={{ margin: 0, fontFamily: 'Poppins, sans-serif', color: '#0c3c60', fontSize: '18px' }}>{editing ? 'Change Image' : 'Add Slider Image'}</h3>
               <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280' }}><X size={20} /></button>
             </div>
 
             <div className="form-group">
               <label className="form-label">Slider Image *</label>
               {form.image_url && (
-                <div style={{ marginBottom: '12px', borderRadius: '8px', overflow: 'hidden', maxHeight: '200px' }}>
-                  <img src={form.image_url.startsWith('/') ? `${process.env.REACT_APP_BACKEND_URL}${form.image_url}` : form.image_url} alt="Preview"
-                    style={{ width: '100%', height: '200px', objectFit: 'cover' }} />
+                <div style={{ marginBottom: '12px', borderRadius: '8px', overflow: 'hidden' }}>
+                  <img src={resolveImg(form.image_url)} alt="Preview" style={{ width: '100%', height: '200px', objectFit: 'cover' }} />
                 </div>
               )}
               <input type="file" accept="image/*" onChange={handleUpload} data-testid="slider-image-input"
@@ -185,26 +180,8 @@ export default function SliderAdmin() {
                 placeholder="https://..." data-testid="slider-image-url-input" />
             </div>
 
-            <div className="form-group">
-              <label className="form-label">Title</label>
-              <input className="form-input" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-                placeholder="Slide title" data-testid="slider-title-input" />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Subtitle</label>
-              <input className="form-input" value={form.subtitle} onChange={e => setForm(f => ({ ...f, subtitle: e.target.value }))}
-                placeholder="Slide subtitle" data-testid="slider-subtitle-input" />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Link URL (optional)</label>
-              <input className="form-input" value={form.link_url} onChange={e => setForm(f => ({ ...f, link_url: e.target.value }))}
-                placeholder="/apply or https://..." data-testid="slider-link-input" />
-            </div>
-
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '16px' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontFamily: 'Poppins, sans-serif', fontSize: '14px', color: '#374151' }}>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '16px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontFamily: 'Poppins', fontSize: '14px', color: '#374151' }}>
                 <input type="checkbox" checked={form.is_active} onChange={e => setForm(f => ({ ...f, is_active: e.target.checked }))}
                   data-testid="slider-active-checkbox" style={{ width: '16px', height: '16px' }} />
                 Active
@@ -212,9 +189,9 @@ export default function SliderAdmin() {
             </div>
 
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-              <button className="btn-secondary" onClick={() => setShowModal(false)} style={{ fontSize: '14px', padding: '10px 20px' }}>Cancel</button>
-              <button className="btn-primary" onClick={handleSave} data-testid="slider-save-btn" style={{ fontSize: '14px', padding: '10px 20px' }}>
-                <Save size={16} /> {editing ? 'Update' : 'Create'}
+              <button className="btn-secondary" onClick={() => setShowModal(false)}>Cancel</button>
+              <button className="btn-primary" onClick={handleSave} data-testid="slider-save-btn">
+                <Save size={16} /> {editing ? 'Update' : 'Add'}
               </button>
             </div>
           </div>

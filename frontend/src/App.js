@@ -10,6 +10,7 @@ import MembersPage from './pages/public/MembersPage';
 import EventsPage from './pages/public/EventsPage';
 import JournalPage from './pages/public/JournalPage';
 import JournalGuidelinesPage from './pages/public/JournalGuidelinesPage';
+import EditorialBoardPage from './pages/public/EditorialBoardPage';
 import GalleryPage from './pages/public/GalleryPage';
 import ContactPage from './pages/public/ContactPage';
 import MembershipApplyPage from './pages/public/MembershipApplyPage';
@@ -66,6 +67,7 @@ function App() {
           <Route path="/members" element={<MembersPage />} />
           <Route path="/events" element={<EventsPage />} />
           <Route path="/journal" element={<JournalPage />} />
+          <Route path="/journal/editorial-board" element={<EditorialBoardPage />} />
           <Route path="/journal/guidelines" element={<JournalGuidelinesPage />} />
           <Route path="/publications" element={<JournalPage />} />
           <Route path="/gallery" element={<GalleryPage />} />
