@@ -92,33 +92,18 @@ export default function PublicFooter() {
           {/* Map Location */}
           <div>
             <h4 style={{ fontFamily: 'Poppins, sans-serif', fontSize: '14px', fontWeight: 600, marginBottom: '16px', color: 'white', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Location</h4>
-            {cms.map_embed_url ? (
-              <div style={{ borderRadius: '10px', overflow: 'hidden', border: '2px solid rgba(255,255,255,0.15)', marginBottom: '12px' }}>
-                <iframe
-                  src={cms.map_embed_url}
-                  width="100%"
-                  height="160"
-                  style={{ border: 0, display: 'block' }}
-                  allowFullScreen=""
-                  loading="lazy"
-                  referrerPolicy="no-referrer-when-downgrade"
-                  title="IDSEA Location"
-                />
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <div style={{ display: 'flex', gap: '10px', color: 'rgba(255,255,255,0.7)', fontSize: '13px' }}>
-                  <MapPin size={16} style={{ marginTop: '2px', flexShrink: 0, color: '#4ade80' }} />
-                  <span style={{ lineHeight: 1.6 }}>{cms.contact_address || 'VCRI, Namakkal - 637002, Tamil Nadu, India'}</span>
-                </div>
-              </div>
-            )}
-            <Link to="/apply" style={{ marginTop: '8px', background: '#1e7a4d', color: 'white', textDecoration: 'none', padding: '8px 16px', borderRadius: '6px', fontSize: '13px', fontWeight: 600, fontFamily: 'Poppins, sans-serif', display: 'inline-block', textAlign: 'center', transition: 'background 0.2s ease' }}
-              onMouseEnter={e => e.currentTarget.style.background = '#166534'}
-              onMouseLeave={e => e.currentTarget.style.background = '#1e7a4d'}
-            >
-              Join IDSEA
-            </Link>
+            <div style={{ borderRadius: '10px', overflow: 'hidden', border: '2px solid rgba(255,255,255,0.15)' }}>
+              <iframe
+                src={cms.map_embed_url || 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3916.2!2d78.16!3d11.22!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2sVCRI%2C+Namakkal!5e0!3m2!1sen!2sin!4v1'}
+                width="100%"
+                height="180"
+                style={{ border: 0, display: 'block' }}
+                allowFullScreen=""
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                title="IDSEA Location"
+              />
+            </div>
           </div>
 
           {/* Contact */}
