@@ -1,0 +1,30 @@
+{
+  "summary": "Iteration 38 email status tracking fix VERIFIED. All 3 endpoints (send_templated_email, admin_send_email, send_member_email) now properly transition email_logs.status from 'sending' -> 'sent'/'failed' via the _send_and_update wrapper coroutine pattern. SMTP is not configured in preview, so new sends correctly report status='failed' with error='SMTP send returned False' (or 'SMTP send failed' for member email). Zero logs remain stuck on 'queued'. All 4 tests in test_email_queue_status.py pass.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_email_queue_status.py",
+    "/app/test_reports/pytest/email_queue_status_iter38.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Fix pattern is now consistent across all 3 email-sending code paths (send_templated_email, admin_send_email, send_member_email) — all use insert with status='sending' then update to 'sent'/'failed' from within a wrapper coroutine passed to background_tasks.",
+    "server.py is still >5400 lines. Recommend extracting email/notification logic into backend/services/email.py so future fixes stay consistent (also raised in iteration_37).",
+    "queue_bulk_emails still inserts a summary row with status='queued' (audit record for a batch). Currently harmless because after backfill there are 0 queued rows in logs, but consider a distinct status like 'batch_queued' to avoid confusion in stats bucket."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (4/4 pytest tests pass)", "frontend": "not tested (backend-only request)"},
+  "test_credentials": "admin@idsea.org / Admin@123",
+  "seed_data_creation": "Added email log rows via /api/admin/email/send (subject: TEST_status_tracking_iter37 - now shows 'failed') and /api/admin/members/{id}/send-email (subject: TEST_iter38_member_email - shows 'failed'). All correctly reach terminal status.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Email status tracking is fully fixed. Stats endpoint /api/admin/email-queue/stats shows logs={'failed': 2, 'sent': 43} and queue={} — no stuck 'queued'. If SMTP gets configured on VPS, new sends should show 'sent' automatically without code changes. Test file /app/backend/tests/test_email_queue_status.py is the regression suite for this feature.",
+  "rca of the issue": "Iteration 37 had fixed only send_templated_email. Iteration 38 extended the same try/except wrapper pattern to admin_send_email (line 2486) and send_member_email (line 1608). Both now (1) insert log with status='sending', (2) define an async _send_and_update() coroutine that calls send_email_smtp and updates the log row to 'sent' or 'failed' based on the return value/exception, (3) enqueue _send_and_update via background_tasks.add_task. Verified in preview: all newly-sent emails reach terminal status within a couple seconds; zero rows remain 'queued'."
+}

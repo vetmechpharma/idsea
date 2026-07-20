@@ -1614,12 +1614,25 @@ async def send_member_email(member_id: str, data: dict, background_tasks: Backgr
     body = data.get("body", "")
     if not subject or not body:
         raise HTTPException(status_code=400, detail="Subject and body required")
-    background_tasks.add_task(send_email_smtp, member["email"], subject, body)
+    log_id = str(uuid.uuid4())
     await db.email_logs.insert_one({
-        "id": str(uuid.uuid4()), "to": member["email"], "subject": subject,
-        "status": "sent", "sent_at": now_iso(), "template": "custom"
+        "id": log_id, "to": member["email"], "subject": subject,
+        "status": "sending", "created_at": now_iso(), "sent_at": "", "template": "custom"
     })
-    return {"message": f"Email sent to {member['email']}"}
+
+    async def _send_and_update():
+        smtp_settings = await db.smtp_settings.find_one({}, {"_id": 0})
+        try:
+            success = send_email_smtp([member["email"]], subject, body, smtp_settings)
+            if success:
+                await db.email_logs.update_one({"id": log_id}, {"$set": {"status": "sent", "sent_at": now_iso()}})
+            else:
+                await db.email_logs.update_one({"id": log_id}, {"$set": {"status": "failed", "error": "SMTP send failed"}})
+        except Exception as e:
+            await db.email_logs.update_one({"id": log_id}, {"$set": {"status": "failed", "error": str(e)[:200]}})
+
+    background_tasks.add_task(_send_and_update)
+    return {"message": f"Email sending to {member['email']}"}
 
 
 @api_router.post("/admin/members/{member_id}/send-whatsapp")
@@ -2479,20 +2492,33 @@ async def admin_send_email(data: EmailRequest, background_tasks: BackgroundTasks
             query["membership_type"] = data.recipient_group
         members = await db.members.find(query, {"email": 1, "_id": 0}).to_list(1000)
         recipients = [m["email"] for m in members if m.get("email")]
+    log_id = str(uuid.uuid4())
     log = {
-        "id": str(uuid.uuid4()),
+        "id": log_id,
         "subject": data.subject,
         "body": data.body[:300],
         "recipients_count": len(recipients),
         "recipient_group": data.recipient_group,
         "sent_by": admin["email"],
-        "sent_at": now_iso(),
-        "status": "queued"
+        "created_at": now_iso(),
+        "sent_at": "",
+        "status": "sending"
     }
     await db.email_logs.insert_one(log)
     smtp_settings = await db.smtp_settings.find_one({}, {"_id": 0})
-    background_tasks.add_task(send_email_smtp, recipients, data.subject, data.body, smtp_settings)
-    return {"message": f"Email queued for {len(recipients)} recipients", "log_id": log["id"]}
+
+    async def _send_and_update():
+        try:
+            success = send_email_smtp(recipients, data.subject, data.body, smtp_settings)
+            if success:
+                await db.email_logs.update_one({"id": log_id}, {"$set": {"status": "sent", "sent_at": now_iso()}})
+            else:
+                await db.email_logs.update_one({"id": log_id}, {"$set": {"status": "failed", "error": "SMTP send returned False"}})
+        except Exception as e:
+            await db.email_logs.update_one({"id": log_id}, {"$set": {"status": "failed", "error": str(e)[:200]}})
+
+    background_tasks.add_task(_send_and_update)
+    return {"message": f"Email sending to {len(recipients)} recipients", "log_id": log_id}
 
 
 @api_router.get("/admin/email/logs")
