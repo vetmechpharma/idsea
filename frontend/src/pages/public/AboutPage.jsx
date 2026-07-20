@@ -68,9 +68,7 @@ export default function AboutPage() {
                   <Compass size={24} style={{ color: 'white' }} />
                 </div>
                 <h3 style={{ fontFamily: 'Poppins, sans-serif', fontSize: '20px', fontWeight: 700, color: '#0c3c60', marginBottom: '14px' }}>Our Vision</h3>
-                <p style={{ color: '#4b5563', fontSize: '14px', lineHeight: 1.85, margin: 0, fontFamily: 'Inter, sans-serif' }}>
-                  {cms.vision || 'To be a premier national and international platform integrating dairy science, innovation, and entrepreneurship for the sustainable growth of the Indian dairy sector.'}
-                </p>
+                <div style={{ color: '#4b5563', fontSize: '14px', lineHeight: 1.85, margin: 0, fontFamily: 'Inter, sans-serif' }} dangerouslySetInnerHTML={{ __html: cms.vision || 'To be a premier national and international platform integrating dairy science, innovation, and entrepreneurship for the sustainable growth of the Indian dairy sector.' }} />
               </div>
               <div style={{ background: 'white', borderRadius: '20px', padding: '36px', position: 'relative', overflow: 'hidden', boxShadow: '0 4px 20px rgba(30,122,77,0.08)', border: '1px solid #e8edf2' }}>
                 <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', background: 'linear-gradient(90deg, #1e7a4d, #059669)' }} />
@@ -78,9 +76,7 @@ export default function AboutPage() {
                   <Target size={24} style={{ color: 'white' }} />
                 </div>
                 <h3 style={{ fontFamily: 'Poppins, sans-serif', fontSize: '20px', fontWeight: 700, color: '#1e7a4d', marginBottom: '14px' }}>Our Mission</h3>
-                <p style={{ color: '#4b5563', fontSize: '14px', lineHeight: 1.85, margin: 0, fontFamily: 'Inter, sans-serif' }}>
-                  {cms.mission || 'To promote advancement and dissemination of knowledge in dairy science, facilitate academia-industry-startup collaboration, and support dairy entrepreneurs.'}
-                </p>
+                <div style={{ color: '#4b5563', fontSize: '14px', lineHeight: 1.85, margin: 0, fontFamily: 'Inter, sans-serif' }} dangerouslySetInnerHTML={{ __html: cms.mission || 'To promote advancement and dissemination of knowledge in dairy science, facilitate academia-industry-startup collaboration, and support dairy entrepreneurs.' }} />
               </div>
             </div>
 
@@ -91,9 +87,7 @@ export default function AboutPage() {
                 About the Association
                 <div style={{ width: '50px', height: '4px', background: 'linear-gradient(90deg, #1e7a4d, #059669)', borderRadius: '2px', marginTop: '10px' }} />
               </h2>
-              <p style={{ color: '#4b5563', fontSize: '15px', lineHeight: 1.9, fontFamily: 'Inter, sans-serif', position: 'relative' }}>
-                {cms.about_content || 'IDSEA is a national professional and scientific body established to bridge the gap between dairy scientists and dairy entrepreneurs.'}
-              </p>
+              <div style={{ color: '#4b5563', fontSize: '15px', lineHeight: 1.9, fontFamily: 'Inter, sans-serif', position: 'relative' }} dangerouslySetInnerHTML={{ __html: cms.about_content || 'IDSEA is a national professional and scientific body established to bridge the gap between dairy scientists and dairy entrepreneurs.' }} />
             </div>
 
             {/* Objectives */}
