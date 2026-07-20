@@ -352,9 +352,7 @@ export default function HomePage() {
                   <div style={{ padding: '20px' }}>
                     <span style={{ fontSize: '11px', fontWeight: 600, color: '#1e7a4d', textTransform: 'uppercase', letterSpacing: '0.5px', fontFamily: 'Poppins, sans-serif' }}>{item.category}</span>
                     <h3 style={{ fontFamily: 'Poppins, sans-serif', fontSize: '15px', fontWeight: 700, color: '#111827', margin: '8px 0', lineHeight: 1.4 }}>{item.title}</h3>
-                    <p style={{ fontSize: '13px', color: '#6b7280', lineHeight: 1.6, fontFamily: 'Inter, sans-serif', margin: 0, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                      {item.content}
-                    </p>
+                    <div style={{ fontSize: '13px', color: '#6b7280', lineHeight: 1.6, fontFamily: 'Inter, sans-serif', margin: 0, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }} dangerouslySetInnerHTML={{ __html: item.content }} />
                     <div style={{ fontSize: '12px', color: '#9ca3af', marginTop: '12px', fontFamily: 'Inter, sans-serif' }}>{item.published_date}</div>
                   </div>
                 </div>
