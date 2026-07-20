@@ -19,14 +19,14 @@ export default function JournalGuidelinesPage() {
   if (loading) return <div style={{ minHeight: '100vh' }}><PublicNavbar /><div className="loading-spinner" style={{ paddingTop: '200px' }}>Loading...</div></div>;
 
   const s = data || {};
-  const journalName = s.journal_name || 'Journal of Dairy Science and Enterprise';
+  const journalName = s.journal_name || '';
   const content = s.guidelines_content || '';
 
   return (
     <div data-testid="journal-guidelines-page" style={{ background: '#f8fafc' }}>
       <Helmet>
         <title>{`Guidelines for Submission | ${journalName} | IDSEA`}</title>
-        <meta name="description" content={`Author guidelines and instructions for manuscript submission to ${journalName} (${s.abbreviation || 'JDSE'})`} />
+        <meta name="description" content={`Author guidelines and instructions for manuscript submission to ${journalName}${s.abbreviation ? ` (${s.abbreviation})` : ''}`} />
       </Helmet>
       <PublicNavbar />
 
@@ -42,7 +42,7 @@ export default function JournalGuidelinesPage() {
             </div>
             <h1 style={{ fontFamily: 'Poppins, sans-serif', fontSize: 'clamp(22px, 3vw, 34px)', fontWeight: 800, margin: 0 }}>Guidelines for Submission</h1>
           </div>
-          <p style={{ fontSize: '14px', opacity: 0.65, marginLeft: '62px' }}>{journalName} ({s.abbreviation || 'JDSE'})</p>
+          <p style={{ fontSize: '14px', opacity: 0.65, marginLeft: '62px' }}>{journalName}{s.abbreviation ? ` (${s.abbreviation})` : ''}</p>
         </div>
       </div>
 

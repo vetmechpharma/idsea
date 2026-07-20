@@ -16,7 +16,7 @@ const navItems = [
   { path: '/admin/news', icon: Newspaper, label: 'Announcements' },
   { path: '/admin/gallery', icon: Image, label: 'Gallery' },
   { path: '/admin/publications', icon: BookOpen, label: 'Publications' },
-  { path: '/admin/journal', icon: BookOpen, label: 'Journal (JDSE)' },
+  { path: '/admin/journal', icon: BookOpen, label: 'Journal' },
   { path: '/admin/email', icon: Mail, label: 'Email System' },
   { path: '/admin/email-templates', icon: FileText, label: 'Email Templates' },
   { path: '/admin/executive', icon: UserCheck, label: 'Executive Committee' },

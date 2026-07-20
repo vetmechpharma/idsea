@@ -11,7 +11,7 @@ const DEFAULT_NAV = [
   { id: '4', label: 'Membership', to: '/members', type: 'internal', visible: true, order: 3 },
   { id: '5', label: 'Events', to: '/events', type: 'internal', visible: true, order: 4 },
   { id: '11', label: 'Announcements', to: '/announcements', type: 'internal', visible: true, order: 5 },
-  { id: '6', label: 'Journal (JDSE)', to: '/journal', type: 'internal', visible: true, order: 6 },
+  { id: '6', label: 'Journal', to: '/journal', type: 'internal', visible: true, order: 6 },
   { id: '12', label: 'Editorial Board', to: '/journal', type: 'internal', visible: true, order: 7, parent: 'journal' },
   { id: '13', label: 'Guidelines for Submission', to: '/journal/guidelines', type: 'internal', visible: true, order: 8, parent: 'journal' },
   { id: '7', label: 'Gallery', to: '/gallery', type: 'internal', visible: true, order: 6 },
@@ -23,14 +23,14 @@ const DEFAULT_NAV = [
 export default function PublicNavbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [cms, setCms] = useState({});
-  const [pc, setPc] = useState({});
+  const [pc, setPc] = useState(null);
   const [openDropdown, setOpenDropdown] = useState(null);
   const [aboutPc, setAboutPc] = useState({});
   const dropdownRef = useRef(null);
 
   useEffect(() => {
     axios.get(`${API}/public/cms`).then(r => setCms(r.data)).catch(() => {});
-    axios.get(`${API}/public/page-content/navbar`).then(r => setPc(r.data)).catch(() => {});
+    axios.get(`${API}/public/page-content/navbar`).then(r => setPc(r.data)).catch(() => setPc({}));
     axios.get(`${API}/public/page-content/about`).then(r => setAboutPc(r.data)).catch(() => {});
   }, []);
 
@@ -46,12 +46,12 @@ export default function PublicNavbar() {
     ? (cms.logo_url.startsWith('http') ? cms.logo_url : `${API.replace('/api', '')}${cms.logo_url}`)
     : null;
 
-  const orgName = pc.org_name || 'Indian Dairy Scientists and Entrepreneurs Association';
-  const orgShort = pc.org_short || '(IDSEA)';
+  const orgName = pc?.org_name || '';
+  const orgShort = pc?.org_short || '';
   const regNumber = aboutPc.cert_reg_number || '';
 
-  // Build nav from DB or fallback
-  const rawMenu = (pc.menu_items && pc.menu_items.length > 0) ? pc.menu_items : DEFAULT_NAV;
+  // Build nav from DB only (wait for API data to avoid flash of default content)
+  const rawMenu = (pc && pc.menu_items && pc.menu_items.length > 0) ? pc.menu_items : (pc === null ? [] : DEFAULT_NAV);
   const visibleMenu = rawMenu.filter(m => m.visible !== false).sort((a, b) => (a.order || 0) - (b.order || 0));
 
   // Group: top-level items + dropdown children
@@ -94,7 +94,15 @@ export default function PublicNavbar() {
   };
 
   // Dropdown label map
-  const DROPDOWN_LABELS = { about: 'About Us', journal: 'Journal (JDSE)' };
+  // Dynamic dropdown labels from the menu items themselves
+  const DROPDOWN_LABELS = {};
+  dropdownParentKeys.forEach(k => {
+    const parentItem = visibleMenu.find(m => {
+      const path = m.to?.replace('/', '');
+      return (path === k || m.label?.toLowerCase().includes(k)) && (!m.parent || m.parent === '');
+    });
+    DROPDOWN_LABELS[k] = parentItem?.label || k.charAt(0).toUpperCase() + k.slice(1);
+  });
 
   const buildDesktopNav = () => {
     const items = [];

@@ -29,7 +29,7 @@ export default function JournalPage() {
   const s = data?.settings || {};
   const board = data?.board || [];
   const isSoon = s.coming_soon !== false;
-  const metaTitle = s.meta_title || `${s.journal_name || 'Journal of Dairy Science and Enterprise'} | IDSEA`;
+  const metaTitle = s.meta_title || `${s.journal_name || 'Journal'} | IDSEA`;
   const metaDesc = s.meta_description || s.description || 'Official journal of IDSEA';
 
   return (
@@ -49,9 +49,9 @@ export default function JournalPage() {
             <BookOpen size={28} style={{ color: '#4ade80' }} />
           </div>
           <h1 style={{ fontFamily: 'Poppins, sans-serif', fontSize: 'clamp(22px, 3.5vw, 38px)', fontWeight: 800, marginBottom: '8px', lineHeight: 1.25 }}>
-            {s.journal_name || 'Journal of Dairy Science and Enterprise'}
+            {s.journal_name || 'Journal'}
           </h1>
-          <p style={{ fontSize: '16px', opacity: 0.8, fontFamily: 'Poppins', fontWeight: 500, letterSpacing: '0.5px', marginBottom: '4px' }}>({s.abbreviation || 'JDSE'})</p>
+          <p style={{ fontSize: '16px', opacity: 0.8, fontFamily: 'Poppins', fontWeight: 500, letterSpacing: '0.5px', marginBottom: '4px' }}>({s.abbreviation || ''})</p>
           <p style={{ fontSize: '14px', opacity: 0.6 }}>An Official Publication of IDSEA</p>
         </div>
       </div>
@@ -65,7 +65,7 @@ export default function JournalPage() {
             </div>
             <h2 style={{ fontFamily: 'Poppins', fontSize: 'clamp(22px, 3vw, 32px)', fontWeight: 800, color: '#0c3c60', marginBottom: '14px' }}>Launching Soon</h2>
             <p style={{ fontSize: '15px', color: '#6b7280', lineHeight: 1.8, maxWidth: '500px', margin: '0 auto 28px' }}>
-              {s.description || `The ${s.journal_name || 'Journal of Dairy Science and Enterprise (JDSE)'} is the upcoming peer-reviewed publication by the Indian Dairy Scientists and Entrepreneurs Association.`}
+              {s.description || `The ${s.journal_name || 'Journal'} is the upcoming peer-reviewed publication by the Indian Dairy Scientists and Entrepreneurs Association.`}
             </p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px', maxWidth: '500px', margin: '0 auto 28px' }}>
               {[{ label: 'Peer Reviewed', desc: 'Rigorous academic standards' }, { label: 'Open Access', desc: 'Free for all researchers' }, { label: 'Dairy Focused', desc: 'Science, tech & enterprise' }].map(f => (

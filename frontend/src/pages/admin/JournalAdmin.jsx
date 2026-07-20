@@ -32,7 +32,7 @@ function RichToolbar({ textareaRef, value, onChange }) {
 }
 
 export default function JournalAdmin() {
-  const [settings, setSettings] = useState({ coming_soon: true, journal_name: 'Journal of Dairy Science and Enterprise', abbreviation: 'JDSE', description: '', cover_image: '', meta_title: '', meta_description: '', meta_keywords: '', guidelines_content: '' });
+  const [settings, setSettings] = useState({ coming_soon: true, journal_name: '', abbreviation: '', description: '', cover_image: '', meta_title: '', meta_description: '', meta_keywords: '', guidelines_content: '' });
   const [sections, setSections] = useState([]);
   const [toast, setToast] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
