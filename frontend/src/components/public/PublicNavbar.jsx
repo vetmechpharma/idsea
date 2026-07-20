@@ -171,14 +171,14 @@ export default function PublicNavbar() {
                 <span>IDSEA</span>
               </div>
             )}
-          </Link>
-          <div className="header-org-info">
-            <h1 className="header-org-name">{orgName}</h1>
-            <div className="header-org-sub">
-              <span className="header-org-short">{orgShort}</span>
-              {regNumber && <span className="header-reg-number">Reg. No: {regNumber}</span>}
+            <div className="header-org-info">
+              <h1 className="header-org-name">{orgName}</h1>
+              <div className="header-org-sub">
+                <span className="header-org-short">{orgShort}</span>
+                {regNumber && <span className="header-reg-number">Reg. No: {regNumber}</span>}
+              </div>
             </div>
-          </div>
+          </Link>
           <button onClick={() => setMobileOpen(!mobileOpen)} className="mobile-menu-btn" data-testid="mobile-menu-btn">
             {mobileOpen ? <X size={26} /> : <Menu size={26} />}
           </button>

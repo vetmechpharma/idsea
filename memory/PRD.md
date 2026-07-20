@@ -1,42 +1,67 @@
-# IDSEA — PRD
+# IDSEA Website - Product Requirements Document
 
 ## Original Problem Statement
-Build a full-stack website for IDSEA (Indian Dairy Scientists and Entrepreneurs Association) with public site, admin panel, membership, events, certificates, email campaigns, WhatsApp, and CMS.
+Build a full-stack website for the "Indian Dairy Scientists and Entrepreneurs Association (IDSEA)" containing a public-facing site and a comprehensive admin panel. Core requirements include complex event registrations, membership management, visual Certificate Design Module, dynamic CMS, Email Automation/Batch scheduling, Admin Backup/Restore, and VPS deployment files.
 
 ## Tech Stack
-React 18 + FastAPI + MongoDB + Nginx + Supervisor
+- **Frontend**: React, TailwindCSS, Shadcn/UI, React Router, Axios
+- **Backend**: FastAPI, Motor (async MongoDB), ReportLab (PDF generation)
+- **Database**: MongoDB
+- **Deployment**: Ubuntu VPS with Nginx + Supervisor
 
-## What's Implemented
+## Architecture
+```
+/app/
+├── backend/
+│   ├── server.py        # Monolithic FastAPI app (~5400 lines)
+│   └── uploads/         # Stores images, certificates, DB backups
+├── deploy/              # VPS installation files (nginx, supervisor, scripts)
+└── frontend/src/
+    ├── components/
+    ├── pages/admin/
+    └── pages/public/
+```
 
-### Core: CMS, SEO, Mobile Responsive (DONE)
-### Membership System with Razorpay (DONE)
-### Event Management + Rich Detail Page (DONE)
-### Email Templates + Campaign Queue System (DONE)
-### Certificate Designer + QR Verification (DONE)
-### Executive Committee Pages (DONE)
-### WhatsApp Campaigns (MOCKED)
+## Completed Features
+- Dynamic CMS with drag-and-drop public menu editor
+- Event registration flows with Razorpay integration
+- Visual drag-and-drop Certificate Designer
+- Custom SMTP batch email sender (50 emails/5 mins)
+- WhatsApp automation system (13 templates with attachment support via whatsapp-server-4)
+- Full admin Backup/Restore
+- Auto-PDF generation for member applications and certificates
+- VPS deployment scripts (/app/deploy)
+- Rich Text (HTML) Toolbar for CMS admin
+- Member Registration Infographic counter on homepage
+- Editorial Board standalone page
+- Google Maps in footer
+- Contact Us form API integration
+- Loading states to prevent flash of default data across all pages
+- Axios auth interceptors for Dashboard API calls
+- Logo + org name both clickable to navigate home (July 2026)
 
-### Deployment Cleanup (DONE - July 15, 2026)
-- Removed `emergentintegrations` from requirements.txt
-- Removed "Made with Emergent" watermark + posthog analytics from index.html
-- Removed demo seed data (no executive/member data seeded on startup — only admin + CMS defaults)
+## 3rd Party Integrations
+- **Razorpay** (Payments) — Requires User API Key
+- **SMTP** (Email) — Requires User Credentials
+- **whatsapp-server-4 API** (Messaging) — Requires User API Key / Session ID
 
-### Backup & Restore System (DONE - July 15, 2026)
-- **Database Backup**: Download all MongoDB collections as ZIP (JSON per collection)
-- **Uploads Backup**: Download all photos/images/brochures as ZIP
-- **Database Restore**: Upload backup ZIP to replace all collections
-- **Uploads Restore**: Upload ZIP to restore files (with zip-slip protection)
-- **Restore Paths**: Shows SSH restore path (`/var/www/idsea/backend/uploads/`)
-- **System Info**: Stats cards (total docs, collections, file count, size MB)
-- **Factory Reset**: Delete ALL data with `DELETE_ALL_DATA` confirmation, options to keep admin + clear uploads
-- Temp file cleanup via BackgroundTask after ZIP downloads
+## Pending Tasks (Prioritized)
+- **P1**: Refine Public Member Directory (search, filter, pagination UX)
+- **P2**: Admin Role Management (Super Admin vs Event Manager privileges)
+- **P3**: Refactor monolithic server.py into modular structure (routes/, models/, services/)
+- **P3**: Lazy-load admin pages in React to reduce public bundle size
 
-## VPS Deployment
-- Domain: idsea.in, Backend port: 8003
-- Full install guide at `/app/deploy/INSTALL_GUIDE.sh` + PDF at `/app/deploy/IDSEA_VPS_Installation_Guide.pdf`
+## Key DB Collections
+- email_templates, email_queue, smtp_settings
+- whatsapp_templates, whatsapp_settings
+- cms_settings, members
 
-## Backlog
-- **P1**: Public Member Directory with search & filter
-- **P2**: Admin Role Management
-- **P2**: Member subscription renewal reminders
-- **P3**: Refactor server.py (~4600 lines) into modular structure
+## Admin Credentials
+- Email: admin@idsea.org
+- Password: Admin@123
+
+## Critical Dev Notes
+- Always use optional chaining (`?.`) when referencing dynamic CMS data
+- Store image URLs as relative paths (`/api/uploads/...`), never absolute domains
+- server.py is ~5400 lines — always view file context before search_replace
+- Nginx regex for static files will intercept upload URLs unless `^~ /api/` is enforced
