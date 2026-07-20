@@ -19,7 +19,8 @@ export function FileUpload({ onUpload, accept = "image/*,.pdf,.doc,.docx,.xls,.x
       const formData = new FormData();
       formData.append('file', file);
       const r = await axios.post(`${API}/upload`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
-      const fileUrl = r.data.file_url.startsWith('http') ? r.data.file_url : `${API.replace('/api', '')}${r.data.file_url}`;
+      // Store relative path only (works on any domain)
+      const fileUrl = r.data.file_url;
       setPreview(file.type.startsWith('image/') ? URL.createObjectURL(file) : null);
       onUpload(fileUrl, r.data.original_name);
     } catch (err) {

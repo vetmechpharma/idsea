@@ -3620,11 +3620,12 @@ async def serve_upload(filename: str):
     content_types = {
         '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png',
         '.gif': 'image/gif', '.webp': 'image/webp', '.pdf': 'application/pdf',
-        '.doc': 'application/msword', '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        '.doc': 'application/msword', '.docx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.document',
         '.xls': 'application/vnd.ms-excel', '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     }
     ct = content_types.get(ext, 'application/octet-stream')
-    return StreamingResponse(open(file_path, 'rb'), media_type=ct)
+    headers = {"Cache-Control": "public, max-age=2592000", "Access-Control-Allow-Origin": "*"}
+    return StreamingResponse(open(file_path, 'rb'), media_type=ct, headers=headers)
 
 
 # =================== SMTP SETTINGS ===================

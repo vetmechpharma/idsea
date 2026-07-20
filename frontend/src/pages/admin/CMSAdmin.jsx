@@ -149,7 +149,7 @@ export default function CMSAdmin() {
             <label className="form-label">Website Logo</label>
             <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
               {cmsForm.logo_url && (
-                <img src={cmsForm.logo_url?.startsWith('http') ? cmsForm.logo_url : `${window.location.origin}${cmsForm.logo_url}`} alt="Logo" style={{ width: '56px', height: '56px', objectFit: 'contain', borderRadius: '8px', border: '1px solid #e5e7eb', padding: '2px' }} />
+                <img src={cmsForm.logo_url?.startsWith('http') ? cmsForm.logo_url : `${process.env.REACT_APP_BACKEND_URL}${cmsForm.logo_url.startsWith('/') ? '' : '/'}${cmsForm.logo_url}`} alt="Logo" style={{ width: '56px', height: '56px', objectFit: 'contain', borderRadius: '8px', border: '1px solid #e5e7eb', padding: '2px' }} onError={e => { e.target.style.display = 'none'; }} />
               )}
               <div style={{ flex: 1 }}>
                 <FileUpload accept="image/*" label="Upload New Logo" onUpload={(url) => updateCms('logo_url', url)} />

@@ -81,7 +81,7 @@ export default function EventDetailEditor() {
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '10px' }}>
           {(d.gallery_images || []).map((img, i) => (
             <div key={i} style={{ position: 'relative', width: '100px', height: '65px', borderRadius: '8px', overflow: 'hidden', border: '1px solid #e5e7eb' }}>
-              <img src={img.startsWith('/') ? `${window.location.origin}${img}` : img} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <img src={img.startsWith('/') ? `${process.env.REACT_APP_BACKEND_URL}${img}` : img} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               <button onClick={() => up('gallery_images', (d.gallery_images || []).filter((_, j) => j !== i))} style={{ position: 'absolute', top: 2, right: 2, background: 'rgba(0,0,0,0.6)', border: 'none', borderRadius: '50%', width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><X size={10} color="white" /></button>
             </div>
           ))}
@@ -155,7 +155,7 @@ export default function EventDetailEditor() {
         {(d.committee || []).map((c, i) => {
           const searchKey = `committee_${i}`;
           const results = searchMembers(memberSearch[searchKey] || '');
-          const photoSrc = c.photo_url ? (c.photo_url.startsWith('/') ? `${window.location.origin}${c.photo_url}` : c.photo_url) : '';
+          const photoSrc = c.photo_url ? (c.photo_url.startsWith('/') ? `${process.env.REACT_APP_BACKEND_URL}${c.photo_url}` : c.photo_url) : '';
           return (
             <div key={i} style={{ background: '#fafbfc', borderRadius: '10px', padding: '14px', marginBottom: '10px', border: '1px solid #e5e7eb' }}>
               <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
@@ -229,7 +229,7 @@ export default function EventDetailEditor() {
           <div key={i} style={{ display: 'flex', gap: '10px', marginBottom: '8px', alignItems: 'center' }}>
             <div style={{ flexShrink: 0, width: '48px', height: '48px', borderRadius: '8px', overflow: 'hidden', border: '1px solid #e5e7eb', background: '#f9fafb' }}>
               {p.image_url ? (
-                <img src={p.image_url.startsWith('/') ? `${window.location.origin}${p.image_url}` : p.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <img src={p.image_url.startsWith('/') ? `${process.env.REACT_APP_BACKEND_URL}${p.image_url}` : p.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               ) : (
                 <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Image size={16} style={{ color: '#d1d5db' }} /></div>
               )}
