@@ -202,8 +202,8 @@ export default function HomePage() {
             <h2 style={{ fontFamily: 'Poppins, sans-serif', fontSize: 'clamp(24px, 3vw, 36px)', fontWeight: 700, color: '#0c3c60', lineHeight: 1.3, marginBottom: '20px' }}>
               {pc?.about_subtitle || 'A Platform for Dairy Science & Entrepreneurship'}
             </h2>
-            <div style={{ color: '#4b5563', fontSize: '15px', lineHeight: 1.8, marginBottom: '16px', fontFamily: 'Inter, sans-serif' }} dangerouslySetInnerHTML={{ __html: pc.about_description || 'IDSEA is a national professional and scientific body that bridges the gap between dairy scientists and industry professionals.' }} />
-            <div style={{ color: '#4b5563', fontSize: '15px', lineHeight: 1.8, marginBottom: '28px', fontFamily: 'Inter, sans-serif' }} dangerouslySetInnerHTML={{ __html: pc.about_description2 || 'Headquartered at VCRI, Namakkal, Tamil Nadu, we operate with an all-India mandate to foster innovation, research, and sustainable growth.' }} />
+            <div style={{ color: '#4b5563', fontSize: '15px', lineHeight: 1.8, marginBottom: '16px', fontFamily: 'Inter, sans-serif' }} dangerouslySetInnerHTML={{ __html: pc?.about_description || 'IDSEA is a national professional and scientific body that bridges the gap between dairy scientists and industry professionals.' }} />
+            <div style={{ color: '#4b5563', fontSize: '15px', lineHeight: 1.8, marginBottom: '28px', fontFamily: 'Inter, sans-serif' }} dangerouslySetInnerHTML={{ __html: pc?.about_description2 || 'Headquartered at VCRI, Namakkal, Tamil Nadu, we operate with an all-India mandate to foster innovation, research, and sustainable growth.' }} />
             <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
               <Link to="/about" className="btn-primary" style={{ textDecoration: 'none' }}>Know More <ArrowRight size={14} /></Link>
               <Link to="/members" style={{ color: '#0c3c60', textDecoration: 'none', padding: '10px 20px', fontFamily: 'Poppins, sans-serif', fontWeight: 500, fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
