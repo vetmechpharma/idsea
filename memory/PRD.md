@@ -39,6 +39,7 @@ Build a full-stack website for the "Indian Dairy Scientists and Entrepreneurs As
 - Loading states to prevent flash of default data across all pages
 - Axios auth interceptors for Dashboard API calls
 - Logo + org name both clickable to navigate home (July 2026)
+- **Duplicate event registration prevention** — backend checks email+event_id before creating, frontend guards re-submission (July 2026)
 
 ## 3rd Party Integrations
 - **Razorpay** (Payments) — Requires User API Key
@@ -55,6 +56,7 @@ Build a full-stack website for the "Indian Dairy Scientists and Entrepreneurs As
 - email_templates, email_queue, smtp_settings
 - whatsapp_templates, whatsapp_settings
 - cms_settings, members
+- event_registrations, events, payments
 
 ## Admin Credentials
 - Email: admin@idsea.org
@@ -65,3 +67,4 @@ Build a full-stack website for the "Indian Dairy Scientists and Entrepreneurs As
 - Store image URLs as relative paths (`/api/uploads/...`), never absolute domains
 - server.py is ~5400 lines — always view file context before search_replace
 - Nginx regex for static files will intercept upload URLs unless `^~ /api/` is enforced
+- Event registration has duplicate prevention (email+event_id check) — returns existing reg if duplicate

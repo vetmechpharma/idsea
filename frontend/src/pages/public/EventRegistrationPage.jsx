@@ -247,6 +247,12 @@ export default function EventRegistrationPage() {
 
   const handleSubmit = async () => {
     if (!form.name || !form.email || !form.phone) return;
+    // Prevent duplicate submission if registration already created
+    if (regResult) {
+      if (totalAmount > 0) setStep(5);
+      else setSubmitted(true);
+      return;
+    }
     setSubmitting(true); setError('');
     try {
       const payload = {

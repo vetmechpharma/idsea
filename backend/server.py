@@ -1888,6 +1888,18 @@ async def register_for_event(event_id: str, data: dict, background_tasks: Backgr
     if not event.get("registration_enabled"):
         raise HTTPException(status_code=400, detail="Registration not enabled")
 
+    # Duplicate check: if same email already registered for this event, return existing registration
+    email = data.get("email", "").strip().lower()
+    if email:
+        import re as _re
+        safe_email = _re.escape(email)
+        existing_reg = await db.event_registrations.find_one(
+            {"event_id": event_id, "email": {"$regex": f"^{safe_email}$", "$options": "i"}},
+            {"_id": 0}
+        )
+        if existing_reg:
+            return {"message": "Registration already exists", "registration": existing_reg, "duplicate": True}
+
     reg = EventRegistration(
         event_id=event_id,
         is_member=data.get("is_member", False),
