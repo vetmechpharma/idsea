@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
-import { Plus, Edit3, Trash2, Save, X, Crown, ToggleLeft, ToggleRight, Hash, Check } from 'lucide-react';
+import { Plus, Edit3, Trash2, Save, X, Crown, ToggleLeft, ToggleRight, Hash, Check, Award, Link2, ChevronDown } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -14,6 +14,9 @@ export default function MembershipAdmin() {
   const [prefixValue, setPrefixValue] = useState('');
   const [prefixSaving, setPrefixSaving] = useState(false);
   const [toast, setToast] = useState('');
+  const [certTemplates, setCertTemplates] = useState([]);
+  const [openCertDropdown, setOpenCertDropdown] = useState(null);
+  const [linkingPlan, setLinkingPlan] = useState(null);
   const token = localStorage.getItem('idsea_token');
   const headers = { Authorization: `Bearer ${token}` };
 
@@ -31,7 +34,23 @@ export default function MembershipAdmin() {
     } catch {}
   };
 
-  useEffect(() => { fetchPlans(); fetchIdConfigs(); }, []);
+  const fetchCertTemplates = async () => {
+    try {
+      const r = await axios.get(`${API}/admin/certificate-templates`, { headers });
+      setCertTemplates(r.data || []);
+    } catch {}
+  };
+
+  useEffect(() => { fetchPlans(); fetchIdConfigs(); fetchCertTemplates(); }, []);
+
+  // Close cert dropdown on outside click
+  useEffect(() => {
+    const handler = (e) => {
+      if (openCertDropdown && !e.target.closest('[data-cert-dropdown]')) setOpenCertDropdown(null);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [openCertDropdown]);
 
   const openCreate = () => {
     setEditPlan(null);
@@ -88,6 +107,31 @@ export default function MembershipAdmin() {
     } catch {}
   };
 
+  const linkCertTemplate = async (planKey, templateId) => {
+    setLinkingPlan(planKey);
+    try {
+      if (templateId) {
+        await axios.put(`${API}/admin/certificate-templates/${templateId}/link-plan`, { membership_type: planKey }, { headers });
+      } else {
+        // Unlink: find current linked template and unlink it
+        const linked = certTemplates.find(t => t.linked_membership_type === planKey);
+        if (linked) {
+          await axios.put(`${API}/admin/certificate-templates/${linked.id}/link-plan`, { membership_type: '' }, { headers });
+        }
+      }
+      setToast(templateId ? 'Certificate template linked!' : 'Certificate template unlinked');
+      setTimeout(() => setToast(''), 3000);
+      fetchCertTemplates();
+    } catch (e) {
+      setToast('Error: ' + (e.response?.data?.detail || 'Failed to link'));
+      setTimeout(() => setToast(''), 3000);
+    }
+    setLinkingPlan(null);
+    setOpenCertDropdown(null);
+  };
+
+  const getLinkedTemplate = (planKey) => certTemplates.find(t => t.linked_membership_type === planKey);
+
   return (
     <div data-testid="membership-admin" style={{ maxWidth: '900px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
@@ -101,12 +145,16 @@ export default function MembershipAdmin() {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        {plans.map(plan => (
+        {plans.map(plan => {
+          const linkedTpl = getLinkedTemplate(plan.key);
+          const isDropdownOpen = openCertDropdown === plan.key;
+          return (
           <div key={plan.id} data-testid={`plan-${plan.id}`} style={{
             background: 'white', borderRadius: '10px', border: '1px solid #e2e8f0',
-            padding: '18px 22px', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            padding: '18px 22px',
             opacity: plan.enabled ? 1 : 0.6
           }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ flex: 1 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <Crown size={16} style={{ color: '#d4a017' }} />
@@ -140,8 +188,85 @@ export default function MembershipAdmin() {
                 <Trash2 size={14} />
               </button>
             </div>
+            </div>
+
+            {/* Certificate Template Link */}
+            <div data-cert-dropdown style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid #f1f5f9', position: 'relative' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Award size={14} style={{ color: linkedTpl ? '#1e7a4d' : '#94a3b8' }} />
+                <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>Certificate Template:</span>
+                <button
+                  onClick={() => setOpenCertDropdown(isDropdownOpen ? null : plan.key)}
+                  disabled={linkingPlan === plan.key}
+                  data-testid={`cert-link-${plan.key}`}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '6px',
+                    padding: '4px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: 600,
+                    border: linkedTpl ? '1px solid #bbf7d0' : '1px dashed #cbd5e1',
+                    background: linkedTpl ? '#f0fdf4' : '#fafbfc',
+                    color: linkedTpl ? '#065f46' : '#64748b',
+                  }}>
+                  {linkingPlan === plan.key ? 'Linking...' : linkedTpl ? (
+                    <><Link2 size={12} /> {linkedTpl.name || 'Untitled Template'}</>
+                  ) : (
+                    <><Plus size={12} /> Assign Template</>
+                  )}
+                  <ChevronDown size={12} style={{ transform: isDropdownOpen ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.2s' }} />
+                </button>
+              </div>
+
+              {isDropdownOpen && (
+                <div style={{
+                  position: 'absolute', top: '100%', left: '0', zIndex: 50, marginTop: '4px',
+                  background: 'white', borderRadius: '8px', border: '1px solid #e2e8f0',
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.12)', minWidth: '280px', padding: '4px',
+                }}>
+                  {linkedTpl && (
+                    <button
+                      onClick={() => linkCertTemplate(plan.key, '')}
+                      style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 12px', border: 'none', background: '#fef2f2', color: '#991b1b', cursor: 'pointer', fontSize: '12px', borderRadius: '6px', fontWeight: 600, marginBottom: '2px' }}>
+                      Remove link
+                    </button>
+                  )}
+                  {certTemplates.length === 0 && (
+                    <div style={{ padding: '12px', textAlign: 'center', fontSize: '12px', color: '#94a3b8' }}>
+                      No certificate templates found. Create one first in the Certificate Designer.
+                    </div>
+                  )}
+                  {certTemplates.map(tpl => {
+                    const isLinked = tpl.linked_membership_type === plan.key;
+                    const linkedElsewhere = tpl.linked_membership_type && tpl.linked_membership_type !== plan.key;
+                    return (
+                      <button
+                        key={tpl.id}
+                        onClick={() => !isLinked && linkCertTemplate(plan.key, tpl.id)}
+                        data-testid={`cert-option-${tpl.id}`}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: '8px', width: '100%', textAlign: 'left',
+                          padding: '8px 12px', border: 'none', borderRadius: '6px', cursor: isLinked ? 'default' : 'pointer',
+                          background: isLinked ? '#d1fae5' : 'transparent', fontSize: '12px',
+                          color: isLinked ? '#065f46' : linkedElsewhere ? '#94a3b8' : '#374151',
+                          fontWeight: isLinked ? 700 : 400,
+                        }}>
+                        <Award size={14} style={{ flexShrink: 0, color: isLinked ? '#1e7a4d' : '#94a3b8' }} />
+                        <div style={{ flex: 1 }}>
+                          <div>{tpl.name || 'Untitled Template'}</div>
+                          {linkedElsewhere && (
+                            <div style={{ fontSize: '10px', color: '#d97706' }}>
+                              Linked to: {linkedElsewhere ? tpl.linked_membership_type : ''}
+                            </div>
+                          )}
+                        </div>
+                        {isLinked && <Check size={14} style={{ color: '#1e7a4d' }} />}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
-        ))}
+          );
+        })}
         {plans.length === 0 && (
           <div style={{ background: 'white', borderRadius: '10px', padding: '40px', textAlign: 'center', color: '#94a3b8', fontSize: '14px' }}>
             No membership plans yet. Click &ldquo;Add Plan&rdquo; to create one.
