@@ -479,6 +479,7 @@ class CMSSettings(BaseModel):
     custom_head_scripts: Optional[str] = ""
     custom_body_start_scripts: Optional[str] = ""
     custom_body_end_scripts: Optional[str] = ""
+    site_url: Optional[str] = ""
 
 
 # =================== AUTH UTILS ===================
@@ -1567,15 +1568,16 @@ async def approve_member(member_id: str, background_tasks: BackgroundTasks, admi
     cert_template = await db.certificate_templates.find_one({"linked_membership_type": mtype}, {"_id": 0})
     if cert_template:
         cert_id = _gen_cert_id("MEM")
+        site_url = await _get_site_url()
         cert_data = {
             "name": f"{member.get('prefix', '')} {member.get('name', '')}".strip(),
             "membership_id": membership_id,
             "date": datetime.now().strftime("%d.%m.%Y"), "year": str(datetime.now().year),
             "email": member.get("email", ""), "phone": member.get("phone", ""),
             "qualification": member.get("qualification", ""), "specialization": member.get("specialization", ""),
-            "organization": member.get("organization", ""), "membership_type": mtype,
+            "organization": member.get("organization", ""), "membership_type": _membership_label(mtype),
             "state": state, "country": member.get("country", "India"),
-            "certificate_id": cert_id,
+            "certificate_id": cert_id, "_site_url": site_url,
         }
         try:
             cert_pdf = generate_template_pdf(cert_template, cert_data, cert_id=cert_id)
@@ -1583,7 +1585,7 @@ async def approve_member(member_id: str, background_tasks: BackgroundTasks, admi
             await db.certificate_records.insert_one({
                 "cert_id": cert_id, "type": "membership", "template_id": cert_template.get("id", ""),
                 "member_id": member_id, "recipient_name": cert_data["name"],
-                "membership_id": membership_id, "membership_type": mtype,
+                "membership_id": membership_id, "membership_type": _membership_label(mtype),
                 "issued_date": now_iso(), "data": cert_data,
             })
             logging.info(f"Certificate {cert_id} generated for member {member_id} using designer template")
@@ -1604,7 +1606,7 @@ async def approve_member(member_id: str, background_tasks: BackgroundTasks, admi
             "member_name": member.get("name", ""),
             "email": member.get("email", ""),
             "membership_id": membership_id,
-            "membership_type": member.get("membership_type", ""),
+            "membership_type": _membership_label(member.get("membership_type", "")),
             "qualification": member.get("qualification", ""),
             "organization": member.get("organization", ""),
             "state": member.get("state", ""),
@@ -1615,7 +1617,7 @@ async def approve_member(member_id: str, background_tasks: BackgroundTasks, admi
 
     # Send WhatsApp notification with certificate attached
     if member.get("phone"):
-        wa_variables = {"name": member.get("name", ""), "membership_id": membership_id, "membership_type": mtype}
+        wa_variables = {"name": member.get("name", ""), "membership_id": membership_id, "membership_type": _membership_label(mtype)}
         # Build WhatsApp message from template
         db_wa_template = await db.whatsapp_templates.find_one({"key": "membership_approved"}, {"_id": 0})
         wa_msg_text = ""
@@ -3315,6 +3317,11 @@ def generate_template_pdf(template: dict, data: dict, cert_id: str = "") -> byte
         elif etype == "qrcode":
             qr_data = cert_id or data.get("certificate_id", "") or data.get("membership_id", "SAMPLE")
             verify_base = el.get("verify_url", "")
+            # Auto-construct verify URL if not set: use site_url from data or fallback
+            if not verify_base:
+                site_base = data.get("_site_url", "")
+                if site_base:
+                    verify_base = f"{site_base.rstrip('/')}/verify"
             if verify_base:
                 qr_url = f"{verify_base}?id={qr_data}"
             else:
@@ -3452,7 +3459,7 @@ async def preview_cert_template(tpl_id: str, request: Request, admin=Depends(get
         "date": datetime.now().strftime("%d.%m.%Y"), "year": str(datetime.now().year),
         "email": "sample@example.com", "phone": "+91 98765 43210",
         "qualification": "Ph.D. in Dairy Science", "organization": "IDSEA Research Institute",
-        "membership_type": "Academic Member", "state": "Tamil Nadu",
+        "membership_type": "Academic", "state": "Tamil Nadu",
         "event_title": "IDSEA Annual Conference 2026", "event_date": "20-22 March 2026",
         "event_venue": "VCRI, Namakkal", "registration_id": "REG-2026-0001",
         "paper_title": "Advances in Dairy Processing", "specialization": "Dairy Technology",
@@ -3461,6 +3468,8 @@ async def preview_cert_template(tpl_id: str, request: Request, admin=Depends(get
     body = await request.json() if request.headers.get("content-length") and int(request.headers.get("content-length", 0)) > 0 else {}
     if body.get("data"):
         sample.update(body["data"])
+    site_url = await _get_site_url()
+    sample["_site_url"] = site_url
     pdf = generate_template_pdf(t, sample, cert_id="IDSEA-SAMPLE-0000")
     return StreamingResponse(io.BytesIO(pdf), media_type="application/pdf",
                              headers={"Content-Disposition": f'inline; filename="preview.pdf"'})
@@ -3472,6 +3481,24 @@ def _gen_cert_id(prefix="CERT"):
     return f"IDSEA-{prefix}-{code}"
 
 
+_MTYPE_LABELS = {"academic": "Academic", "entrepreneur": "Entrepreneur", "corporate": "Corporate", "international": "International", "life": "Life", "student": "Student"}
+
+def _membership_label(raw_type: str) -> str:
+    """Convert membership type key to clean label (e.g., 'academic' -> 'Academic', 'Academic Member' -> 'Academic')"""
+    if not raw_type:
+        return ""
+    # Remove trailing ' Member' if present
+    label = raw_type.replace(" Member", "").replace(" member", "").strip()
+    # Look up from known labels
+    return _MTYPE_LABELS.get(label.lower(), label.capitalize())
+
+
+async def _get_site_url() -> str:
+    """Get site URL from CMS settings for QR code generation"""
+    cms = await db.cms_settings.find_one({}, {"_id": 0, "site_url": 1})
+    return (cms or {}).get("site_url", "") or ""
+
+
 @api_router.post("/admin/certificate-templates/{tpl_id}/generate-member/{member_id}")
 async def gen_cert_member(tpl_id: str, member_id: str, admin=Depends(get_current_admin)):
     t = await db.certificate_templates.find_one({"id": tpl_id}, {"_id": 0})
@@ -3479,15 +3506,16 @@ async def gen_cert_member(tpl_id: str, member_id: str, admin=Depends(get_current
     if not t or not m:
         raise HTTPException(404, "Not found")
     cert_id = _gen_cert_id("MEM")
+    site_url = await _get_site_url()
     data = {
         "name": f"{m.get('prefix','')} {m.get('name','')}".strip(),
         "membership_id": m.get("membership_id", ""),
         "date": datetime.now().strftime("%d.%m.%Y"), "year": str(datetime.now().year),
         "email": m.get("email", ""), "phone": m.get("phone", ""),
         "qualification": m.get("qualification", ""), "specialization": m.get("specialization", ""),
-        "organization": m.get("organization", ""), "membership_type": m.get("membership_type", ""),
+        "organization": m.get("organization", ""), "membership_type": _membership_label(m.get("membership_type", "")),
         "state": m.get("state", ""), "country": m.get("country", "India"),
-        "certificate_id": cert_id,
+        "certificate_id": cert_id, "_site_url": site_url,
     }
     # Store certificate record (metadata only, no PDF)
     await db.certificate_records.insert_one({
@@ -3519,6 +3547,7 @@ async def gen_cert_event_bulk(tpl_id: str, event_id: str, admin=Depends(get_curr
     if not t or not ev:
         raise HTTPException(404, "Not found")
     regs = await db.event_registrations.find({"event_id": event_id, "payment_status": "paid"}, {"_id": 0}).to_list(5000)
+    site_url = await _get_site_url()
     zbuf = io.BytesIO()
     with zf.ZipFile(zbuf, 'w', zf.ZIP_DEFLATED) as z:
         for r in regs:
@@ -3531,7 +3560,7 @@ async def gen_cert_event_bulk(tpl_id: str, event_id: str, admin=Depends(get_curr
                 "event_date": f"{ev.get('date','')} to {ev.get('end_date','')}",
                 "registration_id": r.get("id", ""),
                 "date": datetime.now().strftime("%d.%m.%Y"), "year": str(datetime.now().year),
-                "certificate_id": cert_id,
+                "certificate_id": cert_id, "_site_url": site_url,
             }
             # Store record
             await db.certificate_records.insert_one({
@@ -3578,6 +3607,8 @@ async def download_certificate(cert_id: str):
         raise HTTPException(404, "Certificate template not found")
     data = rec.get("data", {})
     data["certificate_id"] = cert_id
+    site_url = await _get_site_url()
+    data["_site_url"] = site_url
     pdf = generate_template_pdf(tpl, data, cert_id=cert_id)
     fn = f"certificate_{cert_id}.pdf"
     return StreamingResponse(io.BytesIO(pdf), media_type="application/pdf",
@@ -3896,7 +3927,7 @@ async def admin_preview_email_template(template_key: str, admin=Depends(get_curr
         "participant_name": "Dr. John Doe",
         "participant_email": "john.doe@example.com",
         "registration_id": "REG-20260001",
-        "registration_type": "Academic Member",
+        "registration_type": "Academic",
         "amount_paid": "Rs. 2,500",
         "certificate_type": "Participation",
         "certificate_id": "CERT-20260001",

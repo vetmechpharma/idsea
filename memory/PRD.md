@@ -13,7 +13,7 @@ Build a full-stack website for the "Indian Dairy Scientists and Entrepreneurs As
 ```
 /app/
 ├── backend/
-│   ├── server.py        # Monolithic FastAPI app (~5400 lines)
+│   ├── server.py        # Monolithic FastAPI app (~5500 lines)
 │   └── uploads/         # Stores images, certificates, DB backups
 ├── deploy/              # VPS installation files (nginx, supervisor, scripts)
 └── frontend/src/
@@ -39,7 +39,10 @@ Build a full-stack website for the "Indian Dairy Scientists and Entrepreneurs As
 - Loading states to prevent flash of default data across all pages
 - Axios auth interceptors for Dashboard API calls
 - Logo + org name both clickable to navigate home (July 2026)
-- **Duplicate event registration prevention** — backend checks email+event_id before creating, frontend guards re-submission (July 2026)
+- Duplicate event registration prevention — backend checks email+event_id (July 2026)
+- **Certificate QR auto-verify**: QR codes auto-redirect to /verify?id=CERT-ID using site_url from CMS (July 2026)
+- **Clean membership labels**: Certificates/emails show "Academic"/"Corporate" instead of "Academic Member" (July 2026)
+- **Site URL CMS field**: Admin can set website URL used for QR code generation (July 2026)
 
 ## 3rd Party Integrations
 - **Razorpay** (Payments) — Requires User API Key
@@ -55,8 +58,9 @@ Build a full-stack website for the "Indian Dairy Scientists and Entrepreneurs As
 ## Key DB Collections
 - email_templates, email_queue, smtp_settings
 - whatsapp_templates, whatsapp_settings
-- cms_settings, members
-- event_registrations, events, payments
+- cms_settings (includes site_url for QR codes)
+- members, events, event_registrations, payments
+- certificate_templates, certificate_records
 
 ## Admin Credentials
 - Email: admin@idsea.org
@@ -65,6 +69,8 @@ Build a full-stack website for the "Indian Dairy Scientists and Entrepreneurs As
 ## Critical Dev Notes
 - Always use optional chaining (`?.`) when referencing dynamic CMS data
 - Store image URLs as relative paths (`/api/uploads/...`), never absolute domains
-- server.py is ~5400 lines — always view file context before search_replace
+- server.py is ~5500 lines — always view file context before search_replace
 - Nginx regex for static files will intercept upload URLs unless `^~ /api/` is enforced
-- Event registration has duplicate prevention (email+event_id check) — returns existing reg if duplicate
+- Event registration has duplicate prevention (email+event_id check)
+- Certificate QR codes auto-construct verify URL from `site_url` in CMS settings
+- Membership types stored as keys (academic, corporate, etc.) — use `_membership_label()` for display

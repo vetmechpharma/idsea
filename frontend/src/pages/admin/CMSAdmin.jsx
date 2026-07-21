@@ -512,6 +512,14 @@ export default function CMSAdmin() {
         </div>
       </Section>
 
+      <Section title="Site URL (for QR Codes)">
+        <div className="form-group">
+          <label className="form-label">Website URL</label>
+          <input type="url" value={cmsForm.site_url || ''} onChange={e => updateCms('site_url', e.target.value)} className="form-input" placeholder="https://idsea.in" data-testid="cms-site-url" />
+          <p style={{ fontSize: '11px', color: '#9ca3af', marginTop: '4px' }}>Used for certificate QR codes. QR will redirect to <code>{cmsForm.site_url || 'https://yoursite.com'}/verify?id=CERT-ID</code></p>
+        </div>
+      </Section>
+
       <div style={{ background: '#f0f9ff', borderRadius: '10px', padding: '14px 18px', marginBottom: '20px', border: '1px solid #bae6fd' }}>
         <div style={{ fontSize: '13px', color: '#0369a1', fontWeight: 600, fontFamily: 'Poppins, sans-serif', marginBottom: '4px' }}>Google Indexing & SEO</div>
         <div style={{ fontSize: '12px', color: '#6b7280', lineHeight: 1.5 }}>
