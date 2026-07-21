@@ -6,7 +6,7 @@
 
 set -e
 
-DOMAIN="idsea.org"
+DOMAIN="idsea.in"
 APP_DIR="/var/www/idsea"
 LOG_DIR="/var/log/idsea"
 BACKUP_DIR="/var/backups/idsea"
@@ -134,10 +134,10 @@ if [ ! -f "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" ]; then
     echo "    sudo certbot --nginx -d $DOMAIN -d www.$DOMAIN"
     echo ""
     # Create temp HTTP-only config
-    cat > /etc/nginx/sites-available/idsea << 'HTTPCONF'
+    cat > /etc/nginx/sites-available/idsea << HTTPCONF
 server {
     listen 80;
-    server_name idsea.org www.idsea.org;
+    server_name $DOMAIN www.$DOMAIN;
 
     client_max_body_size 25M;
     root /var/www/idsea/frontend/build;
@@ -148,30 +148,36 @@ server {
     gzip_min_length 1024;
     gzip_types text/plain text/css application/json application/javascript text/xml application/xml text/javascript image/svg+xml;
 
-    location /api/ {
-        proxy_pass http://127.0.0.1:8001/api/;
+    location ^~ /api/ {
+        proxy_pass http://127.0.0.1:8003;
         proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
         proxy_read_timeout 300s;
+        proxy_connect_timeout 75s;
+        proxy_send_timeout 300s;
+        proxy_request_buffering off;
+        proxy_buffering off;
+        client_max_body_size 25M;
     }
 
-    location /uploads/ {
+    location ^~ /uploads/ {
         alias /var/www/idsea/backend/uploads/;
         expires 30d;
         add_header Cache-Control "public, immutable";
+        access_log off;
     }
 
-    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+    location ~* \.(js|css|gif|ico|svg|woff|woff2|ttf|eot)$ {
         expires 1y;
         add_header Cache-Control "public, immutable";
         access_log off;
     }
 
     location / {
-        try_files $uri $uri/ /index.html;
+        try_files \$uri \$uri/ /index.html;
     }
 }
 HTTPCONF
@@ -189,7 +195,7 @@ echo "  Nginx:    $(systemctl is-active nginx)"
 echo "  MongoDB:  $(systemctl is-active mongod)"
 echo ""
 echo "  Next steps:"
-echo "  1. Ensure backend/.env has correct values (JWT_SECRET, SMTP, etc.)"
+echo "  1. Ensure backend/.env has correct values (JWT_SECRET, SMTP, WHATSAPP_SERVER_URL, etc.)"
 echo "  2. Ensure frontend/.env has REACT_APP_BACKEND_URL=https://$DOMAIN"
 echo "  3. Point DNS A record for $DOMAIN → this server's IP"
 echo "  4. Run: sudo certbot --nginx -d $DOMAIN -d www.$DOMAIN"

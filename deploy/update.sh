@@ -26,7 +26,8 @@ yarn install --frozen-lockfile 2>/dev/null || yarn install
 yarn build
 
 # Update nginx config
-sudo cp $APP_DIR/deploy/nginx-idsea.conf /etc/nginx/sites-available/idsea.in
+sudo cp $APP_DIR/deploy/nginx-idsea.conf /etc/nginx/sites-available/idsea
+sudo ln -sf /etc/nginx/sites-available/idsea /etc/nginx/sites-enabled/idsea
 sudo nginx -t && sudo systemctl reload nginx
 sleep 2
 
