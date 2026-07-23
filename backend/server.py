@@ -3215,8 +3215,7 @@ def generate_template_pdf(template: dict, data: dict, cert_id: str = "") -> byte
     from reportlab.platypus import Paragraph as RLParagraph
     from reportlab.lib.styles import ParagraphStyle
     from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
-    import qrcode
-    import tempfile
+    from reportlab.lib.utils import ImageReader
 
     pw = template.get("page_width", 1000)
     ph = template.get("page_height", 707)
@@ -3337,19 +3336,25 @@ def generate_template_pdf(template: dict, data: dict, cert_id: str = "") -> byte
                 qr.add_data(qr_url)
                 qr.make(fit=True)
                 qr_img = qr.make_image(fill_color="black", back_color="white")
-                tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
-                qr_img.save(tmp.name)
+                # Use in-memory buffer instead of tempfile for reliability
+                qr_buf = io.BytesIO()
+                qr_img.save(qr_buf, format="PNG")
+                qr_buf.seek(0)
+                qr_reader = ImageReader(qr_buf)
                 qr_size = min(ew, eh)
                 qr_x = ex + (ew - qr_size) / 2
                 qr_y = ey + (eh - qr_size) / 2
-                c.drawImage(tmp.name, qr_x, qr_y, width=qr_size, height=qr_size, preserveAspectRatio=True)
+                c.drawImage(qr_reader, qr_x, qr_y, width=qr_size, height=qr_size, preserveAspectRatio=True)
                 # Draw cert ID text below QR
                 c.setFillColor(colors.HexColor(clr))
                 c.setFont("Helvetica", max(5, fs * 0.55))
                 c.drawCentredString(ex + ew / 2, qr_y - max(5, fs * 0.6), qr_data)
-                os.unlink(tmp.name)
-            except Exception:
-                pass
+            except Exception as qr_err:
+                logging.error(f"QR code generation failed: {qr_err}")
+                # Fallback: draw text of the QR data
+                c.setFillColor(colors.HexColor(clr))
+                c.setFont("Helvetica", max(6, fs * 0.7))
+                c.drawCentredString(ex + ew / 2, ey + eh / 2, qr_data)
 
     c.showPage()
     c.save()
@@ -3489,7 +3494,7 @@ async def preview_cert_template(tpl_id: str, request: Request, admin=Depends(get
     if not t:
         raise HTTPException(404, "Template not found")
     sample = {
-        "name": "Dr. Sample Person", "membership_id": "ACD/IDSEA/2026/0001",
+        "name": "Dr. Sample Person", "membership_id": "ACD/IDSEA/0001",
         "date": datetime.now().strftime("%d.%m.%Y"), "year": str(datetime.now().year),
         "email": "sample@example.com", "phone": "+91 98765 43210",
         "qualification": "Ph.D. in Dairy Science", "organization": "IDSEA Research Institute",
