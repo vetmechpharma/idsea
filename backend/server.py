@@ -1033,7 +1033,7 @@ async def batch_event_notification(event: dict, membership_type_filter: str = "a
         batch = members_with_email[i:i + batch_size]
         for member in batch:
             variables = {
-                "member_name": member.get("name", "Member"),
+                "member_name": _full_name(member),
                 "event_title": event.get("title", ""),
                 "event_date": event.get("date", ""),
                 "event_end_date": event.get("end_date", ""),
@@ -1061,7 +1061,7 @@ async def batch_event_notification(event: dict, membership_type_filter: str = "a
         for member in batch:
             if member.get("phone"):
                 await send_whatsapp_notification(member["phone"], "event_invite", {
-                    "name": member.get("name", "Member"),
+                    "name": _full_name(member),
                     "event_title": event.get("title", ""),
                     "event_date": event.get("date", ""),
                     "event_venue": event.get("venue", ""),
@@ -1089,7 +1089,7 @@ async def send_event_participation_certificates(event: dict):
         batch = members_with_email[i:i + batch_size]
         for member in batch:
             variables = {
-                "member_name": member.get("name", ""),
+                "member_name": _full_name(member),
                 "membership_id": member.get("membership_id", ""),
                 "event_title": event.get("title", ""),
                 "event_date": event.get("date", ""),
@@ -1100,7 +1100,7 @@ async def send_event_participation_certificates(event: dict):
 
             # Generate certificate on-the-fly (NOT stored in DB)
             cert_pdf = generate_certificate_pdf_bytes(
-                member_name=member.get("name", ""),
+                member_name=_full_name(member),
                 membership_id=member.get("membership_id", ""),
                 cert_type="event",
                 event_name=event.get("title", ""),
@@ -1112,7 +1112,7 @@ async def send_event_participation_certificates(event: dict):
             # WhatsApp: Send participation certificate
             if member.get("phone"):
                 wa_vars = {
-                    "name": member.get("name", ""),
+                    "name": _full_name(member),
                     "event_title": event.get("title", ""),
                     "event_date": event.get("date", ""),
                     "event_venue": event.get("venue", ""),
@@ -1602,7 +1602,7 @@ async def approve_member(member_id: str, background_tasks: BackgroundTasks, admi
     # Fallback to basic certificate if no template linked or generation failed
     if not cert_pdf:
         cert_pdf = generate_certificate_pdf_bytes(
-            member_name=member.get("name", ""),
+            member_name=_full_name(member),
             membership_id=membership_id,
             cert_type="membership",
         )
@@ -1610,7 +1610,7 @@ async def approve_member(member_id: str, background_tasks: BackgroundTasks, admi
     # Send welcome email with membership certificate attached
     if member.get("email"):
         variables = {
-            "member_name": member.get("name", ""),
+            "member_name": _full_name(member),
             "email": member.get("email", ""),
             "membership_id": membership_id,
             "membership_type": _membership_label(member.get("membership_type", "")),
@@ -1624,7 +1624,7 @@ async def approve_member(member_id: str, background_tasks: BackgroundTasks, admi
 
     # Send WhatsApp notification with certificate attached
     if member.get("phone"):
-        wa_variables = {"name": member.get("name", ""), "membership_id": membership_id, "membership_type": _membership_label(mtype)}
+        wa_variables = {"name": _full_name(member), "membership_id": membership_id, "membership_type": _membership_label(mtype)}
         # Build WhatsApp message from template
         db_wa_template = await db.whatsapp_templates.find_one({"key": "membership_approved"}, {"_id": 0})
         wa_msg_text = ""
@@ -1656,7 +1656,7 @@ async def reject_member(member_id: str, background_tasks: BackgroundTasks, admin
     if member and member.get("phone"):
         background_tasks.add_task(
             send_whatsapp_notification, member["phone"], "membership_denied",
-            {"name": member.get("name", "")}
+            {"name": _full_name(member)}
         )
     return {"message": "Member rejected"}
 
@@ -1730,7 +1730,7 @@ async def send_member_whatsapp(member_id: str, data: dict, admin=Depends(get_cur
         raise HTTPException(status_code=400, detail="Message is required")
     # Use custom_message template
     success = await send_whatsapp_notification(member["phone"], "custom_message", {
-        "name": member.get("name", ""), "message": message
+        "name": _full_name(member), "message": message
     })
     return {"status": "success" if success else "error", "message": "WhatsApp sent" if success else "Send failed"}
 
@@ -1755,7 +1755,7 @@ async def send_payment_reminders(data: dict, background_tasks: BackgroundTasks, 
             fee = plan.get("fee_inr", 0) if mtype != "international" else plan.get("fee_usd", 100)
             if m.get("phone"):
                 await send_whatsapp_notification(m["phone"], "payment_reminder", {
-                    "name": m.get("name", ""), "membership_type": mtype,
+                    "name": _full_name(m), "membership_type": mtype,
                     "amount": str(fee), "membership_id": m.get("membership_id", ""),
                 })
                 sent_count += 1
@@ -1778,7 +1778,7 @@ async def send_renewal_reminders(data: dict, background_tasks: BackgroundTasks, 
         for m in members:
             if m.get("phone"):
                 await send_whatsapp_notification(m["phone"], "membership_renewal", {
-                    "name": m.get("name", ""),
+                    "name": _full_name(m),
                     "membership_type": m.get("membership_type", ""),
                     "membership_id": m.get("membership_id", ""),
                 })
@@ -2688,7 +2688,7 @@ async def verify_payment(data: PaymentVerify):
             member = await db.members.find_one({"id": payment["member_id"]}, {"_id": 0})
             if member and member.get("phone"):
                 await send_whatsapp_notification(member["phone"], "payment_received", {
-                    "name": member.get("name", ""), "amount": str(payment.get("amount", 0)),
+                    "name": _full_name(member), "amount": str(payment.get("amount", 0)),
                     "reference": data.razorpay_payment_id,
                 })
         if payment.get("event_registration_id"):
@@ -2833,7 +2833,7 @@ async def admin_verify_utr(payment_id: str, data: dict, admin=Depends(get_curren
             member = await db.members.find_one({"id": payment["member_id"]}, {"_id": 0})
             if member and member.get("phone"):
                 await send_whatsapp_notification(member["phone"], "payment_received", {
-                    "name": member.get("name", ""), "amount": str(payment.get("amount", 0)),
+                    "name": _full_name(member), "amount": str(payment.get("amount", 0)),
                     "reference": payment.get("utr_number", payment_id[:8]),
                 })
         if payment.get("event_registration_id"):
@@ -3553,6 +3553,13 @@ def _membership_label(raw_type: str) -> str:
     return _MTYPE_LABELS.get(label.lower(), label.capitalize())
 
 
+def _full_name(member: dict) -> str:
+    """Get full name with prefix (e.g., 'Dr. John Doe')"""
+    prefix = member.get("prefix", "")
+    name = member.get("name", "")
+    return f"{prefix} {name}".strip() if prefix else name
+
+
 async def _get_site_url() -> str:
     """Get site URL from CMS settings for QR code generation"""
     cms = await db.cms_settings.find_one({}, {"_id": 0, "site_url": 1})
@@ -3728,7 +3735,7 @@ async def export_members_excel(status: Optional[str] = None, membership_type: Op
     for i, m in enumerate(members, 1):
         ws.cell(row=i + 1, column=1, value=i)
         ws.cell(row=i + 1, column=2, value=m.get("membership_id", ""))
-        ws.cell(row=i + 1, column=3, value=m.get("name", ""))
+        ws.cell(row=i + 1, column=3, value=_full_name(m))
         ws.cell(row=i + 1, column=4, value=m.get("email", ""))
         ws.cell(row=i + 1, column=5, value=m.get("phone", ""))
         ws.cell(row=i + 1, column=6, value=m.get("qualification", ""))
@@ -3771,7 +3778,7 @@ async def export_members_pdf(status: Optional[str] = None, membership_type: Opti
     data = [["#", "Member ID", "Name", "Email", "Organization", "State", "Type", "Status"]]
     for i, m in enumerate(members, 1):
         data.append([
-            str(i), m.get("membership_id", "")[:12], m.get("name", "")[:25],
+            str(i), m.get("membership_id", "")[:12], _full_name(m)[:25],
             m.get("email", "")[:28], m.get("organization", "")[:30],
             m.get("state", "")[:15], m.get("membership_type", "")[:12],
             m.get("status", "")
@@ -4263,11 +4270,11 @@ async def admin_send_campaign(data: dict, background_tasks: BackgroundTasks, adm
     if not members_with_email:
         raise HTTPException(status_code=400, detail="No recipients found")
 
-    recipients = [{"email": m["email"], "name": m.get("name", "")} for m in members_with_email]
+    recipients = [{"email": m["email"], "name": _full_name(m)} for m in members_with_email]
     variables_list = []
     for m in members_with_email:
         v = {
-            "member_name": m.get("name", "Member"),
+            "member_name": _full_name(m),
             "email": m.get("email", ""),
             "membership_id": m.get("membership_id", ""),
             "membership_type": m.get("membership_type", ""),
@@ -4961,7 +4968,7 @@ async def admin_whatsapp_send_bulk(data: dict, background_tasks: BackgroundTasks
             if membership_filter and membership_filter != "all":
                 query["membership_type"] = membership_filter
             members = await db.members.find(query, {"_id": 0}).to_list(10000)
-            recipients = [{"name": m.get("name", ""), "phone": m.get("phone", "")} for m in members if m.get("phone")]
+            recipients = [{"name": _full_name(m), "phone": m.get("phone", "")} for m in members if m.get("phone")]
         sent, failed = 0, 0
         for r in recipients:
             personalized = message.replace("{name}", r["name"])
@@ -5031,7 +5038,7 @@ async def create_whatsapp_campaign(data: dict, background_tasks: BackgroundTasks
                 if mf and mf != "all":
                     query["membership_type"] = mf
                 members = await db.members.find(query, {"_id": 0}).to_list(10000)
-                recipients = [{"name": m.get("name", ""), "phone": m.get("phone", "")} for m in members if m.get("phone")]
+                recipients = [{"name": _full_name(m), "phone": m.get("phone", "")} for m in members if m.get("phone")]
 
             total = len(recipients)
             await db.whatsapp_campaigns.update_one({"id": campaign_id}, {"$set": {"total": total, "updated_at": now_iso()}})

@@ -110,7 +110,7 @@ export default function MembersPage() {
                       </div>
                     )}
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <h3 style={{ fontFamily: 'Poppins, sans-serif', fontSize: '14px', fontWeight: 700, color: '#111827', margin: '0 0 4px', lineHeight: 1.3 }}>{member.name}</h3>
+                      <h3 style={{ fontFamily: 'Poppins, sans-serif', fontSize: '14px', fontWeight: 700, color: '#111827', margin: '0 0 4px', lineHeight: 1.3 }}>{member.prefix ? `${member.prefix} ${member.name}` : member.name}</h3>
                       <span className={`badge badge-${member.membership_type}`}>{member.membership_type}</span>
                     </div>
                   </div>
