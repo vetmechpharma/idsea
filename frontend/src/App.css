@@ -500,3 +500,49 @@ h1, h2, h3, h4, h5, h6 {
   .event-venue-grid .venue-text .venue-qr { display: flex; justify-content: center; }
   [data-testid="sponsors-section"] > div > div:last-child { grid-template-columns: 1fr !important; }
 }
+
+
+/* Phone Input with country flag */
+.phone-input-wrap .PhoneInput {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.phone-input-wrap .PhoneInputCountry {
+  display: flex;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #f9fafb;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.phone-input-wrap .PhoneInputCountryIcon {
+  width: 24px;
+  height: 18px;
+}
+.phone-input-wrap .PhoneInputCountryIcon--border {
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.1);
+  border-radius: 2px;
+}
+.phone-input-wrap .PhoneInputCountrySelectArrow {
+  margin-left: 6px;
+  border-color: #6b7280;
+}
+.phone-input-wrap .PhoneInputInput {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: 'Inter', sans-serif;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  background: white;
+  color: #111827;
+}
+.phone-input-wrap .PhoneInputInput:focus {
+  border-color: #0c3c60;
+  box-shadow: 0 0 0 3px rgba(12, 60, 96, 0.1);
+}

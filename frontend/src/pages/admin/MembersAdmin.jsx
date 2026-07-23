@@ -3,6 +3,7 @@ import axios from 'axios';
 import { Plus, Search, Edit, Trash2, Check, X, Download, Mail, Pause, RefreshCw, Eye, ChevronDown } from 'lucide-react';
 import { API } from '../../contexts/AuthContext';
 import { FileUpload } from '../../components/admin/FileUpload';
+import PhoneInput from '../../components/PhoneInput';
 
 const PREFIXES = ['', 'Dr.', 'Mr.', 'Mrs.', 'Ms.', 'Prof.', 'Shri', 'Smt.'];
 const STATES = ['', 'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 'Delhi', 'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka', 'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal'];
@@ -311,7 +312,7 @@ export default function MembersAdmin() {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
               <div className="form-group" style={{ margin: 0 }}><label className="form-label">Email *</label><input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="form-input" required /></div>
-              <div className="form-group" style={{ margin: 0 }}><label className="form-label">Phone</label><input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} className="form-input" /></div>
+              <div className="form-group" style={{ margin: 0 }}><label className="form-label">Phone</label><PhoneInput value={form.phone} onChange={(val) => setForm({ ...form, phone: val || '' })} testId="member-phone" /></div>
               <div className="form-group" style={{ margin: 0 }}><label className="form-label">Qualification</label><input value={form.qualification} onChange={e => setForm({ ...form, qualification: e.target.value })} className="form-input" /></div>
               <div className="form-group" style={{ margin: 0 }}><label className="form-label">Specialization</label><input value={form.specialization} onChange={e => setForm({ ...form, specialization: e.target.value })} className="form-input" /></div>
               <div className="form-group" style={{ margin: 0, gridColumn: '1 / -1' }}><label className="form-label">Organization</label><input value={form.organization} onChange={e => setForm({ ...form, organization: e.target.value })} className="form-input" /></div>

@@ -4,6 +4,7 @@ import axios from 'axios';
 import PublicNavbar from '../../components/public/PublicNavbar';
 import PublicFooter from '../../components/public/PublicFooter';
 import PaymentPage from '../../components/PaymentPage';
+import PhoneInput from '../../components/PhoneInput';
 import {
   CheckCircle, ArrowRight, ArrowLeft, Phone, Search,
   Hotel, CreditCard, CalendarClock, Info, Upload, FileText,
@@ -728,7 +729,7 @@ export default function EventRegistrationPage() {
                     <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} className="form-input" data-testid="reg-email" />
                   </div>
                   <div className="form-group"><label className="form-label">Phone *</label>
-                    <input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} className="form-input" data-testid="reg-phone" />
+                    <PhoneInput value={form.phone} onChange={(val) => setForm(f => ({ ...f, phone: val || '' }))} testId="reg-phone" />
                   </div>
                   <div className="form-group"><label className="form-label">Qualification</label>
                     <input value={form.qualification} onChange={e => setForm(f => ({ ...f, qualification: e.target.value }))} className="form-input" />

@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import PublicNavbar from '../../components/public/PublicNavbar';
 import PublicFooter from '../../components/public/PublicFooter';
 import PaymentPage from '../../components/PaymentPage';
+import PhoneInput from '../../components/PhoneInput';
 import { CheckCircle, Upload, X, Camera, FileText, Globe, Loader2 } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -368,9 +369,8 @@ export default function MembershipApplyPage() {
                   <input type="email" name="email" value={form.email} onChange={handleChange} className="form-input" placeholder="your@email.com" required data-testid="apply-email" />
                 </div>
                 <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label">Phone (with country code) *</label>
-                  <input name="phone" value={form.phone} onChange={handleChange} className="form-input" placeholder={isInternational ? '12345678900' : '919XXXXXXXXX'} required data-testid="apply-phone" />
-                  <span style={{ fontSize: '11px', color: '#9ca3af', marginTop: '2px', display: 'block' }}>Enter without + or spaces (e.g. 919876543210)</span>
+                  <label className="form-label">Phone *</label>
+                  <PhoneInput value={form.phone} onChange={(val) => setForm(f => ({ ...f, phone: val || '' }))} defaultCountry={isInternational ? 'US' : 'IN'} testId="apply-phone" />
                 </div>
                 <div className="form-group" style={{ margin: 0 }}>
                   <label className="form-label">Qualification *</label>
