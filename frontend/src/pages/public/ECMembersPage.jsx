@@ -105,10 +105,10 @@ export default function ECMembersPage() {
                             <div style={{ position: 'relative', flexShrink: 0 }}>
                               <div style={{ width: '100px', height: '100px', borderRadius: '16px', overflow: 'hidden', border: `3px solid ${c.ring}`, background: c.bg }}>
                                 {photoSrc ? (
-                                  <img src={photoSrc} alt={m.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                  <img src={photoSrc} alt={m.display_name || m.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                 ) : (
                                   <div style={{ width: '100%', height: '100%', background: `linear-gradient(135deg, ${c.badge}, ${c.ring})`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px', fontWeight: 800, color: 'white', fontFamily: 'Poppins' }}>
-                                    {m.name?.charAt(0)}
+                                    {(m.display_name || m.name)?.charAt(0)}
                                   </div>
                                 )}
                               </div>
@@ -118,7 +118,7 @@ export default function ECMembersPage() {
                             </div>
                             {/* Info */}
                             <div style={{ flex: 1, minWidth: 0 }}>
-                              <h3 style={{ fontFamily: 'Poppins, sans-serif', fontSize: '16px', fontWeight: 700, color: '#111827', margin: '0 0 6px', lineHeight: 1.3 }}>{m.name}</h3>
+                              <h3 style={{ fontFamily: 'Poppins, sans-serif', fontSize: '16px', fontWeight: 700, color: '#111827', margin: '0 0 6px', lineHeight: 1.3 }}>{m.display_name || m.name}</h3>
                               <div style={{ display: 'inline-block', background: c.bg, border: `1px solid ${c.border}`, padding: '3px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: 600, color: c.badge, fontFamily: 'Poppins, sans-serif', marginBottom: '10px' }}>
                                 {displayDesig}
                               </div>
@@ -169,13 +169,13 @@ export default function ECMembersPage() {
                                 <td style={{ padding: '14px 16px' }}>
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                     {photoSrc ? (
-                                      <img src={photoSrc} alt={m.name} style={{ width: '38px', height: '38px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #e5e7eb' }} />
+                                      <img src={photoSrc} alt={m.display_name || m.name} style={{ width: '38px', height: '38px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #e5e7eb' }} />
                                     ) : (
                                       <div style={{ width: '38px', height: '38px', borderRadius: '50%', background: 'linear-gradient(135deg, #0c3c60, #1e5a8a)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 700, fontFamily: 'Poppins', flexShrink: 0 }}>
-                                        {m.name?.charAt(0)}
+                                        {(m.display_name || m.name)?.charAt(0)}
                                       </div>
                                     )}
-                                    <span style={{ fontSize: '14px', fontWeight: 600, color: '#111827' }}>{m.name}</span>
+                                    <span style={{ fontSize: '14px', fontWeight: 600, color: '#111827' }}>{m.display_name || m.name}</span>
                                   </div>
                                 </td>
                                 <td style={{ padding: '14px 16px' }}>

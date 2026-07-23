@@ -148,10 +148,10 @@ export default function AboutPage() {
                         <div style={{ position: 'relative', flexShrink: 0 }}>
                           <div style={{ width: '110px', height: '110px', borderRadius: '16px', overflow: 'hidden', border: `3px solid ${ac.ring}`, background: 'white' }}>
                             {photoSrc ? (
-                              <img src={photoSrc} alt={f.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              <img src={photoSrc} alt={f.display_name || f.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                             ) : (
                               <div style={{ width: '100%', height: '100%', background: `linear-gradient(135deg, ${ac.border}, ${ac.badge})`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '36px', fontWeight: 800, color: 'white', fontFamily: 'Poppins' }}>
-                                {f.name?.charAt(0)}
+                                {(f.display_name || f.name)?.charAt(0)}
                               </div>
                             )}
                           </div>
@@ -162,7 +162,7 @@ export default function AboutPage() {
                         </div>
                         {/* Details */}
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <h3 style={{ fontFamily: 'Poppins, sans-serif', fontSize: '16px', fontWeight: 700, color: '#111827', margin: '0 0 4px', lineHeight: 1.3 }}>{f.name}</h3>
+                          <h3 style={{ fontFamily: 'Poppins, sans-serif', fontSize: '16px', fontWeight: 700, color: '#111827', margin: '0 0 4px', lineHeight: 1.3 }}>{f.display_name || f.name}</h3>
                           <div style={{ fontSize: '12px', color: ac.border, fontWeight: 600, fontFamily: 'Poppins, sans-serif', marginBottom: '8px' }}>{f.designation || 'Patron / Founder'}</div>
                           <div style={{ width: '30px', height: '3px', background: ac.badge, borderRadius: '2px', marginBottom: '10px' }} />
                           <p style={{ fontSize: '12px', color: '#6b7280', margin: 0, lineHeight: 1.6, fontFamily: 'Inter, sans-serif' }}>{f.affiliation}</p>

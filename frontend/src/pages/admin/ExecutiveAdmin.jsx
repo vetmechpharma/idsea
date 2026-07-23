@@ -36,7 +36,7 @@ export default function ExecutiveAdmin() {
   const [toast, setToast] = useState('');
   const [searchMember, setSearchMember] = useState('');
 
-  const initForm = { member_id: '', name: '', designation: tab === 'founder' ? 'Patron / Founder' : '', sub_division: '', frontend_section: tab === 'founder' ? 'office_bearers' : 'office_bearers', affiliation: '', profile: '', photo_url: '', email: '', phone: '', category: tab, order: 0 };
+  const initForm = { member_id: '', prefix: '', name: '', designation: tab === 'founder' ? 'Patron / Founder' : '', sub_division: '', frontend_section: tab === 'founder' ? 'office_bearers' : 'office_bearers', affiliation: '', profile: '', photo_url: '', email: '', phone: '', category: tab, order: 0 };
   const [form, setForm] = useState(initForm);
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
@@ -65,7 +65,7 @@ export default function ExecutiveAdmin() {
   const openEdit = (item) => {
     setEditItem(item);
     setForm({
-      member_id: item.member_id || '', name: item.name, designation: item.designation,
+      member_id: item.member_id || '', prefix: item.prefix || '', name: item.name, designation: item.designation,
       sub_division: item.sub_division || '', frontend_section: item.frontend_section || 'office_bearers',
       affiliation: item.affiliation || '', profile: item.profile || '',
       photo_url: item.photo_url || '', email: item.email || '', phone: item.phone || '',
@@ -77,7 +77,7 @@ export default function ExecutiveAdmin() {
 
   const selectMember = (m) => {
     setForm(prev => ({
-      ...prev, member_id: m.id, name: m.name, email: m.email || '',
+      ...prev, member_id: m.id, prefix: m.prefix || '', name: m.name, email: m.email || '',
       phone: m.phone || '', photo_url: m.photo_url || '', affiliation: m.organization || '',
     }));
     setSearchMember('');
@@ -162,7 +162,7 @@ export default function ExecutiveAdmin() {
                       ) : (
                         <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#0c3c60', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '14px', fontFamily: 'Poppins', flexShrink: 0 }}>{item.name?.charAt(0)}</div>
                       )}
-                      <span style={{ fontWeight: 600, fontSize: '13px', color: '#111827' }}>{item.name}</span>
+                      <span style={{ fontWeight: 600, fontSize: '13px', color: '#111827' }}>{item.prefix ? `${item.prefix} ${item.name}` : item.name}</span>
                     </div>
                   </td>
                   <td><span className="badge badge-academic">{item.designation}</span></td>
@@ -214,11 +214,19 @@ export default function ExecutiveAdmin() {
               {form.member_id && <div style={{ marginTop: '6px', background: '#d1fae5', padding: '6px 12px', borderRadius: '6px', fontSize: '12px', color: '#065f46', fontWeight: 600 }}>Linked: {form.name}</div>}
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr', gap: '12px' }}>
+              <div className="form-group">
+                <label className="form-label">Prefix</label>
+                <select value={form.prefix} onChange={e => setForm({ ...form, prefix: e.target.value })} className="form-select" data-testid="exec-prefix">
+                  {['', 'Mr.', 'Mrs.', 'Ms.', 'Dr.', 'Prof.', 'Shri', 'Smt'].map(p => <option key={p} value={p}>{p || 'None'}</option>)}
+                </select>
+              </div>
               <div className="form-group">
                 <label className="form-label">Name *</label>
                 <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="form-input" data-testid="exec-name" required />
               </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <div className="form-group">
                 <label className="form-label">Designation *</label>
                 <select value={form.designation} onChange={e => setForm({ ...form, designation: e.target.value, sub_division: '' })} className="form-select" data-testid="exec-designation">

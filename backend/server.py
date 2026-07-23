@@ -360,6 +360,7 @@ class PublicationCreate(BaseModel):
 class ExecutiveCommittee(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     member_id: Optional[str] = ""
+    prefix: Optional[str] = ""
     name: str
     designation: str
     sub_division: Optional[str] = ""
@@ -376,6 +377,7 @@ class ExecutiveCommittee(BaseModel):
 
 class ExecutiveCreate(BaseModel):
     member_id: Optional[str] = ""
+    prefix: Optional[str] = ""
     name: str
     designation: str
     sub_division: Optional[str] = ""
@@ -1353,12 +1355,27 @@ async def get_public_publications(category: Optional[str] = None):
 
 @api_router.get("/public/executive")
 async def get_public_executive():
-    return await db.executive_committee.find({"category": "council"}, {"_id": 0}).sort("order", 1).to_list(100)
+    members = await db.executive_committee.find({"category": "council"}, {"_id": 0}).sort("order", 1).to_list(100)
+    # Enrich: if member has prefix, prepend to display_name
+    for m in members:
+        prefix = m.get("prefix", "")
+        if prefix:
+            m["display_name"] = f"{prefix} {m.get('name', '')}".strip()
+        else:
+            m["display_name"] = m.get("name", "")
+    return members
 
 
 @api_router.get("/public/founders")
 async def get_public_founders():
-    return await db.executive_committee.find({"category": "founder"}, {"_id": 0}).sort("order", 1).to_list(50)
+    founders = await db.executive_committee.find({"category": "founder"}, {"_id": 0}).sort("order", 1).to_list(50)
+    for f in founders:
+        prefix = f.get("prefix", "")
+        if prefix:
+            f["display_name"] = f"{prefix} {f.get('name', '')}".strip()
+        else:
+            f["display_name"] = f.get("name", "")
+    return founders
 
 
 @api_router.get("/public/cms")
