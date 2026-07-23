@@ -26,19 +26,19 @@ Build a full-stack website for the "Indian Dairy Scientists and Entrepreneurs As
 - Dynamic CMS with drag-and-drop public menu editor
 - Event registration flows with Razorpay integration + duplicate prevention
 - Visual drag-and-drop Certificate Designer
-- **Multi-plan certificate template linking** (one template → multiple membership plans via `linked_membership_types` array)
-- **Certificate template linking on Membership Plans page** (assign/remove per plan)
-- **QR code auto-verify** (redirects to /verify?id=CERT-ID using site_url from CMS)
-- **Clean membership labels** ("Academic"/"Corporate" not "Academic Member")
+- **Membership ID as certificate number** (cert_id = ACD/IDSEA/0001 format)
+- **QR code encodes membership ID** → redirects to /verify?id=ACD/IDSEA/0001
+- Multi-plan certificate template linking (one template → multiple plans)
+- Certificate template linking on Membership Plans page
+- Clean membership labels ("Academic"/"Corporate" not "Academic Member")
 - Site URL CMS field for QR code generation
 - Custom SMTP batch email sender (50 emails/5 mins)
 - WhatsApp automation (13 templates with attachment support)
 - Full admin Backup/Restore
 - Auto-PDF generation for member applications and certificates
-- VPS deployment scripts (updated for idsea.in domain, port 8003, WhatsApp env)
+- VPS deployment scripts (updated for idsea.in domain, port 8003)
 - Rich Text (HTML) Toolbar for CMS admin
 - Member Registration Infographic counter
-- Editorial Board standalone page, Google Maps footer
 - Loading states (no flash of default data)
 - Axios auth interceptors, logo+org name clickable to home
 
@@ -58,9 +58,10 @@ Build a full-stack website for the "Indian Dairy Scientists and Entrepreneurs As
 - Password: Admin@123
 
 ## Critical Dev Notes
-- Use optional chaining (`?.`) for dynamic CMS data
-- Store image URLs as relative paths (`/api/uploads/...`)
-- server.py ~5500 lines — view context before search_replace
-- Certificate templates use `linked_membership_types` (array) — backward compatible with old `linked_membership_type` (string)
-- Certificate QR codes auto-construct verify URL from `site_url` in CMS
+- Membership certificates use membership_id as cert_id (e.g., ACD/IDSEA/0001)
+- Event certificates use random IDSEA-EVT-XXXXX format
+- Verify/download endpoints use `{cert_id:path}` to handle `/` in membership IDs
+- Frontend URL-encodes cert IDs in API calls
+- Certificate templates use `linked_membership_types` (array) for multi-plan linking
 - Use `_membership_label()` for clean membership type display
+- server.py ~5500 lines — view context before search_replace

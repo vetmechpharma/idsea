@@ -25,7 +25,7 @@ export default function CertificateVerifyPage() {
     if (!cid.trim()) return;
     setLoading(true); setResult(null);
     try {
-      const r = await axios.get(`${API}/public/certificates/verify/${cid.trim()}`);
+      const r = await axios.get(`${API}/public/certificates/verify/${encodeURIComponent(cid.trim())}`);
       setResult(r.data);
     } catch { setResult({ verified: false, message: 'Certificate not found or server error' }); }
     setLoading(false);
@@ -35,11 +35,11 @@ export default function CertificateVerifyPage() {
     if (!result?.cert_id) return;
     setDownloading(true);
     try {
-      const r = await axios.get(`${API}/public/certificates/download/${result.cert_id}`, { responseType: 'blob' });
+      const r = await axios.get(`${API}/public/certificates/download/${encodeURIComponent(result.cert_id)}`, { responseType: 'blob' });
       const url = window.URL.createObjectURL(r.data);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `certificate_${result.cert_id}.pdf`;
+      a.download = `certificate_${result.cert_id.replace(/\//g, '_')}.pdf`;
       a.click();
       window.URL.revokeObjectURL(url);
     } catch { alert('Download failed'); }
@@ -74,7 +74,7 @@ export default function CertificateVerifyPage() {
                 value={certId}
                 onChange={e => setCertId(e.target.value.toUpperCase())}
                 style={{ flex: 1, padding: '14px 16px', border: '2px solid #e5e7eb', borderRadius: '12px', fontSize: '16px', fontFamily: 'monospace', fontWeight: 600, letterSpacing: '1px', outline: 'none', transition: 'border-color 0.2s' }}
-                placeholder="IDSEA-MEM-XXXXXXXX"
+                placeholder="ACD/IDSEA/0001 or IDSEA-EVT-XXXXXXXX"
                 onFocus={e => e.target.style.borderColor = '#3b82f6'}
                 onBlur={e => e.target.style.borderColor = '#e5e7eb'}
                 data-testid="cert-id-input"

@@ -1570,7 +1570,8 @@ async def approve_member(member_id: str, background_tasks: BackgroundTasks, admi
         {"_id": 0}
     )
     if cert_template:
-        cert_id = _gen_cert_id("MEM")
+        # Use membership ID as certificate ID
+        cert_id = membership_id if membership_id else _gen_cert_id("MEM")
         site_url = await _get_site_url()
         cert_data = {
             "name": f"{member.get('prefix', '')} {member.get('name', '')}".strip(),
@@ -1584,6 +1585,8 @@ async def approve_member(member_id: str, background_tasks: BackgroundTasks, admi
         }
         try:
             cert_pdf = generate_template_pdf(cert_template, cert_data, cert_id=cert_id)
+            # Remove old record if exists (re-generation)
+            await db.certificate_records.delete_many({"cert_id": cert_id})
             # Store certificate record
             await db.certificate_records.insert_one({
                 "cert_id": cert_id, "type": "membership", "template_id": cert_template.get("id", ""),
@@ -3536,11 +3539,13 @@ async def gen_cert_member(tpl_id: str, member_id: str, admin=Depends(get_current
     m = await db.members.find_one({"id": member_id}, {"_id": 0})
     if not t or not m:
         raise HTTPException(404, "Not found")
-    cert_id = _gen_cert_id("MEM")
+    # Use membership ID as certificate ID for membership certs
+    membership_id = m.get("membership_id", "")
+    cert_id = membership_id if membership_id else _gen_cert_id("MEM")
     site_url = await _get_site_url()
     data = {
         "name": f"{m.get('prefix','')} {m.get('name','')}".strip(),
-        "membership_id": m.get("membership_id", ""),
+        "membership_id": membership_id,
         "date": datetime.now().strftime("%d.%m.%Y"), "year": str(datetime.now().year),
         "email": m.get("email", ""), "phone": m.get("phone", ""),
         "qualification": m.get("qualification", ""), "specialization": m.get("specialization", ""),
@@ -3548,11 +3553,13 @@ async def gen_cert_member(tpl_id: str, member_id: str, admin=Depends(get_current
         "state": m.get("state", ""), "country": m.get("country", "India"),
         "certificate_id": cert_id, "_site_url": site_url,
     }
+    # Remove old record if exists (re-generation)
+    await db.certificate_records.delete_many({"cert_id": cert_id})
     # Store certificate record (metadata only, no PDF)
     await db.certificate_records.insert_one({
         "cert_id": cert_id, "type": "membership", "template_id": tpl_id,
         "member_id": member_id, "recipient_name": data["name"],
-        "membership_id": data.get("membership_id", ""),
+        "membership_id": membership_id,
         "membership_type": data.get("membership_type", ""),
         "issued_date": now_iso(), "data": data,
     })
@@ -3611,9 +3618,13 @@ async def gen_cert_event_bulk(tpl_id: str, event_id: str, admin=Depends(get_curr
 
 # =================== PUBLIC CERTIFICATE VERIFICATION ===================
 
-@api_router.get("/public/certificates/verify/{cert_id}")
+@api_router.get("/public/certificates/verify/{cert_id:path}")
 async def verify_certificate(cert_id: str):
+    cert_id = cert_id.strip()
     rec = await db.certificate_records.find_one({"cert_id": cert_id}, {"_id": 0})
+    if not rec:
+        # Fallback: search by membership_id
+        rec = await db.certificate_records.find_one({"membership_id": cert_id}, {"_id": 0})
     if not rec:
         return {"verified": False, "message": "Certificate not found"}
     return {
@@ -3628,9 +3639,12 @@ async def verify_certificate(cert_id: str):
     }
 
 
-@api_router.get("/public/certificates/download/{cert_id}")
+@api_router.get("/public/certificates/download/{cert_id:path}")
 async def download_certificate(cert_id: str):
+    cert_id = cert_id.strip()
     rec = await db.certificate_records.find_one({"cert_id": cert_id}, {"_id": 0})
+    if not rec:
+        rec = await db.certificate_records.find_one({"membership_id": cert_id}, {"_id": 0})
     if not rec:
         raise HTTPException(404, "Certificate not found")
     tpl = await db.certificate_templates.find_one({"id": rec.get("template_id")}, {"_id": 0})
