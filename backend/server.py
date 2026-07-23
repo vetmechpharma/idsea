@@ -1558,7 +1558,7 @@ async def approve_member(member_id: str, background_tasks: BackgroundTasks, admi
 
     await db.members.update_one(
         {"id": member_id},
-        {"$set": {"status": "approved", "membership_id": membership_id, "state": state, "updated_at": now_iso()}}
+        {"$set": {"status": "approved", "membership_id": membership_id, "state": state, "approved_at": now_iso(), "updated_at": now_iso()}}
     )
 
     # Generate membership certificate using Certificate Designer template (if linked)
@@ -3543,10 +3543,23 @@ async def gen_cert_member(tpl_id: str, member_id: str, admin=Depends(get_current
     membership_id = m.get("membership_id", "")
     cert_id = membership_id if membership_id else _gen_cert_id("MEM")
     site_url = await _get_site_url()
+    # Use approval date for certificate issue date
+    approval_date_str = m.get("approved_at", "") or m.get("updated_at", "")
+    if approval_date_str:
+        try:
+            approval_dt = datetime.fromisoformat(approval_date_str.replace("Z", "+00:00"))
+            cert_date = approval_dt.strftime("%d.%m.%Y")
+            cert_year = str(approval_dt.year)
+        except (ValueError, AttributeError):
+            cert_date = datetime.now().strftime("%d.%m.%Y")
+            cert_year = str(datetime.now().year)
+    else:
+        cert_date = datetime.now().strftime("%d.%m.%Y")
+        cert_year = str(datetime.now().year)
     data = {
         "name": f"{m.get('prefix','')} {m.get('name','')}".strip(),
         "membership_id": membership_id,
-        "date": datetime.now().strftime("%d.%m.%Y"), "year": str(datetime.now().year),
+        "date": cert_date, "year": cert_year,
         "email": m.get("email", ""), "phone": m.get("phone", ""),
         "qualification": m.get("qualification", ""), "specialization": m.get("specialization", ""),
         "organization": m.get("organization", ""), "membership_type": _membership_label(m.get("membership_type", "")),
