@@ -1587,12 +1587,13 @@ async def approve_member(member_id: str, background_tasks: BackgroundTasks, admi
             cert_pdf = generate_template_pdf(cert_template, cert_data, cert_id=cert_id)
             # Remove old record if exists (re-generation)
             await db.certificate_records.delete_many({"cert_id": cert_id})
-            # Store certificate record
+            # Store certificate record (metadata only, no PDF) - strip internal fields
+            store_data = {k: v for k, v in cert_data.items() if not k.startswith("_")}
             await db.certificate_records.insert_one({
                 "cert_id": cert_id, "type": "membership", "template_id": cert_template.get("id", ""),
                 "member_id": member_id, "recipient_name": cert_data["name"],
                 "membership_id": membership_id, "membership_type": _membership_label(mtype),
-                "issued_date": now_iso(), "data": cert_data,
+                "issued_date": now_iso(), "data": store_data,
             })
             logging.info(f"Certificate {cert_id} generated for member {member_id} using designer template")
         except Exception as e:
@@ -3237,9 +3238,29 @@ def generate_template_pdf(template: dict, data: dict, cert_id: str = "") -> byte
     bg_img = _resolve_img_path(template.get("background_image_url", ""))
     if bg_img:
         try:
-            c.drawImage(bg_img, 0, 0, width=pdf_w, height=pdf_h, preserveAspectRatio=False)
-        except Exception:
-            pass
+            # Compress background image to reduce PDF size
+            from PIL import Image as PILImage
+            pil_img = PILImage.open(bg_img)
+            # Resize if too large (max 2000px wide)
+            max_dim = 2000
+            if pil_img.width > max_dim or pil_img.height > max_dim:
+                pil_img.thumbnail((max_dim, max_dim), PILImage.LANCZOS)
+            # Convert to RGB if needed and compress as JPEG
+            if pil_img.mode in ('RGBA', 'P'):
+                bg_buf = io.BytesIO()
+                pil_img = pil_img.convert('RGB')
+                pil_img.save(bg_buf, format='JPEG', quality=75, optimize=True)
+            else:
+                bg_buf = io.BytesIO()
+                pil_img.save(bg_buf, format='JPEG', quality=75, optimize=True)
+            bg_buf.seek(0)
+            c.drawImage(ImageReader(bg_buf), 0, 0, width=pdf_w, height=pdf_h, preserveAspectRatio=False)
+        except Exception as bg_err:
+            logging.warning(f"Background image load failed: {bg_err}")
+            try:
+                c.drawImage(bg_img, 0, 0, width=pdf_w, height=pdf_h, preserveAspectRatio=False)
+            except Exception:
+                pass
 
     for el in template.get("elements", []):
         etype = el.get("type", "text")
@@ -3573,13 +3594,14 @@ async def gen_cert_member(tpl_id: str, member_id: str, admin=Depends(get_current
     }
     # Remove old record if exists (re-generation)
     await db.certificate_records.delete_many({"cert_id": cert_id})
-    # Store certificate record (metadata only, no PDF)
+    # Store certificate record (metadata only, no PDF) - strip internal fields
+    store_data = {k: v for k, v in data.items() if not k.startswith("_")}
     await db.certificate_records.insert_one({
         "cert_id": cert_id, "type": "membership", "template_id": tpl_id,
         "member_id": member_id, "recipient_name": data["name"],
         "membership_id": membership_id,
         "membership_type": data.get("membership_type", ""),
-        "issued_date": now_iso(), "data": data,
+        "issued_date": now_iso(), "data": store_data,
     })
     pdf = generate_template_pdf(t, data, cert_id=cert_id)
     fn = f"certificate_{m.get('name','member').replace(' ','_')}.pdf"
@@ -3618,12 +3640,13 @@ async def gen_cert_event_bulk(tpl_id: str, event_id: str, admin=Depends(get_curr
                 "date": datetime.now().strftime("%d.%m.%Y"), "year": str(datetime.now().year),
                 "certificate_id": cert_id, "_site_url": site_url,
             }
-            # Store record
+            # Store record (metadata only, no PDF) - strip internal fields
+            store_data = {k: v for k, v in data.items() if not k.startswith("_")}
             await db.certificate_records.insert_one({
                 "cert_id": cert_id, "type": "event", "template_id": tpl_id,
                 "event_id": event_id, "registration_id": r.get("id", ""),
                 "recipient_name": data["name"], "event_title": ev.get("title", ""),
-                "issued_date": now_iso(), "data": data,
+                "issued_date": now_iso(), "data": store_data,
             })
             pdf = generate_template_pdf(t, data, cert_id=cert_id)
             sn = r.get("name", "p").replace(" ", "_")[:40]
