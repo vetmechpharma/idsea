@@ -44,7 +44,7 @@ export default function AboutPage() {
           <div style={{ position: 'absolute', bottom: 0, left: 0, width: '300px', height: '300px', borderRadius: '50%', background: 'rgba(59,130,246,0.12)', filter: 'blur(60px)', transform: 'translate(-20%, 30%)' }} />
           <div style={{ position: 'relative', zIndex: 1, maxWidth: '720px', margin: '0 auto' }}>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(30,122,77,0.3)', padding: '6px 18px', borderRadius: '20px', fontSize: '12px', fontWeight: 600, fontFamily: 'Poppins, sans-serif', letterSpacing: '1px', textTransform: 'uppercase', marginBottom: '20px', border: '1px solid rgba(30,122,77,0.4)' }}>
-              <Award size={14} /> EST. 2025
+              <Award size={14} /> EST. 2026
             </div>
             <h1 style={{ fontFamily: 'Poppins, sans-serif', fontSize: 'clamp(32px,5vw,52px)', fontWeight: 800, marginBottom: '20px', lineHeight: 1.15 }}>
               {pc.hero_title || 'About IDSEA'}
