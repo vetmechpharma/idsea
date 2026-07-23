@@ -12,7 +12,7 @@ const emptyAddr = { line1: '', line2: '', line3: '', state: '', district: '', pi
 const initForm = {
   prefix: '', name: '', email: '', phone: '', qualification: '', specialization: '', organization: '',
   permanent_address: { ...emptyAddr }, contact_address: { ...emptyAddr }, contact_same_as_permanent: false,
-  state: '', photo_url: '', membership_type: 'academic', payment_status: 'pending'
+  state: '', photo_url: '', membership_type: 'academic', payment_status: 'pending', membership_id: ''
 };
 
 export default function MembersAdmin() {
@@ -59,7 +59,7 @@ export default function MembersAdmin() {
       permanent_address: m.permanent_address || { ...emptyAddr },
       contact_address: m.contact_address || { ...emptyAddr },
       contact_same_as_permanent: m.contact_same_as_permanent || false,
-      state: m.state || '', photo_url: m.photo_url || '', membership_type: m.membership_type, payment_status: m.payment_status
+      state: m.state || '', photo_url: m.photo_url || '', membership_type: m.membership_type, payment_status: m.payment_status, membership_id: m.membership_id || ''
     });
     setShowModal(true);
   };
@@ -341,6 +341,17 @@ export default function MembersAdmin() {
                 </select>
               </div>
             </div>
+
+            {/* Membership ID — editable for approved members */}
+            {editMember && editMember.membership_id && (
+              <div style={{ marginTop: '12px' }}>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label">Membership ID</label>
+                  <input value={form.membership_id} onChange={e => setForm({ ...form, membership_id: e.target.value })} className="form-input" placeholder="ACD/IDSEA/0001" data-testid="member-id-input" />
+                  <span style={{ fontSize: '11px', color: '#9ca3af', marginTop: '2px', display: 'block' }}>Edit only to fix ID numbering. Format: PREFIX/IDSEA/SERIAL</span>
+                </div>
+              </div>
+            )}
 
             {/* Permanent Address */}
             <div style={{ marginTop: '16px' }}><AddressFields which="permanent_address" label="Permanent Address" /></div>

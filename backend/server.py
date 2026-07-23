@@ -157,6 +157,7 @@ class MemberUpdate(BaseModel):
     email: Optional[str] = None
     photo_url: Optional[str] = None
     membership_type: Optional[str] = None
+    membership_id: Optional[str] = None
     payment_status: Optional[str] = None
     status: Optional[str] = None
 
@@ -1549,9 +1550,13 @@ async def approve_member(member_id: str, background_tasks: BackgroundTasks, admi
     if not member:
         raise HTTPException(status_code=404, detail="Member not found")
 
-    # Generate membership ID using configurable prefix
+    # Generate membership ID — reuse existing if member already has one (prevents gaps on re-approval)
     mtype = member.get("membership_type", "academic")
-    membership_id = await generate_membership_id(mtype)
+    existing_mid = member.get("membership_id", "")
+    if existing_mid and member.get("status") == "approved":
+        membership_id = existing_mid
+    else:
+        membership_id = existing_mid if existing_mid else await generate_membership_id(mtype)
 
     # Derive state from permanent address if not set
     state = member.get("state", "") or member.get("permanent_address", {}).get("state", "")
@@ -4464,10 +4469,11 @@ async def get_membership_prefix(membership_type: str) -> str:
 
 
 async def generate_membership_id(membership_type: str) -> str:
-    """Generate next membership ID using configured prefix — continuous serial"""
+    """Generate next membership ID using configured prefix — continuous serial across ALL members (not just approved)"""
     prefix = await get_membership_prefix(membership_type)
+    # Search ALL members with this prefix (any status) to avoid gaps/collisions
     all_members = await db.members.find(
-        {"status": "approved", "membership_id": {"$regex": f"^{prefix}/"}},
+        {"membership_id": {"$regex": f"^{prefix}/"}},
         {"_id": 0, "membership_id": 1}
     ).to_list(None)
     max_serial = 0
