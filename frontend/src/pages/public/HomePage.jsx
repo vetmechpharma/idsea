@@ -145,9 +145,8 @@ export default function HomePage() {
           .hero-slider .slick-dots li div { background: rgba(255,255,255,0.4); }
           .hero-slider .slick-dots li.slick-active div { background: white !important; transform: scale(1.3); }
           .hero-slider .slick-slide > div { line-height: 0; }
-          .hero-slide-img { width: 100%; height: 85vh; min-height: 550px; object-fit: cover; display: block; }
-          @media (max-width: 768px) { .hero-slide-img { height: 280px; min-height: 220px; } }
-          @media (min-width: 1440px) { .hero-slide-img { height: 90vh; min-height: 600px; } }
+          .hero-slide-img { width: 100%; aspect-ratio: 2 / 1; object-fit: cover; display: block; }
+          @media (max-width: 768px) { .hero-slide-img { aspect-ratio: auto; height: 280px; } }
         `}</style>
         <Slider {...sliderSettings} className="hero-slider">
           {sliders.map((slide, idx) => (
