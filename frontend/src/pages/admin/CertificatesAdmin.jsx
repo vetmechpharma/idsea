@@ -166,9 +166,9 @@ export default function CertificatesAdmin() {
                   <div style={{ fontSize: '11px', color: '#9ca3af', marginBottom: '8px' }}>
                     {t.elements?.length || 0} elements &middot; {t.orientation} &middot; Updated {new Date(t.updated_at).toLocaleDateString()}
                   </div>
-                  {t.linked_membership_type && (
+                  {(t.linked_membership_types?.length > 0 || t.linked_membership_type) && (
                     <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '6px', padding: '3px 8px', fontSize: '10px', fontWeight: 700, color: '#1e40af', marginBottom: '8px', textTransform: 'capitalize' }}>
-                      Linked: {t.linked_membership_type} Plan
+                      Linked: {(t.linked_membership_types?.length > 0 ? t.linked_membership_types : [t.linked_membership_type]).join(', ')}
                     </div>
                   )}
 

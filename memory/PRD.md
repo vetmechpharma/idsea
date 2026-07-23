@@ -26,7 +26,8 @@ Build a full-stack website for the "Indian Dairy Scientists and Entrepreneurs As
 - Dynamic CMS with drag-and-drop public menu editor
 - Event registration flows with Razorpay integration + duplicate prevention
 - Visual drag-and-drop Certificate Designer
-- **Certificate template linking on Membership Plans page** (plan-wise template assignment)
+- **Multi-plan certificate template linking** (one template → multiple membership plans via `linked_membership_types` array)
+- **Certificate template linking on Membership Plans page** (assign/remove per plan)
 - **QR code auto-verify** (redirects to /verify?id=CERT-ID using site_url from CMS)
 - **Clean membership labels** ("Academic"/"Corporate" not "Academic Member")
 - Site URL CMS field for QR code generation
@@ -34,7 +35,7 @@ Build a full-stack website for the "Indian Dairy Scientists and Entrepreneurs As
 - WhatsApp automation (13 templates with attachment support)
 - Full admin Backup/Restore
 - Auto-PDF generation for member applications and certificates
-- VPS deployment scripts
+- VPS deployment scripts (updated for idsea.in domain, port 8003, WhatsApp env)
 - Rich Text (HTML) Toolbar for CMS admin
 - Member Registration Infographic counter
 - Editorial Board standalone page, Google Maps footer
@@ -60,5 +61,6 @@ Build a full-stack website for the "Indian Dairy Scientists and Entrepreneurs As
 - Use optional chaining (`?.`) for dynamic CMS data
 - Store image URLs as relative paths (`/api/uploads/...`)
 - server.py ~5500 lines — view context before search_replace
+- Certificate templates use `linked_membership_types` (array) — backward compatible with old `linked_membership_type` (string)
 - Certificate QR codes auto-construct verify URL from `site_url` in CMS
 - Use `_membership_label()` for clean membership type display

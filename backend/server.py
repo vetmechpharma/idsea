@@ -1565,7 +1565,10 @@ async def approve_member(member_id: str, background_tasks: BackgroundTasks, admi
     cert_pdf = None
     cert_id = ""
     cert_filename = f"IDSEA_Membership_Certificate_{membership_id.replace('/', '_')}.pdf"
-    cert_template = await db.certificate_templates.find_one({"linked_membership_type": mtype}, {"_id": 0})
+    cert_template = await db.certificate_templates.find_one(
+        {"$or": [{"linked_membership_types": mtype}, {"linked_membership_type": mtype}]},
+        {"_id": 0}
+    )
     if cert_template:
         cert_id = _gen_cert_id("MEM")
         site_url = await _get_site_url()
@@ -3370,6 +3373,7 @@ async def create_cert_template(request: Request, admin=Depends(get_current_admin
         "background_color": data.get("background_color", "#ffffff"),
         "background_image_url": data.get("background_image_url", ""),
         "linked_membership_type": data.get("linked_membership_type", ""),
+        "linked_membership_types": data.get("linked_membership_types", []),
         "elements": data.get("elements", []),
         "created_at": now_iso(),
         "updated_at": now_iso(),
@@ -3426,22 +3430,49 @@ async def clone_cert_template(tpl_id: str, admin=Depends(get_current_admin)):
 async def link_template_to_plan(tpl_id: str, request: Request, admin=Depends(get_current_admin)):
     data = await request.json()
     mtype = data.get("membership_type", "")
-    # Unlink any existing template for this plan
-    if mtype:
-        await db.certificate_templates.update_many(
-            {"linked_membership_type": mtype},
-            {"$set": {"linked_membership_type": ""}}
-        )
+    action = data.get("action", "toggle")  # "toggle", "add", "remove", "set"
+
+    tpl = await db.certificate_templates.find_one({"id": tpl_id}, {"_id": 0})
+    if not tpl:
+        raise HTTPException(404, "Template not found")
+
+    current_types = tpl.get("linked_membership_types", [])
+    # Migrate from old single field if needed
+    if not current_types and tpl.get("linked_membership_type"):
+        current_types = [tpl["linked_membership_type"]]
+
+    if not mtype:
+        # Clear all links
+        new_types = []
+    elif action == "remove":
+        new_types = [t for t in current_types if t != mtype]
+    elif action == "add":
+        new_types = list(set(current_types + [mtype]))
+    else:
+        # toggle
+        if mtype in current_types:
+            new_types = [t for t in current_types if t != mtype]
+        else:
+            new_types = list(set(current_types + [mtype]))
+
     await db.certificate_templates.update_one(
         {"id": tpl_id},
-        {"$set": {"linked_membership_type": mtype, "updated_at": now_iso()}}
+        {"$set": {
+            "linked_membership_types": new_types,
+            "linked_membership_type": new_types[0] if new_types else "",
+            "updated_at": now_iso()
+        }}
     )
-    return {"message": f"Template linked to {mtype}" if mtype else "Template unlinked"}
+    return {"message": f"Template linked to {', '.join(new_types)}" if new_types else "Template unlinked", "linked_membership_types": new_types}
 
 
 @api_router.get("/admin/certificate-templates/by-plan/{membership_type}")
 async def get_template_by_plan(membership_type: str, admin=Depends(get_current_admin)):
-    t = await db.certificate_templates.find_one({"linked_membership_type": membership_type}, {"_id": 0})
+    # Search in both old and new fields for backward compatibility
+    t = await db.certificate_templates.find_one(
+        {"$or": [{"linked_membership_types": membership_type}, {"linked_membership_type": membership_type}]},
+        {"_id": 0}
+    )
     if not t:
         raise HTTPException(404, f"No template linked to {membership_type}")
     return t

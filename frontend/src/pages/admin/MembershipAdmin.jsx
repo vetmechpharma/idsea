@@ -111,12 +111,13 @@ export default function MembershipAdmin() {
     setLinkingPlan(planKey);
     try {
       if (templateId) {
-        await axios.put(`${API}/admin/certificate-templates/${templateId}/link-plan`, { membership_type: planKey }, { headers });
+        // Add this plan to the template's linked types
+        await axios.put(`${API}/admin/certificate-templates/${templateId}/link-plan`, { membership_type: planKey, action: 'add' }, { headers });
       } else {
-        // Unlink: find current linked template and unlink it
-        const linked = certTemplates.find(t => t.linked_membership_type === planKey);
+        // Remove this plan from whichever template has it
+        const linked = certTemplates.find(t => (t.linked_membership_types || []).includes(planKey) || t.linked_membership_type === planKey);
         if (linked) {
-          await axios.put(`${API}/admin/certificate-templates/${linked.id}/link-plan`, { membership_type: '' }, { headers });
+          await axios.put(`${API}/admin/certificate-templates/${linked.id}/link-plan`, { membership_type: planKey, action: 'remove' }, { headers });
         }
       }
       setToast(templateId ? 'Certificate template linked!' : 'Certificate template unlinked');
@@ -130,7 +131,7 @@ export default function MembershipAdmin() {
     setOpenCertDropdown(null);
   };
 
-  const getLinkedTemplate = (planKey) => certTemplates.find(t => t.linked_membership_type === planKey);
+  const getLinkedTemplate = (planKey) => certTemplates.find(t => (t.linked_membership_types || []).includes(planKey) || t.linked_membership_type === planKey);
 
   return (
     <div data-testid="membership-admin" style={{ maxWidth: '900px' }}>
@@ -234,8 +235,9 @@ export default function MembershipAdmin() {
                     </div>
                   )}
                   {certTemplates.map(tpl => {
-                    const isLinked = tpl.linked_membership_type === plan.key;
-                    const linkedElsewhere = tpl.linked_membership_type && tpl.linked_membership_type !== plan.key;
+                    const tplTypes = tpl.linked_membership_types || (tpl.linked_membership_type ? [tpl.linked_membership_type] : []);
+                    const isLinked = tplTypes.includes(plan.key);
+                    const otherPlans = tplTypes.filter(t => t !== plan.key);
                     return (
                       <button
                         key={tpl.id}
@@ -245,15 +247,15 @@ export default function MembershipAdmin() {
                           display: 'flex', alignItems: 'center', gap: '8px', width: '100%', textAlign: 'left',
                           padding: '8px 12px', border: 'none', borderRadius: '6px', cursor: isLinked ? 'default' : 'pointer',
                           background: isLinked ? '#d1fae5' : 'transparent', fontSize: '12px',
-                          color: isLinked ? '#065f46' : linkedElsewhere ? '#94a3b8' : '#374151',
+                          color: isLinked ? '#065f46' : '#374151',
                           fontWeight: isLinked ? 700 : 400,
                         }}>
                         <Award size={14} style={{ flexShrink: 0, color: isLinked ? '#1e7a4d' : '#94a3b8' }} />
                         <div style={{ flex: 1 }}>
                           <div>{tpl.name || 'Untitled Template'}</div>
-                          {linkedElsewhere && (
-                            <div style={{ fontSize: '10px', color: '#d97706' }}>
-                              Linked to: {linkedElsewhere ? tpl.linked_membership_type : ''}
+                          {otherPlans.length > 0 && (
+                            <div style={{ fontSize: '10px', color: '#6b7280' }}>
+                              Also linked: {otherPlans.join(', ')}
                             </div>
                           )}
                         </div>

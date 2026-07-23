@@ -70,7 +70,7 @@ export default function CertificateDesigner() {
   const [tpl, setTpl] = useState({
     name: 'Untitled Template', type: 'membership', orientation: 'landscape',
     page_width: CANVAS_L.w, page_height: CANVAS_L.h,
-    background_color: '#ffffff', background_image_url: '', linked_membership_type: '', elements: []
+    background_color: '#ffffff', background_image_url: '', linked_membership_type: '', linked_membership_types: [], elements: []
   });
   const [selId, setSelId] = useState(null);
   const [dragState, setDragState] = useState(null); // { id, ox, oy, startX, startY, isDragging }
@@ -232,11 +232,25 @@ export default function CertificateDesigner() {
   };
 
   const handleLinkPlan = async (mtype) => {
-    setTpl(t => ({ ...t, linked_membership_type: mtype }));
-    if (!isNew) {
-      try { await axios.put(`${API}/admin/certificate-templates/${tplId}/link-plan`, { membership_type: mtype }); showToast(mtype ? `Linked to ${mtype}` : 'Unlinked'); } catch { showToast('Link failed'); }
+    if (!mtype) {
+      // "Not Linked" clears all
+      setTpl(t => ({ ...t, linked_membership_types: [], linked_membership_type: '' }));
+      if (!isNew) {
+        try { await axios.put(`${API}/admin/certificate-templates/${tplId}/link-plan`, { membership_type: '' }); showToast('All plans unlinked'); } catch { showToast('Unlink failed'); }
+      }
+    } else {
+      // Toggle this type
+      const current = tpl.linked_membership_types || [];
+      const newTypes = current.includes(mtype) ? current.filter(t => t !== mtype) : [...current, mtype];
+      setTpl(t => ({ ...t, linked_membership_types: newTypes, linked_membership_type: newTypes[0] || '' }));
+      if (!isNew) {
+        try {
+          const r = await axios.put(`${API}/admin/certificate-templates/${tplId}/link-plan`, { membership_type: mtype, action: 'toggle' });
+          showToast(newTypes.length ? `Linked to ${newTypes.join(', ')}` : 'Unlinked');
+        } catch { showToast('Link failed'); }
+      }
     }
-    setShowLinkMenu(false);
+    if (!mtype) setShowLinkMenu(false);
   };
 
   const uploadFile = async (file) => {
@@ -694,7 +708,8 @@ export default function CertificateDesigner() {
   };
 
   const bgUrl = getUrl(tpl.background_image_url);
-  const linkedPlan = PLAN_OPTIONS.find(p => p.value === tpl.linked_membership_type);
+  const linkedTypes = tpl.linked_membership_types || (tpl.linked_membership_type ? [tpl.linked_membership_type] : []);
+  const linkedLabels = linkedTypes.map(v => PLAN_OPTIONS.find(p => p.value === v)?.label || v).join(', ');
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 112px)', margin: '-24px', background: '#eef1f5' }}>
@@ -715,16 +730,17 @@ export default function CertificateDesigner() {
 
         {/* Plan link */}
         <div style={{ position: 'relative' }}>
-          <button onClick={() => setShowLinkMenu(!showLinkMenu)} style={{ ...toolBtnS, background: tpl.linked_membership_type ? '#d1fae5' : '#f3f4f6', color: tpl.linked_membership_type ? '#065f46' : '#6b7280' }} data-testid="link-plan-btn">
-            {tpl.linked_membership_type ? <Link2 size={13} /> : <Unlink size={13} />}
-            <span style={{ fontSize: '11px' }}>{linkedPlan?.label || 'Link Plan'}</span>
+          <button onClick={() => setShowLinkMenu(!showLinkMenu)} style={{ ...toolBtnS, background: linkedTypes.length ? '#d1fae5' : '#f3f4f6', color: linkedTypes.length ? '#065f46' : '#6b7280' }} data-testid="link-plan-btn">
+            {linkedTypes.length ? <Link2 size={13} /> : <Unlink size={13} />}
+            <span style={{ fontSize: '11px' }}>{linkedLabels || 'Link Plan'}</span>
             <ChevronDown size={12} />
           </button>
           {showLinkMenu && (
             <div style={{ position: 'absolute', top: '100%', left: 0, background: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', boxShadow: '0 8px 20px rgba(0,0,0,0.12)', padding: '4px', zIndex: 200, width: '200px', marginTop: '4px' }}>
               {PLAN_OPTIONS.map(p => (
                 <button key={p.value} onClick={() => handleLinkPlan(p.value)}
-                  style={{ display: 'block', width: '100%', textAlign: 'left', padding: '7px 12px', border: 'none', background: tpl.linked_membership_type === p.value ? '#d1fae5' : 'transparent', cursor: 'pointer', fontSize: '12px', borderRadius: '4px', color: '#374151', fontWeight: tpl.linked_membership_type === p.value ? 700 : 400 }}>
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', width: '100%', textAlign: 'left', padding: '7px 12px', border: 'none', background: (p.value && linkedTypes.includes(p.value)) ? '#d1fae5' : 'transparent', cursor: 'pointer', fontSize: '12px', borderRadius: '4px', color: '#374151', fontWeight: (p.value && linkedTypes.includes(p.value)) ? 700 : 400 }}>
+                  {p.value && <span style={{ width: '14px', height: '14px', borderRadius: '3px', border: linkedTypes.includes(p.value) ? '2px solid #065f46' : '2px solid #d1d5db', background: linkedTypes.includes(p.value) ? '#065f46' : 'transparent', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: '#fff', flexShrink: 0 }}>{linkedTypes.includes(p.value) ? '✓' : ''}</span>}
                   {p.label}
                 </button>
               ))}
