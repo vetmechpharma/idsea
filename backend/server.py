@@ -636,6 +636,7 @@ DEFAULT_EMAIL_TEMPLATES = {
   </div>
   <div style="background: #f8fafc; padding: 20px 28px; text-align: center; border-top: 1px solid #e5e7eb;">
     <p style="color: #9ca3af; font-size: 11px; margin: 0;">Indian Dairy Scientists and Entrepreneurs Association (IDSEA)</p>
+    <p style="color: #c4b5fd; font-size: 10px; margin: 6px 0 0; font-style: italic;">Developed by ANIMitra Softwares — Engineering the Future of Animal Health</p>
     <p style="color: #9ca3af; font-size: 11px; margin: 4px 0 0;">This is an automated email. Please do not reply directly.</p>
   </div>
 </div>"""
@@ -678,6 +679,7 @@ DEFAULT_EMAIL_TEMPLATES = {
   </div>
   <div style="background: #f8fafc; padding: 20px 28px; text-align: center; border-top: 1px solid #e5e7eb;">
     <p style="color: #9ca3af; font-size: 11px; margin: 0;">Indian Dairy Scientists and Entrepreneurs Association (IDSEA)</p>
+    <p style="color: #c4b5fd; font-size: 10px; margin: 6px 0 0; font-style: italic;">Developed by ANIMitra Softwares — Engineering the Future of Animal Health</p>
     <p style="color: #9ca3af; font-size: 11px; margin: 4px 0 0;">This is an automated email. Please do not reply directly.</p>
   </div>
 </div>"""
@@ -710,6 +712,7 @@ DEFAULT_EMAIL_TEMPLATES = {
   </div>
   <div style="background: #f8fafc; padding: 20px 28px; text-align: center; border-top: 1px solid #e5e7eb;">
     <p style="color: #9ca3af; font-size: 11px; margin: 0;">Indian Dairy Scientists and Entrepreneurs Association (IDSEA)</p>
+    <p style="color: #c4b5fd; font-size: 10px; margin: 6px 0 0; font-style: italic;">Developed by ANIMitra Softwares — Engineering the Future of Animal Health</p>
     <p style="color: #9ca3af; font-size: 11px; margin: 4px 0 0;">This is an automated email. Please do not reply directly.</p>
   </div>
 </div>"""
@@ -738,6 +741,7 @@ DEFAULT_EMAIL_TEMPLATES = {
   </div>
   <div style="background: #f8fafc; padding: 20px 28px; text-align: center; border-top: 1px solid #e5e7eb;">
     <p style="color: #9ca3af; font-size: 11px; margin: 0;">Indian Dairy Scientists and Entrepreneurs Association (IDSEA)</p>
+    <p style="color: #c4b5fd; font-size: 10px; margin: 6px 0 0; font-style: italic;">Developed by ANIMitra Softwares — Engineering the Future of Animal Health</p>
     <p style="color: #9ca3af; font-size: 11px; margin: 4px 0 0;">This is an automated email. Please do not reply directly.</p>
   </div>
 </div>"""
@@ -764,6 +768,7 @@ DEFAULT_EMAIL_TEMPLATES = {
   </div>
   <div style="background: #f8fafc; padding: 20px 28px; text-align: center; border-top: 1px solid #e5e7eb;">
     <p style="color: #9ca3af; font-size: 11px; margin: 0;">Indian Dairy Scientists and Entrepreneurs Association (IDSEA)</p>
+    <p style="color: #c4b5fd; font-size: 10px; margin: 6px 0 0; font-style: italic;">Developed by ANIMitra Softwares — Engineering the Future of Animal Health</p>
   </div>
 </div>"""
     },
@@ -794,6 +799,7 @@ DEFAULT_EMAIL_TEMPLATES = {
   </div>
   <div style="background: #f8fafc; padding: 20px 28px; text-align: center; border-top: 1px solid #e5e7eb;">
     <p style="color: #9ca3af; font-size: 11px; margin: 0;">Indian Dairy Scientists and Entrepreneurs Association (IDSEA)</p>
+    <p style="color: #c4b5fd; font-size: 10px; margin: 6px 0 0; font-style: italic;">Developed by ANIMitra Softwares — Engineering the Future of Animal Health</p>
   </div>
 </div>"""
     },
@@ -829,6 +835,7 @@ DEFAULT_EMAIL_TEMPLATES = {
   </div>
   <div style="background: #f8fafc; padding: 20px 28px; text-align: center; border-top: 1px solid #e5e7eb;">
     <p style="color: #9ca3af; font-size: 11px; margin: 0;">Indian Dairy Scientists and Entrepreneurs Association (IDSEA)</p>
+    <p style="color: #c4b5fd; font-size: 10px; margin: 6px 0 0; font-style: italic;">Developed by ANIMitra Softwares — Engineering the Future of Animal Health</p>
   </div>
 </div>"""
     },
@@ -856,6 +863,7 @@ DEFAULT_EMAIL_TEMPLATES = {
   </div>
   <div style="background: #f8fafc; padding: 20px 28px; text-align: center; border-top: 1px solid #e5e7eb;">
     <p style="color: #9ca3af; font-size: 11px; margin: 0;">Indian Dairy Scientists and Entrepreneurs Association (IDSEA)</p>
+    <p style="color: #c4b5fd; font-size: 10px; margin: 6px 0 0; font-style: italic;">Developed by ANIMitra Softwares — Engineering the Future of Animal Health</p>
   </div>
 </div>"""
     },
@@ -2576,7 +2584,7 @@ async def admin_send_accommodation_details(reg_id: str, data: dict, admin=Depend
                 </table>
                 {"<p><strong>Map Link:</strong> <a href='" + map_link + "'>" + map_link + "</a></p>" if map_link else ""}
                 <p>For any queries, please contact IDSEA.</p>
-                <p>Regards,<br/>IDSEA Team</p></body></html>"""
+                <p>Regards,<br/>IDSEA Team</p><p style="color:#c4b5fd;font-size:10px;font-style:italic;margin-top:16px;">Developed by ANIMitra Softwares — Engineering the Future of Animal Health</p></body></html>"""
 
                 msg = MIMEMultipart("alternative")
                 msg["Subject"] = f"Accommodation Details - {event.get('title','')}"
@@ -2654,7 +2662,7 @@ async def admin_send_all_accommodation(event_id: str, data: dict, admin=Depends(
                     <p>Your accommodation: <strong>{loc_type} - {location}, Room {room}</strong></p>
                     {"<p>Map: <a href='" + map_link + "'>" + map_link + "</a></p>" if map_link else ""}
                     <p>Event: {event.get('date','')} - {event.get('end_date','')} at {event.get('venue','')}</p>
-                    <p>Regards, IDSEA Team</p></body></html>"""
+                    <p>Regards, IDSEA Team</p><p style="color:#c4b5fd;font-size:10px;font-style:italic;margin-top:16px;">Developed by ANIMitra Softwares — Engineering the Future of Animal Health</p></body></html>"""
                     msg = MIMEMultipart("alternative")
                     msg["Subject"] = f"Accommodation Details - {event.get('title','')}"
                     msg["From"] = smtp.get("from_email", smtp["smtp_user"])
