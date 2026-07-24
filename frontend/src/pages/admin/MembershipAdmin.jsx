@@ -305,7 +305,7 @@ export default function MembershipAdmin() {
                       data-testid={`prefix-input-${c.type}`}
                       autoFocus
                     />
-                    <span style={{ fontSize: '12px', color: '#6b7280', fontFamily: 'monospace' }}>/IDSEA/0001</span>
+                    <span style={{ fontSize: '12px', color: '#6b7280', fontFamily: 'monospace' }}>/IDSEA/{['student','students_membership'].includes(c.type) ? `${new Date().getFullYear()}/000001` : '0001'}</span>
                     <button onClick={async () => {
                       if (!prefixValue) return;
                       setPrefixSaving(true);

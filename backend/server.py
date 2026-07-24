@@ -4648,16 +4648,30 @@ async def admin_get_membership_id_config(admin=Depends(get_current_admin)):
     configs = await db.membership_id_config.find({}, {"_id": 0}).to_list(20)
     existing_types = {c["type"] for c in configs}
     for mtype, prefix in DEFAULT_ID_PREFIXES.items():
+        # Skip "student" if "students_membership" already exists
+        if mtype == "student" and "students_membership" in existing_types:
+            continue
         if mtype not in existing_types:
             configs.append({"type": mtype, "prefix": prefix, "is_default": True})
         else:
             for c in configs:
                 if c["type"] == mtype:
                     c["is_default"] = False
-    # Add sample next ID
+    # Add sample next ID — student types include year + 6 digits
     for c in configs:
-        c["sample_id"] = f"{c['prefix']}/IDSEA/0001"
-    return sorted(configs, key=lambda c: list(DEFAULT_ID_PREFIXES.keys()).index(c["type"]) if c["type"] in DEFAULT_ID_PREFIXES else 99)
+        is_stud = c["type"] in ("student", "students_membership")
+        if is_stud:
+            c["sample_id"] = f"{c['prefix']}/IDSEA/{datetime.now().year}/000001"
+        else:
+            c["sample_id"] = f"{c['prefix']}/IDSEA/0001"
+    # Sort and deduplicate
+    seen = set()
+    deduped = []
+    for c in sorted(configs, key=lambda c: list(DEFAULT_ID_PREFIXES.keys()).index(c["type"]) if c["type"] in DEFAULT_ID_PREFIXES else 99):
+        if c["type"] not in seen:
+            seen.add(c["type"])
+            deduped.append(c)
+    return deduped
 
 
 @api_router.put("/admin/membership-id-config/{membership_type}")
@@ -4672,7 +4686,9 @@ async def admin_update_membership_id_prefix(membership_type: str, data: dict, ad
         {"$set": {"type": membership_type, "prefix": prefix, "updated_at": now_iso(), "updated_by": admin["email"]}},
         upsert=True
     )
-    return {"message": f"Prefix for '{membership_type}' updated to '{prefix}'", "sample_id": f"{prefix}/IDSEA/0001"}
+    is_stud = membership_type in ("student", "students_membership")
+    sample = f"{prefix}/IDSEA/{datetime.now().year}/000001" if is_stud else f"{prefix}/IDSEA/0001"
+    return {"message": f"Prefix for '{membership_type}' updated to '{prefix}'", "sample_id": sample}
 
 
 # Public PDF upload for registration documents
@@ -5730,6 +5746,11 @@ async def startup_event():
 
     # Seed default membership ID prefixes if missing
     for mtype, prefix in DEFAULT_ID_PREFIXES.items():
+        # Skip "student" if "students_membership" exists (avoid duplicates)
+        if mtype == "student":
+            existing_alt = await db.membership_id_config.find_one({"type": "students_membership"})
+            if existing_alt:
+                continue
         existing = await db.membership_id_config.find_one({"type": mtype})
         if not existing:
             await db.membership_id_config.insert_one({"type": mtype, "prefix": prefix})
