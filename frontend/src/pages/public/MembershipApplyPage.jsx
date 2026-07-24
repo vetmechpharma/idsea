@@ -481,7 +481,7 @@ export default function MembershipApplyPage() {
                     </div>
                   </div>
                   {/* College ID Card Upload */}
-                  <label className="form-label" style={{ color: '#7c3aed' }}>College ID Card * <span style={{ fontSize: '11px', color: '#6b7280', fontWeight: 400 }}>Image or PDF</span></label>
+                  <label className="form-label" style={{ color: '#7c3aed' }}>College ID Card * <span style={{ fontSize: '11px', color: '#6b7280', fontWeight: 400 }}>Image only (JPG, PNG)</span></label>
                   <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginTop: '6px' }}>
                     {form.college_id_url ? (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: '#f3e8ff', borderRadius: '8px', padding: '10px 14px', flex: 1 }}>
@@ -492,14 +492,14 @@ export default function MembershipApplyPage() {
                     ) : (
                       <label style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'white', border: '1px solid #c4b5fd', borderRadius: '8px', padding: '10px 16px', cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: '#7c3aed' }}>
                         <Upload size={14} /> Upload College ID
-                        <input type="file" accept="image/*,.pdf" onChange={async (e) => {
+                        <input type="file" accept="image/jpeg,image/png,image/webp" onChange={async (e) => {
                           const file = e.target.files?.[0];
                           if (!file) return;
                           const fd = new FormData(); fd.append('file', file);
                           try {
-                            const r = await axios.post(`${API}/upload`, fd);
+                            const r = await axios.post(`${API}/public/upload-college-id`, fd);
                             setForm(f => ({ ...f, college_id_url: r.data.file_url }));
-                          } catch {}
+                          } catch (err) { alert(err.response?.data?.detail || 'Upload failed'); }
                         }} style={{ display: 'none' }} data-testid="college-id-upload" />
                       </label>
                     )}

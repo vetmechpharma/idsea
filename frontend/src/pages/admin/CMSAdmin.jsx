@@ -520,6 +520,14 @@ export default function CMSAdmin() {
         </div>
       </Section>
 
+      <Section title="Membership Email CC">
+        <div className="form-group">
+          <label className="form-label">CC Email for Membership Notifications</label>
+          <input type="text" value={cmsForm.membership_cc_email || ''} onChange={e => updateCms('membership_cc_email', e.target.value)} className="form-input" placeholder="admin@idsea.in, secretary@idsea.in" data-testid="cms-cc-email" />
+          <p style={{ fontSize: '11px', color: '#9ca3af', marginTop: '4px' }}>All membership emails (submitted, approved, rejected, expiry) will CC this address. Separate multiple with commas.</p>
+        </div>
+      </Section>
+
       <div style={{ background: '#f0f9ff', borderRadius: '10px', padding: '14px 18px', marginBottom: '20px', border: '1px solid #bae6fd' }}>
         <div style={{ fontSize: '13px', color: '#0369a1', fontWeight: 600, fontFamily: 'Poppins, sans-serif', marginBottom: '4px' }}>Google Indexing & SEO</div>
         <div style={{ fontSize: '12px', color: '#6b7280', lineHeight: 1.5 }}>

@@ -502,6 +502,7 @@ class CMSSettings(BaseModel):
     custom_body_start_scripts: Optional[str] = ""
     custom_body_end_scripts: Optional[str] = ""
     site_url: Optional[str] = ""
+    membership_cc_email: Optional[str] = ""
 
 
 # =================== AUTH UTILS ===================
@@ -549,7 +550,7 @@ async def get_razorpay_client_async():
     return None, ""
 
 
-def send_email_smtp(recipients: List[str], subject: str, body: str, smtp_settings: dict = None, attachments: list = None):
+def send_email_smtp(recipients: List[str], subject: str, body: str, smtp_settings: dict = None, attachments: list = None, cc: list = None):
     host = smtp_settings.get("smtp_host", SMTP_HOST) if smtp_settings else SMTP_HOST
     port = int(smtp_settings.get("smtp_port", SMTP_PORT_VAL) if smtp_settings else SMTP_PORT_VAL)
     user = smtp_settings.get("smtp_user", SMTP_USER) if smtp_settings else SMTP_USER
@@ -563,16 +564,19 @@ def send_email_smtp(recipients: List[str], subject: str, body: str, smtp_setting
         msg['Subject'] = subject
         msg['From'] = f"IDSEA <{from_email}>"
         msg['To'] = ', '.join(recipients[:50])
+        if cc:
+            msg['Cc'] = ', '.join(cc)
         msg.attach(MIMEText(body, 'html'))
         if attachments:
             for att in attachments:
                 part = MIMEApplication(att["data"], Name=att["filename"])
                 part['Content-Disposition'] = f'attachment; filename="{att["filename"]}"'
                 msg.attach(part)
+        all_recipients = list(recipients) + (cc or [])
         with smtplib.SMTP(host, port) as server:
             server.starttls()
             server.login(user, passwd)
-            server.sendmail(from_email, recipients, msg.as_string())
+            server.sendmail(from_email, all_recipients, msg.as_string())
         return True
     except Exception as e:
         logging.error(f"Email error: {e}")
@@ -1027,7 +1031,7 @@ def generate_certificate_pdf_bytes(member_name: str, membership_id: str, cert_ty
 
 
 async def send_templated_email(template_key: str, recipients: list, variables: dict, attachments: list = None):
-    """Send email using template from DB (or default), with optional attachments"""
+    """Send email using template from DB (or default), with optional attachments and CC"""
     template = await db.email_templates.find_one({"key": template_key}, {"_id": 0})
     if not template:
         template = DEFAULT_EMAIL_TEMPLATES.get(template_key)
@@ -1038,6 +1042,14 @@ async def send_templated_email(template_key: str, recipients: list, variables: d
     subject = render_template(template.get("subject", ""), variables)
     body = render_template(template.get("body", ""), variables)
     smtp_settings = await db.smtp_settings.find_one({}, {"_id": 0})
+
+    # Get CC email from CMS for membership-related emails
+    cc = None
+    if template_key.startswith("membership_") or template_key.startswith("registration_"):
+        cms = await db.cms_settings.find_one({}, {"_id": 0, "membership_cc_email": 1})
+        cc_email = (cms or {}).get("membership_cc_email", "")
+        if cc_email:
+            cc = [e.strip() for e in cc_email.split(",") if e.strip()]
 
     log_id = str(uuid.uuid4())
     log = {
@@ -1054,7 +1066,7 @@ async def send_templated_email(template_key: str, recipients: list, variables: d
     await db.email_logs.insert_one(log)
 
     try:
-        success = send_email_smtp(recipients, subject, body, smtp_settings, attachments)
+        success = send_email_smtp(recipients, subject, body, smtp_settings, attachments, cc=cc)
         if success:
             await db.email_logs.update_one({"id": log_id}, {"$set": {"status": "sent", "sent_at": now_iso()}})
             logging.info(f"Templated email [{template_key}] sent to {len(recipients)} recipients")
@@ -1326,6 +1338,42 @@ async def public_upload_photo(file: UploadFile = File(...)):
         return {"file_url": f"/api/uploads/{unique_name}"}
     except HTTPException:
         raise
+
+
+@api_router.post("/public/upload-college-id")
+async def public_upload_college_id(file: UploadFile = File(...)):
+    """Upload college ID card — image only, auto-compress to WebP, delete original"""
+    try:
+        ext = Path(file.filename).suffix.lower()
+        if ext not in ['.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif']:
+            raise HTTPException(status_code=400, detail="Only image files allowed (JPG, PNG, WebP)")
+        content = await file.read()
+        if len(content) > 10 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail="File too large (max 10MB)")
+        UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+        # Compress to WebP
+        from PIL import Image as PILImage
+        img = PILImage.open(io.BytesIO(content))
+        # Resize if too large (max 1200px wide)
+        if img.width > 1200:
+            ratio = 1200 / img.width
+            img = img.resize((1200, int(img.height * ratio)), PILImage.LANCZOS)
+        # Convert to RGB if needed (RGBA/P modes can't save as WebP directly)
+        if img.mode in ('RGBA', 'P', 'LA'):
+            img = img.convert('RGB')
+        webp_name = f"college_id_{uuid.uuid4().hex[:12]}.webp"
+        webp_path = UPLOAD_DIR / webp_name
+        img.save(str(webp_path), format='WEBP', quality=70, optimize=True)
+        final_size = webp_path.stat().st_size
+        logging.info(f"College ID upload: {len(content)} bytes -> {final_size} bytes (WebP)")
+        return {"file_url": f"/api/uploads/{webp_name}"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"College ID upload failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
+
+
     except Exception as e:
         logging.error(f"Photo upload failed: {e}")
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
