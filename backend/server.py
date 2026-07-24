@@ -5727,6 +5727,13 @@ async def startup_event():
     asyncio.create_task(student_expiry_checker())
     logging.info("Student membership expiry checker started")
 
+    # Seed default membership ID prefixes if missing
+    for mtype, prefix in DEFAULT_ID_PREFIXES.items():
+        existing = await db.membership_id_config.find_one({"type": mtype})
+        if not existing:
+            await db.membership_id_config.insert_one({"type": mtype, "prefix": prefix})
+            logging.info(f"Seeded membership ID prefix: {mtype} = {prefix}")
+
     if not await db.admins.find_one({"email": "admin@idsea.org"}):
         await db.admins.insert_one(AdminUser(
             username="Super Admin",
