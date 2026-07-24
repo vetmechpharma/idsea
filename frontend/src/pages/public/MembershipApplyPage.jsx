@@ -550,7 +550,12 @@ export default function MembershipApplyPage() {
               )}
 
               <div style={{ background: isInternational ? '#eff6ff' : '#f0f9ff', border: `1px solid ${isInternational ? '#bfdbfe' : '#bae6fd'}`, borderRadius: '10px', padding: '16px', margin: '20px 0', fontSize: '13px', color: isInternational ? '#1e40af' : '#0369a1' }}>
-                <strong>Membership Fee:</strong> {currSym}{fee.toLocaleString()} — Permanent Membership
+                <strong>Membership Fee:</strong> {currSym}{fee.toLocaleString()} — {(() => {
+                  const vm = currentPlan?.validity_months || 0;
+                  if (vm === 0) return 'Lifetime Membership';
+                  if (vm >= 12) return `${Math.round(vm / 12)} Year${vm >= 24 ? 's' : ''} Membership`;
+                  return `${vm} Month${vm > 1 ? 's' : ''} Membership`;
+                })()}
                 {isInternational && <span style={{ display: 'block', marginTop: '4px', fontSize: '12px', color: '#6b7280' }}>Payment in USD via Razorpay only</span>}
                 <br /><span style={{ fontSize: '12px' }}>You will be directed to the payment page after submission.</span>
               </div>
