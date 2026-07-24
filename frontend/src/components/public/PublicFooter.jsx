@@ -125,17 +125,21 @@ export default function PublicFooter() {
               {/* Social Icons with brand colors */}
               <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
                 {SOCIAL_ICONS.map(({ key, Icon, bgHover }) => {
-                  const url = socialUrls[key];
+                  const rawUrl = socialUrls[key];
+                  const url = rawUrl && rawUrl !== '#' && rawUrl.startsWith('http') ? rawUrl : '';
                   return (
-                    <a key={key} href={url || undefined} target={url ? '_blank' : undefined} rel="noreferrer"
+                    <a key={key} href={url || '#'} target={url ? '_blank' : '_self'} rel="noreferrer"
                       data-testid={`social-${key}`}
                       onClick={e => { if (!url) e.preventDefault(); }}
                       style={{
                         width: '34px', height: '34px', borderRadius: '50%',
                         background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        transition: 'background 0.2s ease, transform 0.2s ease'
+                        transition: 'background 0.2s ease, transform 0.2s ease',
+                        cursor: url ? 'pointer' : 'default',
+                        opacity: url ? 1 : 0.4,
+                        pointerEvents: url ? 'auto' : 'auto',
                       }}
-                      onMouseEnter={e => { e.currentTarget.style.background = bgHover; e.currentTarget.style.transform = 'scale(1.1)'; }}
+                      onMouseEnter={e => { if (url) { e.currentTarget.style.background = bgHover; e.currentTarget.style.transform = 'scale(1.1)'; } }}
                       onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.transform = 'scale(1)'; }}
                     >
                       <Icon />

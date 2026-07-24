@@ -1,0 +1,32 @@
+{
+  "summary": "Verified PublicFooter social icons fix. All 5 icons (facebook, twitter, linkedin, youtube, instagram) render with correct data-testid. When URL is empty or '#' placeholder, icons are dimmed (opacity 0.4), cursor default, target _self, and clicks are prevented (no navigation). When URL is a valid http(s) URL, icons are full opacity, cursor pointer, target _blank, and click opens a new tab correctly. Fix in PublicFooter.jsx (validating url must start with 'http' and !== '#') works as intended.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "PUT /api/admin/cms & GET /api/public/cms", "issue": "CMSSettings Pydantic model (server.py line 503) is MISSING youtube_url and instagram_url fields. Admin UI/API cannot persist these two social URLs, so YouTube and Instagram icons will PERMANENTLY appear dimmed and non-clickable even after admin sets them. Add `youtube_url: Optional[str] = \"\"` and `instagram_url: Optional[str] = \"\"` to CMSSettings model."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/test_reports/iteration_44.json"],
+  "action_items": [
+    "Add `youtube_url` and `instagram_url` Optional[str] fields to CMSSettings Pydantic model in /app/backend/server.py around line 503 so admins can actually save these two URLs; otherwise the YouTube and Instagram icons in the footer will remain permanently dimmed."
+  ],
+  "critical_code_review_comments": [
+    "PublicFooter.jsx line 129: URL validation logic `rawUrl && rawUrl !== '#' && rawUrl.startsWith('http')` correctly protects against '#' placeholder and empty URLs. Works as designed.",
+    "PublicFooter.jsx line 140: `pointerEvents: url ? 'auto' : 'auto'` is a no-op ternary — both branches use the same value. Consider removing or changing the false branch to 'none' if you want extra defense against click bubbling (currently onClick preventDefault is what blocks nav, which works).",
+    "Backend CMSSettings model missing youtube_url and instagram_url fields — admin cannot persist those two social URLs, so the frontend fix has no way to display them as active on any environment.",
+    "IMPORTANT (INFRA): During initial testing the browser served stale compiled JS (rendered <a> lacked href/target/opacity styles even though source had them). A frontend supervisor restart + cache-busted URL fixed it. If users still see the pre-fix behavior, ask them to hard-reload; the fix itself is correct."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend-only task)", "frontend": "100% (all 4 requested scenarios verified)"},
+  "test_credentials": "Super Admin: admin@idsea.org / Admin@123 (used only to update CMS URLs during test; restored to empty after)",
+  "seed_data_creation": "Temporarily set facebook_url/twitter_url/linkedin_url to test values, then RESTORED all three to empty strings. No lasting seed data.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Footer social icons fix verified with both empty/'#' placeholder URLs (dimmed, non-clickable, target=_self, cursor=default) and valid http URLs (opacity 1, target=_blank, cursor=pointer, new tab opens). CMS model is missing youtube_url/instagram_url — flag for main agent. Preview URL requires a hard-reload or cache-busting query param after any PublicFooter code change because dev-server sometimes serves stale JS.",
+  "rca of the issue": "Original bug: PublicFooter treated any non-empty string (including '#' CMS placeholder) as a real URL, so clicking a social icon navigated to '#' (page top). Fix now filters URLs that don't start with 'http' or equal '#'. Verified: valid URLs -> href=<url>, target=_blank, opacity 1, click opens new tab; invalid/'#'/empty -> href=#, target=_self, opacity 0.4, cursor default, onClick preventDefault blocks navigation."
+}
