@@ -309,7 +309,7 @@ export default function MembershipApplyPage() {
           {plansLoading ? (
             <div style={{ textAlign: 'center', padding: '30px', color: '#6b7280' }}><Loader2 size={24} className="animate-spin" style={{ margin: '0 auto 8px' }} /> Loading plans...</div>
           ) : (
-            <div style={{ marginBottom: '28px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }} data-testid="plans-grid">
+            <div style={{ marginBottom: '28px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px' }} data-testid="plans-grid">
               {plans.map(plan => {
                 const prefix = PREFIX_MAP[plan.key] || 'MEM';
                 const isIntl = plan.key === 'international';
