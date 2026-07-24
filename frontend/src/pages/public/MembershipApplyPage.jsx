@@ -336,6 +336,16 @@ export default function MembershipApplyPage() {
                     <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: '14px', color: '#111827', marginBottom: '4px' }}>{plan.label}</div>
                     <div style={{ fontSize: '22px', fontWeight: 800, color: isIntl ? '#1e40af' : '#1e7a4d', fontFamily: 'Poppins, sans-serif', marginBottom: '4px' }}>{sym}{planFee.toLocaleString()}</div>
                     <div style={{ fontSize: '12px', color: '#9ca3af', fontFamily: 'Inter, sans-serif', marginBottom: '6px' }}>{plan.description}</div>
+                    {/* Validity Badge */}
+                    <div style={{
+                      textAlign: 'center', padding: '4px 8px', borderRadius: '6px',
+                      background: (plan.validity_months || 0) > 0 ? '#fffbeb' : '#f0fdf4',
+                      border: (plan.validity_months || 0) > 0 ? '1px solid #fde68a' : '1px solid #bbf7d0',
+                    }}>
+                      <span style={{ fontSize: '10px', fontWeight: 700, fontFamily: 'Poppins, sans-serif', color: (plan.validity_months || 0) > 0 ? '#92400e' : '#065f46' }}>
+                        {(plan.validity_months || 0) > 0 ? ((plan.validity_months >= 12 ? `${Math.round(plan.validity_months / 12)} Year${plan.validity_months >= 24 ? 's' : ''}` : `${plan.validity_months} Month${plan.validity_months > 1 ? 's' : ''}`) + ' Membership') : 'Lifetime Membership'}
+                      </span>
+                    </div>
                   </div>
                 );
               })}

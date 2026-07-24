@@ -242,20 +242,21 @@ export default function HomePage() {
             ]).map((plan, idx) => {
               const color = PLAN_COLORS[idx % PLAN_COLORS.length];
               const bg = PLAN_BGS[idx % PLAN_BGS.length];
-              const popular = idx === 1;
               const feeStr = plan.key === 'international' ? `$${plan.fee_usd}` : `\u20B9${(plan.fee_inr || 0).toLocaleString()}`;
               const features = plan.features || [];
+              const vm = plan.validity_months || 0;
+              const validityLabel = vm > 0 ? (vm >= 12 ? `${Math.round(vm / 12)} Year${vm >= 24 ? 's' : ''} Membership` : `${vm} Month${vm > 1 ? 's' : ''} Membership`) : 'Lifetime Membership';
+              const isLifetime = vm === 0;
               return (
                 <div key={plan.key || plan.label} style={{
                   background: 'white', borderRadius: '16px', padding: '28px',
-                  boxShadow: popular ? '0 8px 32px rgba(30,122,77,0.15)' : '0 4px 12px rgba(0,0,0,0.06)',
-                  border: popular ? '2px solid #1e7a4d' : '1px solid #e5e7eb',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
+                  border: '1px solid #e5e7eb',
                   position: 'relative', transition: 'transform 0.2s ease, box-shadow 0.2s ease'
                 }}
                   onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 16px 40px rgba(0,0,0,0.12)'; }}
-                  onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = popular ? '0 8px 32px rgba(30,122,77,0.15)' : '0 4px 12px rgba(0,0,0,0.06)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.06)'; }}
                 >
-                  {popular && <div style={{ position: 'absolute', top: '-12px', left: '50%', transform: 'translateX(-50%)', background: '#1e7a4d', color: 'white', padding: '4px 14px', borderRadius: '20px', fontSize: '11px', fontWeight: 700, fontFamily: 'Poppins, sans-serif' }}>POPULAR</div>}
                   <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
                     <FlaskConical size={22} style={{ color }} />
                   </div>
@@ -263,7 +264,7 @@ export default function HomePage() {
                   <div style={{ fontSize: '2rem', fontWeight: 800, color, fontFamily: 'Poppins, sans-serif', marginBottom: '8px' }}>{feeStr}</div>
                   <p style={{ fontSize: '13px', color: '#6b7280', lineHeight: 1.6, marginBottom: '20px', fontFamily: 'Inter, sans-serif' }}>{plan.description}</p>
                   {features.length > 0 && (
-                    <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 24px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                       {features.map(f => (
                         <li key={f} style={{ display: 'flex', gap: '8px', fontSize: '13px', color: '#374151', fontFamily: 'Inter, sans-serif' }}>
                           <span style={{ color: '#1e7a4d', fontWeight: 700, flexShrink: 0 }}>&#10003;</span>{f}
@@ -271,13 +272,23 @@ export default function HomePage() {
                       ))}
                     </ul>
                   )}
+                  {/* Validity Badge */}
+                  <div style={{
+                    textAlign: 'center', padding: '8px 14px', borderRadius: '8px', marginBottom: '14px',
+                    background: isLifetime ? '#f0fdf4' : '#fffbeb',
+                    border: isLifetime ? '1px solid #bbf7d0' : '1px solid #fde68a',
+                  }}>
+                    <span style={{ fontSize: '12px', fontWeight: 700, fontFamily: 'Poppins, sans-serif', color: isLifetime ? '#065f46' : '#92400e' }}>
+                      {isLifetime ? '♾ ' : '⏱ '}{validityLabel}
+                    </span>
+                  </div>
                   <Link to="/apply" style={{
                     display: 'block', textAlign: 'center', textDecoration: 'none',
                     padding: '10px', borderRadius: '8px', fontWeight: 600,
                     fontFamily: 'Poppins, sans-serif', fontSize: '14px',
-                    background: popular ? '#1e7a4d' : 'transparent',
-                    color: popular ? 'white' : color,
-                    border: popular ? 'none' : `2px solid ${color}`,
+                    background: 'transparent',
+                    color: color,
+                    border: `2px solid ${color}`,
                     transition: 'all 0.2s ease'
                   }}>
                     Apply Now
