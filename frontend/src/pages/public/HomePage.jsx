@@ -378,14 +378,15 @@ export default function HomePage() {
             </div>
 
             {/* Category Cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', maxWidth: '900px', margin: '0 auto' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '16px', maxWidth: '1000px', margin: '0 auto' }}>
               {[
                 { key: 'academic', label: 'Academic', icon: GraduationCap, color: '#2563eb', bg: '#eff6ff', border: '#bfdbfe' },
                 { key: 'entrepreneur', label: 'Entrepreneur', icon: Briefcase, color: '#059669', bg: '#ecfdf5', border: '#a7f3d0' },
                 { key: 'corporate', label: 'Corporate', icon: Building2, color: '#7c3aed', bg: '#f5f3ff', border: '#c4b5fd' },
                 { key: 'international', label: 'International', icon: Globe, color: '#dc2626', bg: '#fef2f2', border: '#fecaca' },
+                { key: 'students_membership', altKey: 'student', label: 'Student', icon: GraduationCap, color: '#ec4899', bg: '#fdf2f8', border: '#f9a8d4' },
               ].map(cat => {
-                const count = memberStats.categories[cat.key] || 0;
+                const count = (memberStats.categories[cat.key] || 0) + (cat.altKey ? (memberStats.categories[cat.altKey] || 0) : 0);
                 const Icon = cat.icon;
                 return (
                   <div key={cat.key} data-testid={`stat-${cat.key}`} style={{
