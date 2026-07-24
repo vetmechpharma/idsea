@@ -234,7 +234,7 @@ export default function HomePage() {
             <h2 className="section-title">{pc?.membership_title || 'Membership Types'}</h2>
             <p className="section-subtitle">{pc?.membership_subtitle || "Join IDSEA and be part of India's premier dairy science community"}</p>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '24px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '20px' }}>
             {(plans.length > 0 ? plans : [
               { label: 'Academic Member', key: 'academic', fee_inr: 3100, fee_usd: 50, description: 'For scientists, researchers, academicians, and educators', features: ['Regular newsletters', 'Event discounts', 'Journal access', 'Technical sessions'] },
               { label: 'Entrepreneur Member', key: 'entrepreneur', fee_inr: 5100, fee_usd: 75, description: 'For dairy entrepreneurs, startups, MSMEs, and FPOs', features: ['All Academic benefits', 'Business networking', 'Industry interactions', 'Capacity building'] },
