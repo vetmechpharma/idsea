@@ -87,7 +87,24 @@ class AdminUser(BaseModel):
     email: str
     password_hash: str
     role: str = "admin"
+    permissions: Optional[list] = Field(default_factory=list)
     created_at: str = Field(default_factory=now_iso)
+
+
+ROLE_PERMISSIONS = {
+    "super_admin": ["*"],
+    "admin": ["members", "events", "certificates", "cms", "email", "whatsapp", "payments", "gallery", "announcements", "publications", "executive"],
+    "event_manager": ["events", "certificates", "gallery"],
+}
+
+
+def check_permission(admin: dict, module: str):
+    role = admin.get("role", "admin")
+    perms = ROLE_PERMISSIONS.get(role, [])
+    custom_perms = admin.get("permissions", [])
+    if "*" in perms or module in perms or module in custom_perms:
+        return True
+    raise HTTPException(status_code=403, detail=f"Access denied. Your role '{role}' cannot access '{module}'.")
 
 
 class AdminLogin(BaseModel):
@@ -1208,7 +1225,8 @@ async def send_event_participation_certificates(event: dict):
 
 @api_router.post("/auth/login")
 async def admin_login(data: AdminLogin):
-    admin = await db.admins.find_one({"email": data.email}, {"_id": 0})
+    email = (data.email or "").strip().lower()
+    admin = await db.admins.find_one({"email": email}, {"_id": 0})
     if not admin or not verify_password(data.password, admin.get("password_hash", "")):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     token = create_access_token({"sub": admin["id"], "role": admin["role"]})
@@ -1221,7 +1239,86 @@ async def admin_login(data: AdminLogin):
 
 @api_router.get("/auth/me")
 async def get_me(admin=Depends(get_current_admin)):
-    return {"id": admin["id"], "email": admin["email"], "role": admin["role"], "username": admin["username"]}
+    return {"id": admin["id"], "email": admin["email"], "role": admin.get("role", "admin"), "username": admin["username"], "permissions": admin.get("permissions", [])}
+
+
+# =================== ADMIN USER MANAGEMENT ===================
+
+@api_router.get("/admin/users")
+async def admin_list_users(admin=Depends(get_current_admin)):
+    check_permission(admin, "admin_users")
+    if admin.get("role") != "super_admin":
+        raise HTTPException(403, "Only Super Admin can manage users")
+    users = await db.admins.find({}, {"_id": 0, "password_hash": 0}).sort("created_at", 1).to_list(50)
+    return users
+
+
+@api_router.post("/admin/users")
+async def admin_create_user(data: dict, admin=Depends(get_current_admin)):
+    if admin.get("role") != "super_admin":
+        raise HTTPException(403, "Only Super Admin can create users")
+    email = data.get("email", "").strip().lower()
+    username = data.get("username", "").strip()
+    password = data.get("password", "")
+    role = data.get("role", "admin")
+    permissions = data.get("permissions", [])
+    if not email or not password or not username:
+        raise HTTPException(400, "Email, username and password required")
+    if role not in ("super_admin", "admin", "event_manager"):
+        raise HTTPException(400, "Invalid role")
+    existing = await db.admins.find_one({"email": email})
+    if existing:
+        raise HTTPException(400, "Email already exists")
+    new_admin = AdminUser(
+        username=username, email=email,
+        password_hash=hash_password(password),
+        role=role, permissions=permissions,
+    )
+    await db.admins.insert_one(new_admin.model_dump())
+    return {"message": f"Admin '{username}' created with role '{role}'", "id": new_admin.id}
+
+
+@api_router.put("/admin/users/{user_id}")
+async def admin_update_user(user_id: str, data: dict, admin=Depends(get_current_admin)):
+    if admin.get("role") != "super_admin":
+        raise HTTPException(403, "Only Super Admin can update users")
+    target = await db.admins.find_one({"id": user_id}, {"_id": 0})
+    if not target:
+        raise HTTPException(404, "User not found")
+    update = {}
+    if "username" in data and data["username"]:
+        update["username"] = data["username"]
+    if "email" in data and data["email"]:
+        update["email"] = data["email"].strip().lower()
+    if "role" in data and data["role"] in ("super_admin", "admin", "event_manager"):
+        update["role"] = data["role"]
+    if "permissions" in data:
+        update["permissions"] = data["permissions"]
+    if update:
+        update["updated_at"] = now_iso()
+        await db.admins.update_one({"id": user_id}, {"$set": update})
+    return {"message": "User updated"}
+
+
+@api_router.put("/admin/users/{user_id}/reset-password")
+async def admin_reset_password(user_id: str, data: dict, admin=Depends(get_current_admin)):
+    if admin.get("role") != "super_admin":
+        raise HTTPException(403, "Only Super Admin can reset passwords")
+    new_password = data.get("password", "")
+    if not new_password or len(new_password) < 6:
+        raise HTTPException(400, "Password must be at least 6 characters")
+    await db.admins.update_one({"id": user_id}, {"$set": {"password_hash": hash_password(new_password), "updated_at": now_iso()}})
+    return {"message": "Password reset successful"}
+
+
+@api_router.delete("/admin/users/{user_id}")
+async def admin_delete_user(user_id: str, admin=Depends(get_current_admin)):
+    if admin.get("role") != "super_admin":
+        raise HTTPException(403, "Only Super Admin can delete users")
+    if user_id == admin["id"]:
+        raise HTTPException(400, "Cannot delete yourself")
+    await db.admins.delete_one({"id": user_id})
+    return {"message": "User deleted"}
 
 
 # =================== PUBLIC ROUTES ===================
@@ -1710,6 +1807,13 @@ async def approve_member(member_id: str, background_tasks: BackgroundTasks, admi
             "state": state, "country": member.get("country", "India"),
             "certificate_id": cert_id, "_site_url": site_url,
         }
+        # Add validity dates for student certificates
+        if update_fields.get("validity_start"):
+            try: cert_data["validity_start"] = datetime.fromisoformat(update_fields["validity_start"].replace("Z","+00:00")).strftime("%d/%m/%Y")
+            except: pass
+        if update_fields.get("validity_end"):
+            try: cert_data["validity_end"] = datetime.fromisoformat(update_fields["validity_end"].replace("Z","+00:00")).strftime("%d/%m/%Y")
+            except: pass
         try:
             cert_pdf = generate_template_pdf(cert_template, cert_data, cert_id=cert_id)
             # Remove old record if exists (re-generation)
@@ -3656,6 +3760,8 @@ async def preview_cert_template(tpl_id: str, request: Request, admin=Depends(get
         "event_venue": "VCRI, Namakkal", "registration_id": "REG-2026-0001",
         "paper_title": "Advances in Dairy Processing", "specialization": "Dairy Technology",
         "certificate_id": "IDSEA-SAMPLE-0000",
+        "validity_start": datetime.now().strftime("%d/%m/%Y"),
+        "validity_end": (datetime.now() + timedelta(days=365)).strftime("%d/%m/%Y"),
     }
     body = await request.json() if request.headers.get("content-length") and int(request.headers.get("content-length", 0)) > 0 else {}
     if body.get("data"):
@@ -3731,6 +3837,15 @@ async def gen_cert_member(tpl_id: str, member_id: str, admin=Depends(get_current
         "state": m.get("state", ""), "country": m.get("country", "India"),
         "certificate_id": cert_id, "_site_url": site_url,
     }
+    # Add validity dates if student
+    vs = m.get("validity_start", "")
+    ve = m.get("validity_end", "")
+    if vs:
+        try: data["validity_start"] = datetime.fromisoformat(vs.replace("Z", "+00:00")).strftime("%d/%m/%Y")
+        except: data["validity_start"] = vs
+    if ve:
+        try: data["validity_end"] = datetime.fromisoformat(ve.replace("Z", "+00:00")).strftime("%d/%m/%Y")
+        except: data["validity_end"] = ve
     # Remove old record if exists (re-generation)
     await db.certificate_records.delete_many({"cert_id": cert_id})
     # Store certificate record (metadata only, no PDF) - strip internal fields
@@ -5662,7 +5777,10 @@ async def admin_factory_reset(data: dict, admin=Depends(get_current_admin)):
 
 # =================== APP SETUP ===================
 
-app.include_router(api_router)
+# NOTE: app.include_router(api_router) is moved to the bottom of the file so that
+# all routes defined below (public/membership-lookup, membership-upgrade, admin upgrade
+# request routes, etc.) get registered with the FastAPI app. include_router copies
+# routes at the time of call; routes added after inclusion are not registered.
 
 # Serve uploaded files (images, PDFs, etc.)
 app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
@@ -5782,6 +5900,100 @@ async def verify_college_id(member_id: str, admin=Depends(get_current_admin)):
     return {"message": "College ID verified"}
 
 
+@api_router.post("/public/membership-lookup")
+async def public_membership_lookup(data: dict):
+    """Look up membership by ID for self-service upgrade/renewal"""
+    mid = data.get("membership_id", "").strip()
+    if not mid:
+        raise HTTPException(400, "Membership ID required")
+    member = await db.members.find_one({"membership_id": mid}, {"_id": 0})
+    if not member:
+        raise HTTPException(404, "Membership not found")
+    # Return limited info for public
+    is_student = member.get("membership_type", "") in ("student", "students_membership")
+    return {
+        "id": member["id"],
+        "name": _full_name(member),
+        "email": member.get("email", ""),
+        "membership_id": member.get("membership_id", ""),
+        "membership_type": _membership_label(member.get("membership_type", "")),
+        "membership_type_key": member.get("membership_type", ""),
+        "status": member.get("status", ""),
+        "is_student": is_student,
+        "validity_start": member.get("validity_start", ""),
+        "validity_end": member.get("validity_end", ""),
+        "can_upgrade": is_student and member.get("status") in ("approved", "expired"),
+    }
+
+
+@api_router.post("/public/membership-upgrade")
+async def public_membership_upgrade_request(data: dict):
+    """Submit self-service upgrade request from Student to Academic"""
+    member_id = data.get("member_id", "").strip()
+    utr = data.get("utr_number", "").strip()
+    if not member_id:
+        raise HTTPException(400, "Member ID required")
+    member = await db.members.find_one({"id": member_id}, {"_id": 0})
+    if not member:
+        raise HTTPException(404, "Member not found")
+    if member.get("membership_type", "") not in ("student", "students_membership"):
+        raise HTTPException(400, "Only student memberships can be upgraded")
+    # Create upgrade request
+    req = {
+        "id": str(uuid.uuid4()),
+        "member_id": member_id,
+        "member_name": _full_name(member),
+        "old_membership_id": member.get("membership_id", ""),
+        "old_type": member.get("membership_type", ""),
+        "new_type": "academic",
+        "utr_number": utr,
+        "status": "pending",
+        "created_at": now_iso(),
+    }
+    await db.upgrade_requests.insert_one(req)
+    return {"message": "Upgrade request submitted. Admin will review and process your upgrade.", "request_id": req["id"]}
+
+
+@api_router.get("/admin/upgrade-requests")
+async def admin_get_upgrade_requests(admin=Depends(get_current_admin)):
+    reqs = await db.upgrade_requests.find({}, {"_id": 0}).sort("created_at", -1).to_list(200)
+    return reqs
+
+
+@api_router.post("/admin/upgrade-requests/{req_id}/approve")
+async def admin_approve_upgrade(req_id: str, background_tasks: BackgroundTasks, admin=Depends(get_current_admin)):
+    req = await db.upgrade_requests.find_one({"id": req_id}, {"_id": 0})
+    if not req:
+        raise HTTPException(404, "Request not found")
+    member = await db.members.find_one({"id": req["member_id"]}, {"_id": 0})
+    if not member:
+        raise HTTPException(404, "Member not found")
+    new_membership_id = await generate_membership_id("academic")
+    update = {
+        "membership_type": "academic",
+        "membership_id": new_membership_id,
+        "status": "approved",
+        "upgraded_from": member.get("membership_id", ""),
+        "validity_start": "", "validity_end": "",
+        "approved_at": now_iso(), "updated_at": now_iso(),
+    }
+    await db.members.update_one({"id": req["member_id"]}, {"$set": update})
+    await db.upgrade_requests.update_one({"id": req_id}, {"$set": {"status": "approved", "new_membership_id": new_membership_id, "processed_at": now_iso()}})
+    # Send notification
+    if member.get("email"):
+        variables = {"member_name": _full_name(member), "old_membership_id": member.get("membership_id",""), "new_membership_id": new_membership_id, "membership_type": "Academic"}
+        background_tasks.add_task(send_templated_email, "membership_approved", [member["email"]], variables, [])
+    return {"message": f"Upgrade approved. New ID: {new_membership_id}", "new_membership_id": new_membership_id}
+
+
+@api_router.post("/admin/upgrade-requests/{req_id}/reject")
+async def admin_reject_upgrade(req_id: str, admin=Depends(get_current_admin)):
+    await db.upgrade_requests.update_one({"id": req_id}, {"$set": {"status": "rejected", "processed_at": now_iso()}})
+    return {"message": "Upgrade request rejected"}
+
+
+
+
 @app.on_event("startup")
 async def startup_event():
     # Start email queue processor
@@ -5812,6 +6024,9 @@ async def startup_event():
             role="super_admin"
         ).model_dump())
         logger.info("Default admin created: admin@idsea.org / Admin@123")
+    else:
+        # Ensure default admin is super_admin
+        await db.admins.update_one({"email": "admin@idsea.org"}, {"$set": {"role": "super_admin"}})
 
     # Seed default CMS page contents (needed for site to render)
     default_pages = {
@@ -5895,3 +6110,7 @@ async def startup_event():
 @app.on_event("shutdown")
 async def shutdown_db_client():
     db_client.close()
+
+
+# Register API router LAST so all routes defined above are included.
+app.include_router(api_router)

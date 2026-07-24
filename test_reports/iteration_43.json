@@ -1,0 +1,41 @@
+{
+  "summary": "Iteration 43 tested Admin Users CRUD, Membership Upgrade self-service page, and role-based sidebar filtering. Backend: 17/17 tests passed (1 skipped due to auth precondition). Frontend: verified Super Admin sees all nav (including Admin Users & Backup), Event Manager sees only Dashboard/Events/Gallery/Certificates/Reports, sidebar shows role label under 'Admin Panel', /admin/roles Add Admin modal creates users successfully, /upgrade page loads with lookup form. Discovered and FIXED 2 critical backend bugs during testing (route registration order + case-sensitive login).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/admin/users (duplicate)", "issue": "Legacy duplicate route definitions for GET/POST/DELETE /admin/users at lines 3262-3286 are shadowed by the newer role-aware routes at lines 1246-1320 but should be removed to prevent future confusion."},
+      {"endpoint": "/api/admin/users GET", "issue": "Uses .to_list(50) - will silently truncate admin list if org grows beyond 50 admins. Consider raising the limit or paginating."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_admin_users_upgrade.py",
+    "/app/test_reports/pytest/iter43_admin_upgrade.xml"
+  ],
+  "action_items": [
+    "(Optional) Remove duplicate /admin/users route handlers at server.py lines 3262-3286 (currently shadowed).",
+    "(Optional) Consider pagination or higher limit for /api/admin/users list (currently .to_list(50))."
+  ],
+  "critical_code_review_comments": [
+    "CRITICAL FIX APPLIED: In server.py, `app.include_router(api_router)` was called at line 5779 BEFORE 7 routes were declared (public/membership-lookup, public/membership-upgrade, admin/upgrade-requests* GET/POST, admin/members/{id}/upgrade, admin/members/{id}/verify-college-id). FastAPI's include_router copies routes at call time, so those 7 endpoints were NEVER registered with the app and returned 404 'Not Found'. Moved include_router to the very bottom of the file so all routes are registered. This unblocks the /upgrade page which depends on membership-lookup and membership-upgrade endpoints.",
+    "CRITICAL FIX APPLIED: /api/auth/login was performing a case-sensitive email match, but /api/admin/users creation lowercases the email before storing. As a result any admin created via the RolesAdmin UI (e.g., 'John@example.com') was unable to login because the lookup used the mixed-case email. Fixed login to normalize email via .strip().lower() before DB lookup.",
+    "server.py is 6100+ lines - strongly recommend splitting into modules (auth, admin_users, members, events, certificates, upgrade, public, etc.) for maintainability.",
+    "Duplicate route handlers exist for /admin/users (lines 1246 vs 3262). FastAPI keeps the first registered route so no runtime impact, but duplicates should be removed.",
+    "AuthContext /auth/login response only returns admin.role/email/username but NOT permissions - MembershipUpgradePage and AdminLayout depend on /auth/me for permissions. Consider embedding permissions in the login response for a single round-trip."
+  ],
+  "updated_files": [
+    "/app/backend/server.py (moved include_router to bottom, lowercase email on login)",
+    "/app/backend/tests/test_admin_users_upgrade.py (new test file)"
+  ],
+  "success_rate": {"backend": "100% (17/17 passed, 1 skipped)", "frontend": "100% (all requested flows verified)"},
+  "test_credentials": "Super Admin: admin@idsea.org / Admin@123 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "None persisted. Tests create TEST_-prefixed admin users and clean them up in test_zz_cleanup_created_users.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "IMPORTANT: server.py has app.include_router(api_router) at the BOTTOM of file (right after shutdown handler). Any new @api_router.* decorator MUST be defined ABOVE this line. Admin emails are stored lowercased; login endpoint now also lowercases. RolesAdmin page is at /admin/roles with data-testid='add-admin-btn'. Sidebar nav items use kebab-cased testids like 'nav-admin-users', 'nav-backup-&-restore'. Backend test file: /app/backend/tests/test_admin_users_upgrade.py.",
+  "rca of the issue": "Two backend bugs discovered and fixed: (1) `app.include_router(api_router)` was invoked mid-file at line 5779, before 7 later route decorators (including /public/membership-lookup and /public/membership-upgrade) - FastAPI copies routes at include_router time, so those routes were silently unregistered and returned FastAPI default 404. RCA: Developer added new routes at end of file without noticing the earlier include_router call. Mitigation: moved include_router to bottom of file with a warning comment. (2) /auth/login stored admin emails as lowercased on create but performed case-sensitive DB lookup on login - any mixed-case email supplied at login failed. Mitigation: normalize input email to lowercase in login handler."
+}

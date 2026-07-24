@@ -18,7 +18,7 @@ const ALL_MODULES = [
   { key: 'executive', label: 'Executive Committee' },
 ];
 
-export default function RolesAdmin() {
+export default function AdminUsersPage() {
   const [users, setUsers] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [editUser, setEditUser] = useState(null);

@@ -8,28 +8,41 @@ import {
 } from 'lucide-react';
 
 const navItems = [
-  { path: '/admin/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { path: '/admin/members', icon: Users, label: 'Members' },
-  { path: '/admin/membership-plans', icon: Crown, label: 'Membership Plans' },
-  { path: '/admin/payments', icon: CreditCard, label: 'Payments' },
-  { path: '/admin/events', icon: Calendar, label: 'Events' },
-  { path: '/admin/news', icon: Newspaper, label: 'Announcements' },
-  { path: '/admin/gallery', icon: Image, label: 'Gallery' },
-  { path: '/admin/publications', icon: BookOpen, label: 'Publications' },
-  { path: '/admin/journal', icon: BookOpen, label: 'Journal' },
-  { path: '/admin/email', icon: Mail, label: 'Email System' },
-  { path: '/admin/email-templates', icon: FileText, label: 'Email Templates' },
-  { path: '/admin/executive', icon: UserCheck, label: 'Executive Committee' },
-  { path: '/admin/certificates', icon: Award, label: 'Certificates' },
-  { path: '/admin/reports', icon: BarChart3, label: 'Reports' },
-  { path: '/admin/cms', icon: Settings, label: 'CMS Settings' },
-  { path: '/admin/sliders', icon: SlidersHorizontal, label: 'Slider Management' },
-  { path: '/admin/payment-settings', icon: CreditCard, label: 'Payment Settings' },
-  { path: '/admin/whatsapp', icon: MessageSquare, label: 'WhatsApp' },
-  { path: '/admin/whatsapp-templates', icon: FileText, label: 'WA Templates' },
-  { path: '/admin/backup', icon: HardDrive, label: 'Backup & Restore' },
-  { path: '/admin/roles', icon: Shield, label: 'Admin Roles' },
+  { path: '/admin/dashboard', icon: LayoutDashboard, label: 'Dashboard', module: '*' },
+  { path: '/admin/members', icon: Users, label: 'Members', module: 'members' },
+  { path: '/admin/membership-plans', icon: Crown, label: 'Membership Plans', module: 'members' },
+  { path: '/admin/payments', icon: CreditCard, label: 'Payments', module: 'payments' },
+  { path: '/admin/events', icon: Calendar, label: 'Events', module: 'events' },
+  { path: '/admin/news', icon: Newspaper, label: 'Announcements', module: 'announcements' },
+  { path: '/admin/gallery', icon: Image, label: 'Gallery', module: 'gallery' },
+  { path: '/admin/publications', icon: BookOpen, label: 'Publications', module: 'publications' },
+  { path: '/admin/journal', icon: BookOpen, label: 'Journal', module: 'publications' },
+  { path: '/admin/email', icon: Mail, label: 'Email System', module: 'email' },
+  { path: '/admin/email-templates', icon: FileText, label: 'Email Templates', module: 'email' },
+  { path: '/admin/executive', icon: UserCheck, label: 'Executive Committee', module: 'executive' },
+  { path: '/admin/certificates', icon: Award, label: 'Certificates', module: 'certificates' },
+  { path: '/admin/reports', icon: BarChart3, label: 'Reports', module: '*' },
+  { path: '/admin/cms', icon: Settings, label: 'CMS Settings', module: 'cms' },
+  { path: '/admin/sliders', icon: SlidersHorizontal, label: 'Slider Management', module: 'cms' },
+  { path: '/admin/payment-settings', icon: CreditCard, label: 'Payment Settings', module: 'payments' },
+  { path: '/admin/whatsapp', icon: MessageSquare, label: 'WhatsApp', module: 'whatsapp' },
+  { path: '/admin/whatsapp-templates', icon: FileText, label: 'WA Templates', module: 'whatsapp' },
+  { path: '/admin/backup', icon: HardDrive, label: 'Backup & Restore', module: 'super_only' },
+  { path: '/admin/roles', icon: Shield, label: 'Admin Users', module: 'super_only' },
 ];
+
+const ROLE_MODULES = {
+  super_admin: ['*'],
+  admin: ['members', 'events', 'certificates', 'cms', 'email', 'whatsapp', 'payments', 'gallery', 'announcements', 'publications', 'executive'],
+  event_manager: ['events', 'certificates', 'gallery'],
+};
+
+const canAccess = (role, permissions, module) => {
+  if (module === '*') return true;
+  if (module === 'super_only') return role === 'super_admin';
+  const roleModules = ROLE_MODULES[role] || [];
+  return roleModules.includes('*') || roleModules.includes(module) || (permissions || []).includes(module);
+};
 
 export default function AdminLayout() {
   const { admin, logout } = useAuth();
@@ -46,10 +59,11 @@ export default function AdminLayout() {
       <div style={{ padding: '20px 16px', borderBottom: '1px solid rgba(30,122,77,0.3)', textAlign: 'center' }}>
         <div style={{ fontSize: '22px', fontWeight: 800, color: 'white', letterSpacing: '1px', fontFamily: 'Poppins, sans-serif' }}>IDSEA</div>
         <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.65)', marginTop: '4px', fontFamily: 'Poppins, sans-serif' }}>Admin Panel</div>
+        {admin?.role && <div style={{ fontSize: '10px', color: admin.role === 'super_admin' ? '#fca5a5' : '#93c5fd', marginTop: '2px', fontFamily: 'Poppins', fontWeight: 600, textTransform: 'capitalize' }}>{admin.role.replace('_', ' ')}</div>}
       </div>
 
       <nav style={{ flex: 1, padding: '12px 8px', overflowY: 'auto' }}>
-        {navItems.map(({ path, icon: Icon, label }) => (
+        {navItems.filter(item => canAccess(admin?.role, admin?.permissions, item.module)).map(({ path, icon: Icon, label }) => (
           <NavLink
             key={path}
             to={path}
