@@ -336,7 +336,7 @@ export default function MembershipApplyPage() {
                     <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: '14px', color: '#111827', marginBottom: '4px' }}>{plan.label}</div>
                     <div style={{ fontSize: '22px', fontWeight: 800, color: isIntl ? '#1e40af' : '#1e7a4d', fontFamily: 'Poppins, sans-serif', marginBottom: '4px' }}>{sym}{planFee.toLocaleString()}</div>
                     <div style={{ fontSize: '12px', color: '#9ca3af', fontFamily: 'Inter, sans-serif', marginBottom: '6px' }}>{plan.description}</div>
-                    <div style={{ fontSize: '11px', color: '#6b7280', fontFamily: 'monospace' }}>ID: {prefix}/IDSEA/{new Date().getFullYear()}/XXXX</div>
+                    <div style={{ fontSize: '11px', color: '#6b7280', fontFamily: 'monospace' }}>ID: {prefix}/IDSEA/{plan.key === 'student' ? `${new Date().getFullYear()}/XXXXXX` : 'XXXX'}</div>
                   </div>
                 );
               })}
