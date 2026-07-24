@@ -14,6 +14,7 @@ const TYPE_COLORS = {
   entrepreneur: { bg: '#fef3c7', border: '#fcd34d', text: '#92400e', dot: '#d97706' },
   corporate: { bg: '#f0fdf4', border: '#86efac', text: '#166534', dot: '#16a34a' },
   international: { bg: '#faf5ff', border: '#c4b5fd', text: '#5b21b6', dot: '#7c3aed' },
+  student: { bg: '#fdf2f8', border: '#f9a8d4', text: '#9d174d', dot: '#ec4899' },
 };
 
 const capitalize = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
@@ -54,7 +55,7 @@ export default function MembersPage() {
   const paginated = useMemo(() => members.slice((page - 1) * PER_PAGE, page * PER_PAGE), [members, page]);
 
   const typeCounts = useMemo(() => {
-    const c = { all: members.length, academic: 0, entrepreneur: 0, corporate: 0, international: 0 };
+    const c = { all: members.length, academic: 0, entrepreneur: 0, corporate: 0, international: 0, student: 0 };
     members.forEach(m => { if (c[m.membership_type] !== undefined) c[m.membership_type]++; });
     return c;
   }, [members]);
@@ -114,7 +115,7 @@ export default function MembersPage() {
 
           {/* Type Pills */}
           <div style={{ display: 'flex', gap: '8px', marginTop: '12px', flexWrap: 'wrap' }}>
-            {[{ key: 'all', label: 'All' }, { key: 'academic', label: 'Academic' }, { key: 'entrepreneur', label: 'Entrepreneur' }, { key: 'corporate', label: 'Corporate' }, { key: 'international', label: 'International' }].map(t => (
+            {[{ key: 'all', label: 'All' }, { key: 'academic', label: 'Academic' }, { key: 'entrepreneur', label: 'Entrepreneur' }, { key: 'corporate', label: 'Corporate' }, { key: 'international', label: 'International' }, { key: 'student', label: 'Student' }].map(t => (
               <button key={t.key} onClick={() => setType(t.key)} data-testid={`type-filter-${t.key}`}
                 style={{
                   padding: '6px 16px', borderRadius: '20px', fontSize: '12px', fontWeight: 600, cursor: 'pointer',

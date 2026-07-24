@@ -1,67 +1,45 @@
 # IDSEA Website - Product Requirements Document
 
 ## Original Problem Statement
-Build a full-stack website for the "Indian Dairy Scientists and Entrepreneurs Association (IDSEA)" containing a public-facing site and a comprehensive admin panel.
+Build a full-stack website for IDSEA with public site + admin panel. Features: event registration, membership, certificates, CMS, email/WhatsApp automation, backup/restore, VPS deployment.
 
 ## Tech Stack
-- **Frontend**: React, TailwindCSS, Shadcn/UI, React Router, Axios
-- **Backend**: FastAPI, Motor (async MongoDB), ReportLab (PDF generation)
-- **Database**: MongoDB
-- **Deployment**: Ubuntu VPS with Nginx + Supervisor
-
-## Architecture
-```
-/app/
-├── backend/
-│   ├── server.py        # Monolithic FastAPI app (~5500 lines)
-│   └── uploads/
-├── deploy/              # VPS deployment scripts
-└── frontend/src/
-    ├── components/
-    ├── pages/admin/
-    └── pages/public/
-```
+React + TailwindCSS + Shadcn/UI | FastAPI + Motor (MongoDB) + ReportLab | Ubuntu VPS + Nginx + Supervisor
 
 ## Completed Features
-- Dynamic CMS with drag-and-drop public menu editor
-- Event registration flows with Razorpay integration + duplicate prevention
-- Visual drag-and-drop Certificate Designer
-- **Membership ID as certificate number** (cert_id = ACD/IDSEA/0001 format)
-- **QR code encodes membership ID** → redirects to /verify?id=ACD/IDSEA/0001
-- Multi-plan certificate template linking (one template → multiple plans)
-- Certificate template linking on Membership Plans page
-- Clean membership labels ("Academic"/"Corporate" not "Academic Member")
-- Site URL CMS field for QR code generation
-- Custom SMTP batch email sender (50 emails/5 mins)
-- WhatsApp automation (13 templates with attachment support)
-- Full admin Backup/Restore
-- Auto-PDF generation for member applications and certificates
-- VPS deployment scripts (updated for idsea.in domain, port 8003)
-- Rich Text (HTML) Toolbar for CMS admin
-- Member Registration Infographic counter
-- Loading states (no flash of default data)
-- Axios auth interceptors, logo+org name clickable to home
+- Dynamic CMS with drag-and-drop menu editor
+- Event registration with Razorpay + duplicate prevention
+- Visual Certificate Designer with QR auto-verify (membership ID format)
+- Multi-plan certificate template linking
+- SMTP batch email (50/5min) + WhatsApp automation (13 templates)
+- **Student Membership System**: validity-based, auto-expiry, college ID verification, upgrade path
+- Student ID format: STUD/IDSEA/YEAR/000001 (6 digits, continuous serial)
+- Validity management: admin-set months, auto-expire background job, 3-month email/WA reminders
+- Phone input with country flag dropdown (react-phone-number-input)
+- Member name prefix everywhere (certificates, emails, WhatsApp, directory, exports)
+- Membership ID editable by admin + gap prevention
+- PDF size optimization (JPEG compression for backgrounds)
+- QR code fix (in-memory buffer, error logging)
+- Full admin Backup/Restore, VPS deployment scripts
+- Membership Directory redesign (grid/list views, type pills, pagination)
+- Google/Bing site verification meta tags
 
 ## 3rd Party Integrations
-- **Razorpay** (Payments) — Requires User API Key
-- **SMTP** (Email) — Requires User Credentials
-- **whatsapp-server-4 API** (Messaging) — Requires User API Key
+- Razorpay (Payments), SMTP (Email), whatsapp-server-4 API (Messaging)
 
 ## Pending Tasks
-- **P1**: Refine Public Member Directory (search, filter, pagination)
-- **P2**: Admin Role Management (Super Admin vs Event Manager)
+- **P1**: Admin Role Management (Super Admin vs Event Manager)
+- **P2**: Certificate validity field for student certificates
+- **P2**: Self-service renewal page for expiring students
 - **P3**: Refactor server.py into modular structure
-- **P3**: Lazy-load admin pages for smaller bundle
+- **P3**: Lazy-load admin pages
 
 ## Admin Credentials
-- Email: admin@idsea.org
-- Password: Admin@123
+- Email: admin@idsea.org | Password: Admin@123
 
-## Critical Dev Notes
-- Membership certificates use membership_id as cert_id (e.g., ACD/IDSEA/0001)
-- Event certificates use random IDSEA-EVT-XXXXX format
-- Verify/download endpoints use `{cert_id:path}` to handle `/` in membership IDs
-- Frontend URL-encodes cert IDs in API calls
-- Certificate templates use `linked_membership_types` (array) for multi-plan linking
-- Use `_membership_label()` for clean membership type display
-- server.py ~5500 lines — view context before search_replace
+## Key Notes
+- Student plans use `validity_months` (0 = lifetime). Background job checks daily for expiry
+- Use `_full_name(member)` for prefix+name everywhere
+- Use `_membership_label()` for clean type display
+- Certificate QR auto-constructs from `site_url` in CMS
+- server.py ~5800 lines — view context before search_replace

@@ -112,12 +112,20 @@ class Member(BaseModel):
     email: str
     photo_url: Optional[str] = ""
     identity_proof_url: Optional[str] = ""
+    college_id_url: Optional[str] = ""
     membership_type: str
     membership_id: Optional[str] = ""
     join_date: Optional[str] = ""
     payment_status: str = "pending"
     status: str = "pending"
     amount_paid: Optional[float] = 0
+    year_of_study: Optional[str] = ""
+    graduation_year: Optional[str] = ""
+    enrollment_number: Optional[str] = ""
+    college_id_verified: Optional[bool] = False
+    validity_start: Optional[str] = ""
+    validity_end: Optional[str] = ""
+    upgraded_from: Optional[str] = ""
     created_at: str = Field(default_factory=now_iso)
     updated_at: str = Field(default_factory=now_iso)
 
@@ -138,8 +146,12 @@ class MemberCreate(BaseModel):
     email: str
     photo_url: Optional[str] = ""
     identity_proof_url: Optional[str] = ""
+    college_id_url: Optional[str] = ""
     membership_type: str
     payment_status: str = "pending"
+    year_of_study: Optional[str] = ""
+    graduation_year: Optional[str] = ""
+    enrollment_number: Optional[str] = ""
 
 
 class MemberUpdate(BaseModel):
@@ -160,6 +172,13 @@ class MemberUpdate(BaseModel):
     membership_id: Optional[str] = None
     payment_status: Optional[str] = None
     status: Optional[str] = None
+    college_id_url: Optional[str] = None
+    year_of_study: Optional[str] = None
+    graduation_year: Optional[str] = None
+    enrollment_number: Optional[str] = None
+    college_id_verified: Optional[bool] = None
+    validity_start: Optional[str] = None
+    validity_end: Optional[str] = None
 
 
 class FeeTier(BaseModel):
@@ -720,6 +739,36 @@ DEFAULT_EMAIL_TEMPLATES = {
       <p style="color: #991b1b; font-size: 13px; margin: 0;"><strong>Reason:</strong> {{rejection_reason}}</p>
     </div>
     <p style="color: #4b5563; font-size: 14px; line-height: 1.7;">You may reapply after addressing the above concerns. For queries, please contact us.</p>
+    <p style="color: #4b5563; font-size: 14px; line-height: 1.7;">Regards,<br><strong style="color: #0c3c60;">IDSEA Team</strong></p>
+  </div>
+  <div style="background: #f8fafc; padding: 20px 28px; text-align: center; border-top: 1px solid #e5e7eb;">
+    <p style="color: #9ca3af; font-size: 11px; margin: 0;">Indian Dairy Scientists and Entrepreneurs Association (IDSEA)</p>
+  </div>
+</div>"""
+    },
+    "membership_expiry_reminder": {
+        "name": "Membership Expiry Reminder",
+        "subject": "IDSEA - Your Student Membership Expires on {{expiry_date}}",
+        "description": "Sent monthly to student members 3 months before expiry",
+        "variables": ["member_name", "membership_id", "expiry_date", "days_left", "membership_type"],
+        "body": """<div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
+  <div style="background: #0c3c60; padding: 32px 24px; text-align: center;">
+    <h1 style="color: white; margin: 0; font-size: 22px; font-weight: 700;">IDSEA</h1>
+    <p style="color: rgba(255,255,255,0.8); margin: 6px 0 0; font-size: 12px;">Indian Dairy Scientists and Entrepreneurs Association</p>
+  </div>
+  <div style="padding: 36px 28px;">
+    <div style="text-align: center; margin-bottom: 24px;">
+      <div style="width: 64px; height: 64px; background: #fef3c7; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 28px;">&#9888;</div>
+    </div>
+    <h2 style="color: #d97706; font-size: 20px; margin: 0 0 12px; text-align: center;">Membership Expiring Soon</h2>
+    <p style="color: #4b5563; font-size: 14px; line-height: 1.7; text-align: center;">Dear <strong>{{member_name}}</strong>,</p>
+    <p style="color: #4b5563; font-size: 14px; line-height: 1.7; text-align: center;">Your <strong>{{membership_type}}</strong> membership (ID: <strong>{{membership_id}}</strong>) will expire on <strong>{{expiry_date}}</strong>.</p>
+    <div style="background: #fffbeb; border-radius: 10px; padding: 24px; margin: 24px 0; border: 1px solid #fcd34d; text-align: center;">
+      <p style="color: #92400e; font-size: 36px; font-weight: 800; margin: 0;">{{days_left}}</p>
+      <p style="color: #92400e; font-size: 13px; margin: 4px 0 0;">days remaining</p>
+    </div>
+    <p style="color: #4b5563; font-size: 14px; line-height: 1.7;">You can renew your membership or upgrade to <strong>Academic Membership</strong> (lifetime) to continue enjoying all IDSEA benefits.</p>
+    <p style="color: #4b5563; font-size: 14px; line-height: 1.7;">For renewal or upgrade, please contact us or visit our website.</p>
     <p style="color: #4b5563; font-size: 14px; line-height: 1.7;">Regards,<br><strong style="color: #0c3c60;">IDSEA Team</strong></p>
   </div>
   <div style="background: #f8fafc; padding: 20px 28px; text-align: center; border-top: 1px solid #e5e7eb;">
@@ -1578,10 +1627,18 @@ async def approve_member(member_id: str, background_tasks: BackgroundTasks, admi
     # Derive state from permanent address if not set
     state = member.get("state", "") or member.get("permanent_address", {}).get("state", "")
 
-    await db.members.update_one(
-        {"id": member_id},
-        {"$set": {"status": "approved", "membership_id": membership_id, "state": state, "approved_at": now_iso(), "updated_at": now_iso()}}
-    )
+    # Set validity dates for student memberships
+    update_fields = {"status": "approved", "membership_id": membership_id, "state": state, "approved_at": now_iso(), "updated_at": now_iso()}
+    if mtype == "student":
+        plan = await db.membership_plans.find_one({"key": "student"}, {"_id": 0})
+        validity_months = (plan or {}).get("validity_months", 12)
+        from dateutil.relativedelta import relativedelta
+        start = datetime.now(timezone.utc)
+        end = start + relativedelta(months=validity_months)
+        update_fields["validity_start"] = start.isoformat()
+        update_fields["validity_end"] = end.isoformat()
+
+    await db.members.update_one({"id": member_id}, {"$set": update_fields})
 
     # Generate membership certificate using Certificate Designer template (if linked)
     cert_pdf = None
@@ -4429,6 +4486,7 @@ async def admin_create_membership_plan(data: dict, admin=Depends(get_current_adm
         "fee_usd": float(data.get("fee_usd", 0)),
         "enabled": data.get("enabled", True),
         "description": data.get("description", ""),
+        "validity_months": int(data.get("validity_months", 0)),
         "created_at": now_iso(),
     }
     await db.membership_plans.insert_one(plan)
@@ -4438,7 +4496,7 @@ async def admin_create_membership_plan(data: dict, admin=Depends(get_current_adm
 
 @api_router.put("/admin/membership-plans/{plan_id}")
 async def admin_update_membership_plan(plan_id: str, data: dict, admin=Depends(get_current_admin)):
-    update = {k: v for k, v in data.items() if k in ("key", "label", "fee_inr", "fee_usd", "enabled", "description")}
+    update = {k: v for k, v in data.items() if k in ("key", "label", "fee_inr", "fee_usd", "enabled", "description", "validity_months")}
     if "fee_inr" in update:
         update["fee_inr"] = float(update["fee_inr"])
     if "fee_usd" in update:
@@ -4474,6 +4532,7 @@ DEFAULT_ID_PREFIXES = {
     "entrepreneur": "ENT",
     "corporate": "COP",
     "international": "INT",
+    "student": "STUD",
 }
 
 
@@ -4488,6 +4547,7 @@ async def get_membership_prefix(membership_type: str) -> str:
 async def generate_membership_id(membership_type: str) -> str:
     """Generate next membership ID using configured prefix — continuous serial across ALL members (not just approved)"""
     prefix = await get_membership_prefix(membership_type)
+    is_student = membership_type.lower() == "student"
     # Search ALL members with this prefix (any status) to avoid gaps/collisions
     all_members = await db.members.find(
         {"membership_id": {"$regex": f"^{prefix}/"}},
@@ -4501,8 +4561,14 @@ async def generate_membership_id(membership_type: str) -> str:
                 max_serial = s
         except (ValueError, IndexError):
             pass
-    serial = str(max_serial + 1).zfill(4)
-    return f"{prefix}/IDSEA/{serial}"
+    if is_student:
+        # Student: STUD/IDSEA/YEAR/000001 (6 digits, year included, serial continuous)
+        year = str(datetime.now().year)
+        serial = str(max_serial + 1).zfill(6)
+        return f"{prefix}/IDSEA/{year}/{serial}"
+    else:
+        serial = str(max_serial + 1).zfill(4)
+        return f"{prefix}/IDSEA/{serial}"
 
 
 # =================== JOURNAL MANAGEMENT ===================
@@ -5543,11 +5609,118 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level
 logger = logging.getLogger(__name__)
 
 
+
+async def student_expiry_checker():
+    """Background task: check student memberships for expiry and send reminders"""
+    from dateutil.relativedelta import relativedelta
+    while True:
+        try:
+            now = datetime.now(timezone.utc)
+            three_months_ahead = now + relativedelta(months=3)
+
+            # Auto-expire: find student members past their validity_end
+            expired = await db.members.find({
+                "membership_type": "student",
+                "status": "approved",
+                "validity_end": {"$ne": "", "$exists": True}
+            }, {"_id": 0}).to_list(None)
+
+            for m in expired:
+                try:
+                    vend = datetime.fromisoformat(m["validity_end"].replace("Z", "+00:00"))
+                    if now > vend:
+                        await db.members.update_one({"id": m["id"]}, {"$set": {"status": "expired", "updated_at": now_iso()}})
+                        logging.info(f"Student membership expired: {m.get('name')} ({m.get('membership_id')})")
+                except (ValueError, KeyError):
+                    pass
+
+            # Near-expiry reminders: find students expiring within 3 months, send monthly
+            near_expiry = await db.members.find({
+                "membership_type": "student",
+                "status": "approved",
+                "validity_end": {"$ne": "", "$exists": True}
+            }, {"_id": 0}).to_list(None)
+
+            smtp_settings = await db.smtp_settings.find_one({}, {"_id": 0})
+            for m in near_expiry:
+                try:
+                    vend = datetime.fromisoformat(m["validity_end"].replace("Z", "+00:00"))
+                    if now < vend <= three_months_ahead:
+                        # Check if reminder already sent this month
+                        month_key = now.strftime("%Y-%m")
+                        last_reminder = m.get("last_expiry_reminder", "")
+                        if last_reminder == month_key:
+                            continue
+                        # Send expiry reminder email
+                        if m.get("email") and smtp_settings:
+                            days_left = (vend - now).days
+                            variables = {
+                                "member_name": _full_name(m),
+                                "membership_id": m.get("membership_id", ""),
+                                "expiry_date": vend.strftime("%d %B %Y"),
+                                "days_left": str(days_left),
+                                "membership_type": _membership_label(m.get("membership_type", "")),
+                            }
+                            await send_templated_email("membership_expiry_reminder", [m["email"]], variables, [])
+                            await db.members.update_one({"id": m["id"]}, {"$set": {"last_expiry_reminder": month_key}})
+                            logging.info(f"Expiry reminder sent to {m.get('name')} - {days_left} days left")
+                        # Send WhatsApp reminder
+                        if m.get("phone"):
+                            await send_whatsapp_notification(m["phone"], "membership_expiry", {
+                                "name": _full_name(m),
+                                "membership_id": m.get("membership_id", ""),
+                                "expiry_date": vend.strftime("%d %B %Y"),
+                                "days_left": str((vend - now).days),
+                            })
+                except (ValueError, KeyError):
+                    pass
+        except Exception as e:
+            logging.error(f"Student expiry checker error: {e}")
+        # Run once per day
+        await asyncio.sleep(86400)
+
+
+@api_router.post("/admin/members/{member_id}/upgrade")
+async def upgrade_student_to_academic(member_id: str, data: dict, background_tasks: BackgroundTasks, admin=Depends(get_current_admin)):
+    """Upgrade a student member to academic (or other) membership"""
+    member = await db.members.find_one({"id": member_id}, {"_id": 0})
+    if not member:
+        raise HTTPException(404, "Member not found")
+    new_type = data.get("new_type", "academic")
+    # Generate new membership ID for the new type
+    new_membership_id = await generate_membership_id(new_type)
+    old_membership_id = member.get("membership_id", "")
+    update = {
+        "membership_type": new_type,
+        "membership_id": new_membership_id,
+        "status": "approved",
+        "upgraded_from": old_membership_id,
+        "validity_start": "",
+        "validity_end": "",
+        "college_id_verified": member.get("college_id_verified", False),
+        "approved_at": now_iso(),
+        "updated_at": now_iso(),
+    }
+    await db.members.update_one({"id": member_id}, {"$set": update})
+    return {"message": f"Member upgraded from Student to {_membership_label(new_type)}", "new_membership_id": new_membership_id}
+
+
+@api_router.put("/admin/members/{member_id}/verify-college-id")
+async def verify_college_id(member_id: str, admin=Depends(get_current_admin)):
+    """Mark student's college ID as verified"""
+    await db.members.update_one({"id": member_id}, {"$set": {"college_id_verified": True, "updated_at": now_iso()}})
+    return {"message": "College ID verified"}
+
+
 @app.on_event("startup")
 async def startup_event():
     # Start email queue processor
     asyncio.create_task(process_email_queue())
     logging.info("Email queue scheduler started (batch=50, interval=5min)")
+
+    # Start student membership expiry checker (runs daily)
+    asyncio.create_task(student_expiry_checker())
+    logging.info("Student membership expiry checker started")
 
     if not await db.admins.find_one({"email": "admin@idsea.org"}):
         await db.admins.insert_one(AdminUser(

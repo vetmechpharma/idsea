@@ -8,7 +8,7 @@ export default function MembershipAdmin() {
   const [plans, setPlans] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [editPlan, setEditPlan] = useState(null);
-  const [form, setForm] = useState({ key: '', label: '', fee_inr: 0, fee_usd: 0, enabled: true, description: '' });
+  const [form, setForm] = useState({ key: '', label: '', fee_inr: 0, fee_usd: 0, enabled: true, description: '', validity_months: 0 });
   const [idConfigs, setIdConfigs] = useState([]);
   const [editingPrefix, setEditingPrefix] = useState(null);
   const [prefixValue, setPrefixValue] = useState('');
@@ -54,7 +54,7 @@ export default function MembershipAdmin() {
 
   const openCreate = () => {
     setEditPlan(null);
-    setForm({ key: '', label: '', fee_inr: 0, fee_usd: 0, enabled: true, description: '' });
+    setForm({ key: '', label: '', fee_inr: 0, fee_usd: 0, enabled: true, description: '', validity_months: 0 });
     setShowModal(true);
   };
 
@@ -67,6 +67,7 @@ export default function MembershipAdmin() {
       fee_usd: plan.fee_usd || 0,
       enabled: plan.enabled !== false,
       description: plan.description || '',
+      validity_months: plan.validity_months || 0,
     });
     setShowModal(true);
   };
@@ -172,6 +173,8 @@ export default function MembershipAdmin() {
                 <span>Key: <strong style={{ color: '#334155' }}>{plan.key}</strong></span>
                 <span>INR: <strong style={{ color: '#1e7a4d' }}>&#8377;{plan.fee_inr?.toLocaleString('en-IN')}</strong></span>
                 <span>USD: <strong style={{ color: '#0c3c60' }}>${plan.fee_usd}</strong></span>
+                {plan.validity_months > 0 && <span style={{ background: '#fef3c7', color: '#92400e', padding: '1px 8px', borderRadius: '10px', fontWeight: 700, fontSize: '11px' }}>{plan.validity_months} months</span>}
+                {plan.validity_months === 0 && <span style={{ background: '#d1fae5', color: '#065f46', padding: '1px 8px', borderRadius: '10px', fontWeight: 700, fontSize: '11px' }}>Lifetime</span>}
                 {plan.description && <span style={{ color: '#94a3b8' }}>{plan.description}</span>}
               </div>
             </div>
@@ -372,6 +375,10 @@ export default function MembershipAdmin() {
               <div className="form-group">
                 <label className="form-label">Description</label>
                 <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} className="form-input" placeholder="Brief description of this plan" />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Validity (months) <span style={{ fontSize: '11px', color: '#9ca3af', fontWeight: 400 }}>0 = Lifetime</span></label>
+                <input type="number" value={form.validity_months} onChange={e => setForm(f => ({ ...f, validity_months: parseInt(e.target.value) || 0 }))} className="form-input" placeholder="0 for lifetime, 12 for 1 year" data-testid="plan-validity" min="0" />
               </div>
               <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', marginTop: '8px' }}>
                 <input type="checkbox" checked={form.enabled} onChange={e => setForm(f => ({ ...f, enabled: e.target.checked }))} />

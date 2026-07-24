@@ -121,9 +121,10 @@ export default function MembershipApplyPage() {
 
   const [form, setForm] = useState({
     prefix: 'Mr.', name: '', email: '', phone: '', qualification: '', specialization: '',
-    organization: '', photo_url: '', identity_proof_url: '', membership_type: 'academic',
+    organization: '', photo_url: '', identity_proof_url: '', college_id_url: '', membership_type: 'academic',
     payment_status: 'pending', country: 'India',
-    permanent_address: { ...emptyAddr }, contact_address: { ...emptyAddr }, contact_same_as_permanent: false
+    permanent_address: { ...emptyAddr }, contact_address: { ...emptyAddr }, contact_same_as_permanent: false,
+    year_of_study: '', graduation_year: '', enrollment_number: ''
   });
 
   useEffect(() => {
@@ -134,9 +135,12 @@ export default function MembershipApplyPage() {
   }, []);
 
   const isInternational = form.membership_type === 'international';
+  const isStudent = form.membership_type === 'student';
   const currentPlan = plans.find(p => p.key === form.membership_type);
   const fee = isInternational ? (currentPlan?.fee_usd || 100) : (currentPlan?.fee_inr || 0);
   const currSym = isInternational ? '$' : '\u20B9';
+  const STUDENT_PREFIXES = ['Mr.', 'Ms.', 'Mrs.'];
+  const ALL_PREFIXES = ['Mr.', 'Mrs.', 'Ms.', 'Dr.', 'Prof.', 'Shri', 'Smt'];
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
@@ -207,6 +211,12 @@ export default function MembershipApplyPage() {
       if (!form.permanent_address?.district) missing.push('District');
     }
     if (!form.permanent_address?.pincode) missing.push('Pincode');
+    if (isStudent) {
+      if (!form.year_of_study) missing.push('Year of Study');
+      if (!form.graduation_year) missing.push('Graduation Year');
+      if (!form.enrollment_number) missing.push('Enrollment Number');
+      if (!form.college_id_url) missing.push('College ID Card');
+    }
 
     if (missing.length > 0) {
       setError(`Please fill required fields: ${missing.join(', ')}`);
@@ -354,7 +364,7 @@ export default function MembershipApplyPage() {
                 <div className="form-group" style={{ margin: 0 }}>
                   <label className="form-label">Prefix *</label>
                   <select name="prefix" value={form.prefix} onChange={handleChange} className="form-select" data-testid="prefix-select" required>
-                    {PREFIXES.map(p => <option key={p} value={p}>{p}</option>)}
+                    {(isStudent ? STUDENT_PREFIXES : ALL_PREFIXES).map(p => <option key={p} value={p}>{p}</option>)}
                   </select>
                 </div>
                 <div className="form-group" style={{ margin: 0 }}>
@@ -443,6 +453,57 @@ export default function MembershipApplyPage() {
                       </button>
                     )}
                     <input ref={idProofRef} type="file" accept=".pdf" onChange={handleIdProofUpload} style={{ display: 'none' }} data-testid="id-proof-file-input" />
+                  </div>
+                </div>
+              )}
+
+              {/* Student-specific fields */}
+              {isStudent && (
+                <div style={{ margin: '16px 0', background: '#faf5ff', borderRadius: '10px', padding: '16px', border: '1px solid #e9d5ff' }} data-testid="student-fields-section">
+                  <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: '14px', color: '#7c3aed', marginBottom: '14px' }}>Student Details</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '12px' }}>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label">Year of Study *</label>
+                      <select name="year_of_study" value={form.year_of_study} onChange={handleChange} className="form-select" required data-testid="year-of-study">
+                        <option value="">Select</option>
+                        {['1st Year', '2nd Year', '3rd Year', '4th Year', '5th Year', 'PG 1st Year', 'PG 2nd Year', 'Ph.D.'].map(y => <option key={y} value={y}>{y}</option>)}
+                      </select>
+                    </div>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label">Expected Graduation Year *</label>
+                      <select name="graduation_year" value={form.graduation_year} onChange={handleChange} className="form-select" required data-testid="graduation-year">
+                        <option value="">Select</option>
+                        {Array.from({ length: 8 }, (_, i) => String(new Date().getFullYear() + i)).map(y => <option key={y} value={y}>{y}</option>)}
+                      </select>
+                    </div>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label">Enrollment / Student ID *</label>
+                      <input name="enrollment_number" value={form.enrollment_number} onChange={handleChange} className="form-input" placeholder="University enrollment number" required data-testid="enrollment-number" />
+                    </div>
+                  </div>
+                  {/* College ID Card Upload */}
+                  <label className="form-label" style={{ color: '#7c3aed' }}>College ID Card * <span style={{ fontSize: '11px', color: '#6b7280', fontWeight: 400 }}>Image or PDF</span></label>
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginTop: '6px' }}>
+                    {form.college_id_url ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: '#f3e8ff', borderRadius: '8px', padding: '10px 14px', flex: 1 }}>
+                        <FileText size={18} style={{ color: '#7c3aed' }} />
+                        <span style={{ fontSize: '13px', fontWeight: 600, color: '#7c3aed', flex: 1 }}>College ID uploaded</span>
+                        <button type="button" onClick={() => setForm(f => ({ ...f, college_id_url: '' }))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#991b1b' }}><X size={16} /></button>
+                      </div>
+                    ) : (
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'white', border: '1px solid #c4b5fd', borderRadius: '8px', padding: '10px 16px', cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: '#7c3aed' }}>
+                        <Upload size={14} /> Upload College ID
+                        <input type="file" accept="image/*,.pdf" onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          const fd = new FormData(); fd.append('file', file);
+                          try {
+                            const r = await axios.post(`${API}/upload`, fd);
+                            setForm(f => ({ ...f, college_id_url: r.data.file_url }));
+                          } catch {}
+                        }} style={{ display: 'none' }} data-testid="college-id-upload" />
+                      </label>
+                    )}
                   </div>
                 </div>
               )}

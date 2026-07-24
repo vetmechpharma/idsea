@@ -165,6 +165,7 @@ export default function MembersAdmin() {
             <option value="academic">Academic</option>
             <option value="entrepreneur">Entrepreneur</option>
             <option value="corporate">Corporate</option>
+            <option value="student">Student</option>
           </select>
           <div style={{ display: 'flex', gap: '6px' }}>
             <button onClick={() => { axios.get(`${API}/admin/members/export/excel`, { params: { ...(statusFilter !== 'all' && { status: statusFilter }), ...(typeFilter !== 'all' && { membership_type: typeFilter }) }, responseType: 'blob', headers }).then(r => { const url = URL.createObjectURL(r.data); const a = document.createElement('a'); a.href = url; a.download = 'IDSEA_Members.xlsx'; a.click(); URL.revokeObjectURL(url); }); }}
@@ -209,7 +210,29 @@ export default function MembersAdmin() {
                     <td style={{ fontSize: '13px', color: '#6b7280' }}>{m.state || m.permanent_address?.state || '-'}</td>
                     <td><span className={`badge badge-${m.payment_status}`}>{m.payment_status}</span></td>
                     <td>{statusBadge(m.status)}</td>
-                    <td style={{ fontSize: '12px', color: '#0c3c60', fontWeight: 600, fontFamily: 'monospace' }}>{m.membership_id || '-'}</td>
+                    <td style={{ fontSize: '12px', color: '#0c3c60', fontWeight: 600, fontFamily: 'monospace' }}>
+                      {m.membership_id || '-'}
+                      {m.membership_type === 'student' && m.validity_end && (() => {
+                        const vEnd = new Date(m.validity_end);
+                        const now = new Date();
+                        const daysLeft = Math.ceil((vEnd - now) / 86400000);
+                        const isExpired = daysLeft <= 0;
+                        const isNearExpiry = daysLeft > 0 && daysLeft <= 90;
+                        return (
+                          <div style={{ fontSize: '10px', fontWeight: 700, fontFamily: 'Poppins', marginTop: '2px',
+                            color: isExpired ? '#dc2626' : isNearExpiry ? '#d97706' : '#059669',
+                            background: isExpired ? '#fef2f2' : isNearExpiry ? '#fffbeb' : '#f0fdf4',
+                            padding: '1px 6px', borderRadius: '4px', display: 'inline-block' }}>
+                            {isExpired ? 'EXPIRED' : isNearExpiry ? `${daysLeft}d left` : `Valid till ${vEnd.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}`}
+                          </div>
+                        );
+                      })()}
+                      {m.membership_type === 'student' && m.college_id_url && (
+                        <div style={{ fontSize: '10px', marginTop: '2px', color: m.college_id_verified ? '#059669' : '#d97706', fontWeight: 600 }}>
+                          {m.college_id_verified ? 'ID Verified' : 'ID Pending'}
+                        </div>
+                      )}
+                    </td>
                     <td>
                       <div style={{ display: 'flex', gap: '4px', justifyContent: 'center', flexWrap: 'wrap' }}>
                         <button onClick={() => setDetailModal(m)} title="View" data-testid={`view-member-${m.id}`} style={{ background: '#f0f9ff', color: '#0c3c60', border: 'none', padding: '5px', borderRadius: '6px', cursor: 'pointer' }}><Eye size={14} /></button>
@@ -226,6 +249,12 @@ export default function MembersAdmin() {
                         <button onClick={() => openEdit(m)} title="Edit" style={{ background: '#fef3c7', color: '#92400e', border: 'none', padding: '5px', borderRadius: '6px', cursor: 'pointer' }}><Edit size={14} /></button>
                         {m.status === 'approved' && (
                           <button onClick={() => { setChangeTypeModal(m); setNewType(m.membership_type); }} title="Change Type" data-testid={`change-type-${m.id}`} style={{ background: '#f3e8ff', color: '#6b21a8', border: 'none', padding: '5px', borderRadius: '6px', cursor: 'pointer' }}><RefreshCw size={14} /></button>
+                        )}
+                        {m.membership_type === 'student' && m.college_id_url && !m.college_id_verified && (
+                          <button onClick={async () => { await axios.put(`${API}/admin/members/${m.id}/verify-college-id`, {}, { headers: { Authorization: `Bearer ${token}` } }); load(); }} title="Verify College ID" style={{ background: '#d1fae5', color: '#065f46', border: 'none', padding: '5px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '10px', fontWeight: 700, fontFamily: 'Poppins' }}>Verify ID</button>
+                        )}
+                        {m.membership_type === 'student' && (m.status === 'expired' || m.status === 'approved') && (
+                          <button onClick={async () => { if (!window.confirm(`Upgrade ${m.prefix ? m.prefix + ' ' : ''}${m.name} to Academic membership?`)) return; await axios.post(`${API}/admin/members/${m.id}/upgrade`, { new_type: 'academic' }, { headers: { Authorization: `Bearer ${token}` } }); load(); }} title="Upgrade to Academic" style={{ background: '#eff6ff', color: '#1e40af', border: 'none', padding: '5px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '10px', fontWeight: 700, fontFamily: 'Poppins' }}>Upgrade</button>
                         )}
                         <button onClick={() => handleDelete(m.id)} title="Delete" style={{ background: '#fee2e2', color: '#991b1b', border: 'none', padding: '5px', borderRadius: '6px', cursor: 'pointer' }}><Trash2 size={14} /></button>
                       </div>
@@ -333,6 +362,7 @@ export default function MembersAdmin() {
                   <option value="academic">Academic</option>
                   <option value="entrepreneur">Entrepreneur</option>
                   <option value="corporate">Corporate</option>
+                  <option value="student">Student</option>
                 </select>
               </div>
               <div className="form-group" style={{ margin: 0 }}><label className="form-label">Payment Status</label>
