@@ -3258,35 +3258,6 @@ async def admin_update_page_content(page: str, data: dict, admin=Depends(get_cur
     return {"message": f"Page content for '{page}' updated"}
 
 
-# =================== ADMIN USER MANAGEMENT ===================
-
-@api_router.get("/admin/users")
-async def admin_get_users(admin=Depends(get_current_admin)):
-    return await db.admins.find({}, {"_id": 0, "password_hash": 0}).to_list(100)
-
-
-@api_router.post("/admin/users")
-async def admin_create_user(data: dict, admin=Depends(get_current_admin)):
-    if admin.get("role") != "super_admin":
-        raise HTTPException(status_code=403, detail="Only super admin can create users")
-    new_admin = AdminUser(
-        username=data["username"],
-        email=data["email"],
-        password_hash=hash_password(data["password"]),
-        role=data.get("role", "admin")
-    )
-    await db.admins.insert_one(new_admin.model_dump())
-    return {"id": new_admin.id, "email": new_admin.email, "role": new_admin.role, "username": new_admin.username}
-
-
-@api_router.delete("/admin/users/{user_id}")
-async def admin_delete_user(user_id: str, admin=Depends(get_current_admin)):
-    if admin.get("role") != "super_admin":
-        raise HTTPException(status_code=403, detail="Only super admin can delete users")
-    await db.admins.delete_one({"id": user_id})
-    return {"message": "User deleted"}
-
-
 # =================== CERTIFICATES ===================
 
 @api_router.post("/admin/certificates/generate")
