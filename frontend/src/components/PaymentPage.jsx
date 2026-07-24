@@ -99,11 +99,14 @@ export default function PaymentPage({ amount, name, email, phone, purpose, membe
     if (!utrNumber.trim()) { setError('Please enter UTR/Reference number'); return; }
     setSubmitting(true); setError('');
     try {
-      await axios.post(`${API}/payments/submit-utr`, {
+      const r = await axios.post(`${API}/payments/submit-utr`, {
         utr_number: utrNumber.trim(), payment_method: payMethod || tab, amount,
         name, email, member_id: memberId || '', membership_type: membershipType || '',
         event_registration_id: eventRegistrationId || '', purpose: purpose || 'membership'
       });
+      if (r.data?.duplicate) {
+        // Already submitted — treat as success
+      }
       onSuccess?.(payMethod || tab);
     } catch (e) { setError(e.response?.data?.detail || 'Submission failed'); }
     setSubmitting(false);

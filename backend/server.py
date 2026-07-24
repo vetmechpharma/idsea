@@ -2796,6 +2796,11 @@ async def submit_utr_payment(data: dict):
     if not utr:
         raise HTTPException(status_code=400, detail="UTR number is required")
 
+    # Check for duplicate UTR
+    existing = await db.payments.find_one({"utr_number": utr}, {"_id": 0})
+    if existing:
+        return {"message": "Payment already submitted", "payment": existing, "duplicate": True}
+
     payment = Payment(
         member_id=data.get("member_id", ""),
         member_name=data.get("name", ""),
