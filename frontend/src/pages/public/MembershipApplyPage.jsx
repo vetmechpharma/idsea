@@ -466,7 +466,7 @@ export default function MembershipApplyPage() {
                       <label className="form-label">Year of Study *</label>
                       <select name="year_of_study" value={form.year_of_study} onChange={handleChange} className="form-select" required data-testid="year-of-study">
                         <option value="">Select</option>
-                        {['1st Year', '2nd Year', '3rd Year', '4th Year', '5th Year', 'PG 1st Year', 'PG 2nd Year', 'Ph.D.'].map(y => <option key={y} value={y}>{y}</option>)}
+                        {['1st Year', '2nd Year', '3rd Year', '4th Year', '5th Year'].map(y => <option key={y} value={y}>{y}</option>)}
                       </select>
                     </div>
                     <div className="form-group" style={{ margin: 0 }}>
