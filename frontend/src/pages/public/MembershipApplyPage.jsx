@@ -32,7 +32,7 @@ const STATE_DISTRICTS = {
   'Jharkhand': ['Bokaro','Chatra','Deoghar','Dhanbad','Dumka','East Singhbhum','Garhwa','Giridih','Godda','Gumla','Hazaribagh','Jamtara','Khunti','Koderma','Latehar','Lohardaga','Pakur','Palamu','Ramgarh','Ranchi','Sahebganj','Seraikela Kharsawan','Simdega','West Singhbhum'],
   'Chhattisgarh': ['Balod','Baloda Bazar','Balrampur','Bastar','Bemetara','Bijapur','Bilaspur','Dantewada','Dhamtari','Durg','Gariaband','Janjgir-Champa','Jashpur','Kabirdham','Kanker','Kondagaon','Korba','Koriya','Mahasamund','Mungeli','Narayanpur','Raigarh','Raipur','Rajnandgaon','Sukma','Surajpur','Surguja'],
 };
-const PREFIX_MAP = { academic: 'ACD', entrepreneur: 'ENT', corporate: 'COP', international: 'INT' };
+const PREFIX_MAP = { academic: 'ACD', entrepreneur: 'ENT', corporate: 'COP', international: 'INT', student: 'STUD' };
 const emptyAddr = { line1: '', line2: '', line3: '', state: '', district: '', pincode: '', country: '' };
 
 // Separate components to prevent remount on parent re-render
@@ -319,7 +319,7 @@ export default function MembershipApplyPage() {
           {plansLoading ? (
             <div style={{ textAlign: 'center', padding: '30px', color: '#6b7280' }}><Loader2 size={24} className="animate-spin" style={{ margin: '0 auto 8px' }} /> Loading plans...</div>
           ) : (
-            <div style={{ marginBottom: '28px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px' }} data-testid="plans-grid">
+            <div style={{ marginBottom: '28px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px' }} data-testid="plans-grid">
               {plans.map(plan => {
                 const prefix = PREFIX_MAP[plan.key] || 'MEM';
                 const isIntl = plan.key === 'international';

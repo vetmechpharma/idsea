@@ -290,8 +290,25 @@ export default function MembersAdmin() {
                 ['Organization', detailModal.organization],
                 ['Payment Status', detailModal.payment_status],
                 ['Joined', detailModal.join_date],
+                ...(detailModal.membership_type === 'student' ? [
+                  ['Year of Study', detailModal.year_of_study],
+                  ['Graduation Year', detailModal.graduation_year],
+                  ['Enrollment Number', detailModal.enrollment_number],
+                  ['College ID', detailModal.college_id_verified ? 'Verified' : (detailModal.college_id_url ? 'Uploaded (Pending)' : 'Not uploaded')],
+                  ['Validity', detailModal.validity_end ? `${new Date(detailModal.validity_start).toLocaleDateString('en-IN')} - ${new Date(detailModal.validity_end).toLocaleDateString('en-IN')}` : 'Not set'],
+                ] : []),
               ].map(([l, v]) => v ? <div key={l} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: '#f8fafc', borderRadius: '6px' }}><span style={{ color: '#6b7280' }}>{l}</span><strong style={{ color: '#111827', textTransform: 'capitalize' }}>{v}</strong></div> : null)}
             </div>
+            {detailModal.membership_type === 'student' && detailModal.college_id_url && (
+              <div style={{ marginTop: '12px', background: '#faf5ff', borderRadius: '10px', padding: '14px', border: '1px solid #e9d5ff' }}>
+                <div style={{ fontWeight: 700, fontSize: '13px', color: '#7c3aed', marginBottom: '8px' }}>College ID Card</div>
+                {detailModal.college_id_url.endsWith('.pdf') ? (
+                  <a href={detailModal.college_id_url.startsWith('/api') ? `${API.replace('/api', '')}${detailModal.college_id_url}` : detailModal.college_id_url} target="_blank" rel="noreferrer" style={{ color: '#7c3aed', fontSize: '13px', fontWeight: 600 }}>View PDF</a>
+                ) : (
+                  <img src={detailModal.college_id_url.startsWith('/api') ? `${API.replace('/api', '')}${detailModal.college_id_url}` : detailModal.college_id_url} alt="College ID" style={{ maxWidth: '100%', maxHeight: '200px', borderRadius: '8px', objectFit: 'contain' }} />
+                )}
+              </div>
+            )}
             {detailModal.permanent_address?.line1 && (
               <div style={{ marginTop: '16px', background: '#f8fafc', borderRadius: '10px', padding: '14px' }}>
                 <div style={{ fontWeight: 700, fontSize: '13px', color: '#0c3c60', marginBottom: '8px' }}>Permanent Address</div>
