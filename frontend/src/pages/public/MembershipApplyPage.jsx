@@ -32,7 +32,7 @@ const STATE_DISTRICTS = {
   'Jharkhand': ['Bokaro','Chatra','Deoghar','Dhanbad','Dumka','East Singhbhum','Garhwa','Giridih','Godda','Gumla','Hazaribagh','Jamtara','Khunti','Koderma','Latehar','Lohardaga','Pakur','Palamu','Ramgarh','Ranchi','Sahebganj','Seraikela Kharsawan','Simdega','West Singhbhum'],
   'Chhattisgarh': ['Balod','Baloda Bazar','Balrampur','Bastar','Bemetara','Bijapur','Bilaspur','Dantewada','Dhamtari','Durg','Gariaband','Janjgir-Champa','Jashpur','Kabirdham','Kanker','Kondagaon','Korba','Koriya','Mahasamund','Mungeli','Narayanpur','Raigarh','Raipur','Rajnandgaon','Sukma','Surajpur','Surguja'],
 };
-const PREFIX_MAP = { academic: 'ACD', entrepreneur: 'ENT', corporate: 'COP', international: 'INT', student: 'STUD' };
+const PREFIX_MAP = { academic: 'ACD', entrepreneur: 'ENT', corporate: 'COP', international: 'INT', student: 'STUD', students_membership: 'STUD' };
 const emptyAddr = { line1: '', line2: '', line3: '', state: '', district: '', pincode: '', country: '' };
 
 // Separate components to prevent remount on parent re-render
@@ -135,7 +135,7 @@ export default function MembershipApplyPage() {
   }, []);
 
   const isInternational = form.membership_type === 'international';
-  const isStudent = form.membership_type === 'student';
+  const isStudent = form.membership_type === 'student' || form.membership_type === 'students_membership';
   const currentPlan = plans.find(p => p.key === form.membership_type);
   const fee = isInternational ? (currentPlan?.fee_usd || 100) : (currentPlan?.fee_inr || 0);
   const currSym = isInternational ? '$' : '\u20B9';

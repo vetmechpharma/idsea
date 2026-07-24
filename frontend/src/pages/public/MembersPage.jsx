@@ -15,6 +15,7 @@ const TYPE_COLORS = {
   corporate: { bg: '#f0fdf4', border: '#86efac', text: '#166534', dot: '#16a34a' },
   international: { bg: '#faf5ff', border: '#c4b5fd', text: '#5b21b6', dot: '#7c3aed' },
   student: { bg: '#fdf2f8', border: '#f9a8d4', text: '#9d174d', dot: '#ec4899' },
+  students_membership: { bg: '#fdf2f8', border: '#f9a8d4', text: '#9d174d', dot: '#ec4899' },
 };
 
 const capitalize = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1) : '';

@@ -1629,7 +1629,7 @@ async def approve_member(member_id: str, background_tasks: BackgroundTasks, admi
 
     # Set validity dates for student memberships
     update_fields = {"status": "approved", "membership_id": membership_id, "state": state, "approved_at": now_iso(), "updated_at": now_iso()}
-    if mtype == "student":
+    if mtype in ("student", "students_membership"):
         plan = await db.membership_plans.find_one({"key": "student"}, {"_id": 0})
         validity_months = (plan or {}).get("validity_months", 12)
         from dateutil.relativedelta import relativedelta
@@ -3625,7 +3625,7 @@ def _gen_cert_id(prefix="CERT"):
     return f"IDSEA-{prefix}-{code}"
 
 
-_MTYPE_LABELS = {"academic": "Academic", "entrepreneur": "Entrepreneur", "corporate": "Corporate", "international": "International", "life": "Life", "student": "Student"}
+_MTYPE_LABELS = {"academic": "Academic", "entrepreneur": "Entrepreneur", "corporate": "Corporate", "international": "International", "life": "Life", "student": "Student", "students_membership": "Student"}
 
 def _membership_label(raw_type: str) -> str:
     """Convert membership type key to clean label (e.g., 'academic' -> 'Academic', 'Academic Member' -> 'Academic')"""
@@ -4538,6 +4538,7 @@ DEFAULT_ID_PREFIXES = {
     "corporate": "COP",
     "international": "INT",
     "student": "STUD",
+    "students_membership": "STUD",
 }
 
 
@@ -4552,7 +4553,7 @@ async def get_membership_prefix(membership_type: str) -> str:
 async def generate_membership_id(membership_type: str) -> str:
     """Generate next membership ID using configured prefix — continuous serial across ALL members (not just approved)"""
     prefix = await get_membership_prefix(membership_type)
-    is_student = membership_type.lower() == "student"
+    is_student = membership_type.lower() in ("student", "students_membership")
     # Search ALL members with this prefix (any status) to avoid gaps/collisions
     all_members = await db.members.find(
         {"membership_id": {"$regex": f"^{prefix}/"}},
@@ -5625,7 +5626,7 @@ async def student_expiry_checker():
 
             # Auto-expire: find student members past their validity_end
             expired = await db.members.find({
-                "membership_type": "student",
+                "membership_type": {"$in": ["student", "students_membership"]},
                 "status": "approved",
                 "validity_end": {"$ne": "", "$exists": True}
             }, {"_id": 0}).to_list(None)
@@ -5641,7 +5642,7 @@ async def student_expiry_checker():
 
             # Near-expiry reminders: find students expiring within 3 months, send monthly
             near_expiry = await db.members.find({
-                "membership_type": "student",
+                "membership_type": {"$in": ["student", "students_membership"]},
                 "status": "approved",
                 "validity_end": {"$ne": "", "$exists": True}
             }, {"_id": 0}).to_list(None)

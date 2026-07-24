@@ -212,7 +212,7 @@ export default function MembersAdmin() {
                     <td>{statusBadge(m.status)}</td>
                     <td style={{ fontSize: '12px', color: '#0c3c60', fontWeight: 600, fontFamily: 'monospace' }}>
                       {m.membership_id || '-'}
-                      {m.membership_type === 'student' && m.validity_end && (() => {
+                      {['student','students_membership'].includes(m.membership_type) && m.validity_end && (() => {
                         const vEnd = new Date(m.validity_end);
                         const now = new Date();
                         const daysLeft = Math.ceil((vEnd - now) / 86400000);
@@ -227,7 +227,7 @@ export default function MembersAdmin() {
                           </div>
                         );
                       })()}
-                      {m.membership_type === 'student' && m.college_id_url && (
+                      {['student','students_membership'].includes(m.membership_type) && m.college_id_url && (
                         <div style={{ fontSize: '10px', marginTop: '2px', color: m.college_id_verified ? '#059669' : '#d97706', fontWeight: 600 }}>
                           {m.college_id_verified ? 'ID Verified' : 'ID Pending'}
                         </div>
@@ -250,10 +250,10 @@ export default function MembersAdmin() {
                         {m.status === 'approved' && (
                           <button onClick={() => { setChangeTypeModal(m); setNewType(m.membership_type); }} title="Change Type" data-testid={`change-type-${m.id}`} style={{ background: '#f3e8ff', color: '#6b21a8', border: 'none', padding: '5px', borderRadius: '6px', cursor: 'pointer' }}><RefreshCw size={14} /></button>
                         )}
-                        {m.membership_type === 'student' && m.college_id_url && !m.college_id_verified && (
+                        {['student','students_membership'].includes(m.membership_type) && m.college_id_url && !m.college_id_verified && (
                           <button onClick={async () => { await axios.put(`${API}/admin/members/${m.id}/verify-college-id`, {}, { headers: { Authorization: `Bearer ${token}` } }); load(); }} title="Verify College ID" style={{ background: '#d1fae5', color: '#065f46', border: 'none', padding: '5px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '10px', fontWeight: 700, fontFamily: 'Poppins' }}>Verify ID</button>
                         )}
-                        {m.membership_type === 'student' && (m.status === 'expired' || m.status === 'approved') && (
+                        {['student','students_membership'].includes(m.membership_type) && (m.status === 'expired' || m.status === 'approved') && (
                           <button onClick={async () => { if (!window.confirm(`Upgrade ${m.prefix ? m.prefix + ' ' : ''}${m.name} to Academic membership?`)) return; await axios.post(`${API}/admin/members/${m.id}/upgrade`, { new_type: 'academic' }, { headers: { Authorization: `Bearer ${token}` } }); load(); }} title="Upgrade to Academic" style={{ background: '#eff6ff', color: '#1e40af', border: 'none', padding: '5px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '10px', fontWeight: 700, fontFamily: 'Poppins' }}>Upgrade</button>
                         )}
                         <button onClick={() => handleDelete(m.id)} title="Delete" style={{ background: '#fee2e2', color: '#991b1b', border: 'none', padding: '5px', borderRadius: '6px', cursor: 'pointer' }}><Trash2 size={14} /></button>
@@ -290,7 +290,7 @@ export default function MembersAdmin() {
                 ['Organization', detailModal.organization],
                 ['Payment Status', detailModal.payment_status],
                 ['Joined', detailModal.join_date],
-                ...(detailModal.membership_type === 'student' ? [
+                ...(['student','students_membership'].includes(detailModal.membership_type) ? [
                   ['Year of Study', detailModal.year_of_study],
                   ['Graduation Year', detailModal.graduation_year],
                   ['Enrollment Number', detailModal.enrollment_number],
@@ -299,7 +299,7 @@ export default function MembersAdmin() {
                 ] : []),
               ].map(([l, v]) => v ? <div key={l} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: '#f8fafc', borderRadius: '6px' }}><span style={{ color: '#6b7280' }}>{l}</span><strong style={{ color: '#111827', textTransform: 'capitalize' }}>{v}</strong></div> : null)}
             </div>
-            {detailModal.membership_type === 'student' && detailModal.college_id_url && (
+            {['student','students_membership'].includes(detailModal.membership_type) && detailModal.college_id_url && (
               <div style={{ marginTop: '12px', background: '#faf5ff', borderRadius: '10px', padding: '14px', border: '1px solid #e9d5ff' }}>
                 <div style={{ fontWeight: 700, fontSize: '13px', color: '#7c3aed', marginBottom: '8px' }}>College ID Card</div>
                 {detailModal.college_id_url.endsWith('.pdf') ? (
