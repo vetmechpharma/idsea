@@ -494,6 +494,8 @@ export default function PaymentsAdmin() {
                   <option value="academic">Academic</option>
                   <option value="entrepreneur">Entrepreneur</option>
                   <option value="corporate">Corporate</option>
+                  <option value="international">International</option>
+                  <option value="students_membership">Student</option>
                 </select>
               </div>
             </div>
