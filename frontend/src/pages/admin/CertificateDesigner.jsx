@@ -22,14 +22,15 @@ const FONT_WEB_MAP = Object.fromEntries(FONTS.map(f => [f.value, f.web]));
 
 const PLACEHOLDERS = [
   { key: 'name', label: 'Participant Name' }, { key: 'membership_id', label: 'Membership ID' },
-  { key: 'date', label: 'Date (DD.MM.YYYY)' }, { key: 'year', label: 'Year' },
+  { key: 'date', label: 'Date of Issue (DD.MM.YYYY)' }, { key: 'year', label: 'Year' },
   { key: 'email', label: 'Email' }, { key: 'phone', label: 'Phone' },
   { key: 'qualification', label: 'Qualification' }, { key: 'specialization', label: 'Specialization' },
   { key: 'organization', label: 'Organization' }, { key: 'membership_type', label: 'Membership Type' },
   { key: 'state', label: 'State' }, { key: 'country', label: 'Country' },
+  { key: 'validity_start', label: 'Validity Start (DD/MM/YYYY)' }, { key: 'validity_end', label: 'Validity End / Expiry (DD/MM/YYYY)' },
   { key: 'event_title', label: 'Event Title' }, { key: 'event_date', label: 'Event Date' },
   { key: 'event_venue', label: 'Event Venue' }, { key: 'registration_id', label: 'Registration ID' },
-  { key: 'paper_title', label: 'Paper Title' },
+  { key: 'paper_title', label: 'Paper Title' }, { key: 'certificate_id', label: 'Certificate ID' },
 ];
 
 const PLAN_OPTIONS = [
