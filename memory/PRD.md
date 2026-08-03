@@ -4,6 +4,7 @@
 React + TailwindCSS + Shadcn/UI | FastAPI + Motor (MongoDB) + ReportLab | Ubuntu VPS + Nginx + Supervisor
 
 ## Completed Features (Latest)
+- **Student ID Verification Fix (Aug 2026)**: Fixed bug where verifying one student ID marked all as verified. Now uses scoped local state update. Added Verify ID Modal with photo preview + Verify/Cancel/Request Re-upload actions. Approval blocked for unverified students.
 - **Admin Roles**: Super Admin / Admin / Event Manager with user CRUD, password reset, role-based sidebar
 - **Student → Academic Upgrade**: Self-service at /upgrade + admin approval with new Academic ID
 - **Certificate Validity**: validity_start/validity_end as template variables for student certs
@@ -25,6 +26,7 @@ React + TailwindCSS + Shadcn/UI | FastAPI + Motor (MongoDB) + ReportLab | Ubuntu
 - Certificate validity: use `_membership_label()`, `_full_name()` helpers
 
 ## Pending Tasks
+- P1: Individual Member Email — add Rich Text editor, file attachments, CC field
 - P1: Upgrade Requests admin frontend page
 - P2: Server refactor into modules
 - P2: Student self-renewal payment flow
