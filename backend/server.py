@@ -1348,7 +1348,16 @@ async def get_public_member_stats():
         {"$group": {"_id": "$membership_type", "count": {"$sum": 1}}}
     ]
     results = await db.members.aggregate(pipeline).to_list(20)
-    category_counts = {r["_id"]: r["count"] for r in results if r["_id"]}
+    category_counts = {}
+    for r in results:
+        key = r["_id"]
+        if not key:
+            continue
+        # Merge student and students_membership into one
+        if key in ("student", "students_membership"):
+            category_counts["students_membership"] = category_counts.get("students_membership", 0) + r["count"]
+        else:
+            category_counts[key] = r["count"]
     total = await db.members.count_documents({})
     return {
         "total": total,
@@ -1369,7 +1378,10 @@ async def get_public_members(
     if specialization:
         query["specialization"] = {"$regex": specialization, "$options": "i"}
     if membership_type and membership_type != "all":
-        query["membership_type"] = membership_type
+        if membership_type in ("student", "students_membership"):
+            query["membership_type"] = {"$in": ["student", "students_membership"]}
+        else:
+            query["membership_type"] = membership_type
     if search:
         query["$or"] = [
             {"name": {"$regex": search, "$options": "i"}},
@@ -1717,7 +1729,10 @@ async def admin_get_members(
     if status and status != "all":
         query["status"] = status
     if membership_type and membership_type != "all":
-        query["membership_type"] = membership_type
+        if membership_type in ("student", "students_membership"):
+            query["membership_type"] = {"$in": ["student", "students_membership"]}
+        else:
+            query["membership_type"] = membership_type
     if search:
         query["$or"] = [
             {"name": {"$regex": search, "$options": "i"}},
