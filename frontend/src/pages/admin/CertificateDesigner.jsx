@@ -27,10 +27,12 @@ const PLACEHOLDERS = [
   { key: 'qualification', label: 'Qualification' }, { key: 'specialization', label: 'Specialization' },
   { key: 'organization', label: 'Organization' }, { key: 'membership_type', label: 'Membership Type' },
   { key: 'state', label: 'State' }, { key: 'country', label: 'Country' },
-  { key: 'validity_start', label: 'Validity Start (DD/MM/YYYY)' }, { key: 'validity_end', label: 'Validity End / Expiry (DD/MM/YYYY)' },
+  { key: 'photo_url', label: 'Member Photo' },
+  { key: 'validity_start', label: 'Validity Start Date' }, { key: 'validity_end', label: 'Validity End / Expiry Date' },
+  { key: 'certificate_id', label: 'Certificate ID' },
   { key: 'event_title', label: 'Event Title' }, { key: 'event_date', label: 'Event Date' },
   { key: 'event_venue', label: 'Event Venue' }, { key: 'registration_id', label: 'Registration ID' },
-  { key: 'paper_title', label: 'Paper Title' }, { key: 'certificate_id', label: 'Certificate ID' },
+  { key: 'paper_title', label: 'Paper Title' },
 ];
 
 const PLAN_OPTIONS = [
@@ -398,6 +400,7 @@ export default function CertificateDesigner() {
 
     if (el.type === 'text' || el.type === 'placeholder') {
       const txt = el.type === 'placeholder' ? `{{${el.placeholder_key}}}` : el.content;
+      const isPhotoPlaceholder = el.type === 'placeholder' && el.placeholder_key === 'photo_url';
       return (
         <div key={el.id} style={{
           ...base,
@@ -442,6 +445,11 @@ export default function CertificateDesigner() {
               }}
               data-testid={`inline-edit-${el.id}`}
             />
+          ) : isPhotoPlaceholder ? (
+            <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'rgba(124,58,237,0.08)', border: '2px dashed rgba(124,58,237,0.3)', borderRadius: '6px', pointerEvents: 'none' }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+              <span style={{ fontSize: '9px', color: '#7c3aed', fontWeight: 700, marginTop: '4px' }}>Member Photo</span>
+            </div>
           ) : (
             <span style={{ width: '100%', pointerEvents: 'none' }}>{txt}</span>
           )}
@@ -757,7 +765,7 @@ export default function CertificateDesigner() {
           <div style={{ position: 'relative' }}>
             <button onClick={() => setShowPH(!showPH)} title="Add Placeholder" style={toolBtnS} data-testid="add-placeholder-btn"><Braces size={13} /><span style={{ fontSize: '11px' }}>Field</span></button>
             {showPH && (
-              <div style={{ position: 'absolute', top: '100%', right: 0, background: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', boxShadow: '0 8px 20px rgba(0,0,0,0.12)', padding: '4px', zIndex: 200, width: '220px', maxHeight: '280px', overflowY: 'auto', marginTop: '4px' }}>
+              <div style={{ position: 'absolute', top: '100%', right: 0, background: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', boxShadow: '0 8px 20px rgba(0,0,0,0.12)', padding: '4px', zIndex: 200, width: '260px', maxHeight: '400px', overflowY: 'auto', marginTop: '4px' }}>
                 {PLACEHOLDERS.map(p => (
                   <button key={p.key} onClick={() => addElement('placeholder', { placeholder_key: p.key, content: `{{${p.key}}}` })}
                     style={{ display: 'flex', justifyContent: 'space-between', width: '100%', padding: '7px 10px', border: 'none', background: 'none', cursor: 'pointer', fontSize: '12px', borderRadius: '4px', color: '#374151' }}

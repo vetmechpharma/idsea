@@ -3507,6 +3507,15 @@ def generate_template_pdf(template: dict, data: dict, cert_id: str = "") -> byte
             content = el.get("content", "")
             if etype == "placeholder":
                 key = el.get("placeholder_key", "")
+                # Handle photo_url as image, not text
+                if key == "photo_url":
+                    photo_path = _resolve_img_path(data.get("photo_url", ""))
+                    if photo_path:
+                        try:
+                            c.drawImage(photo_path, ex, ey, width=ew, height=eh, preserveAspectRatio=True, mask='auto')
+                        except Exception as pe:
+                            logging.warning(f"Photo render failed: {pe}")
+                    continue
                 content = str(data.get(key, f"{{{{{key}}}}}"))
             if not content:
                 continue
@@ -3755,6 +3764,7 @@ async def preview_cert_template(tpl_id: str, request: Request, admin=Depends(get
         "event_venue": "VCRI, Namakkal", "registration_id": "REG-2026-0001",
         "paper_title": "Advances in Dairy Processing", "specialization": "Dairy Technology",
         "certificate_id": "IDSEA-SAMPLE-0000",
+        "photo_url": "",
         "validity_start": datetime.now().strftime("%d/%m/%Y"),
         "validity_end": (datetime.now() + timedelta(days=365)).strftime("%d/%m/%Y"),
     }
@@ -3830,6 +3840,7 @@ async def gen_cert_member(tpl_id: str, member_id: str, admin=Depends(get_current
         "qualification": m.get("qualification", ""), "specialization": m.get("specialization", ""),
         "organization": m.get("organization", ""), "membership_type": _membership_label(m.get("membership_type", "")),
         "state": m.get("state", ""), "country": m.get("country", "India"),
+        "photo_url": m.get("photo_url", ""),
         "certificate_id": cert_id, "_site_url": site_url,
     }
     # Add validity dates if student
