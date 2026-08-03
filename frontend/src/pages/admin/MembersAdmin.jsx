@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Plus, Search, Edit, Trash2, Check, X, Download, Mail, Pause, RefreshCw, Eye, ChevronDown } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Check, X, Download, Mail, Pause, RefreshCw, Eye, ChevronDown, ShieldCheck, RotateCcw } from 'lucide-react';
 import { API } from '../../contexts/AuthContext';
 import { FileUpload } from '../../components/admin/FileUpload';
 import PhoneInput from '../../components/PhoneInput';
@@ -30,6 +30,8 @@ export default function MembersAdmin() {
   const [emailForm, setEmailForm] = useState({ subject: '', body: '' });
   const [changeTypeModal, setChangeTypeModal] = useState(null);
   const [newType, setNewType] = useState('');
+  const [verifyModal, setVerifyModal] = useState(null);
+  const [verifyLoading, setVerifyLoading] = useState(false);
   const [page, setPage] = useState(1);
   const PER_PAGE = 20;
 
@@ -90,7 +92,7 @@ export default function MembersAdmin() {
       await axios.put(`${API}/admin/members/${id}/${action}`, {}, { headers });
       showToast(`Member ${action === 'approve' ? 'approved' : action === 'reject' ? 'rejected' : 'put on hold'}!`);
       load();
-    } catch { showToast('Action failed'); }
+    } catch (e) { showToast(e.response?.data?.detail || 'Action failed'); }
   };
 
   const handleDelete = async (id) => {
@@ -115,6 +117,34 @@ export default function MembersAdmin() {
       showToast(`Type changed. New ID: ${r.data.membership_id || 'N/A'}`);
       setChangeTypeModal(null); load();
     } catch { showToast('Change failed'); }
+  };
+
+  const handleVerifyId = async () => {
+    if (!verifyModal) return;
+    setVerifyLoading(true);
+    try {
+      await axios.put(`${API}/admin/members/${verifyModal.id}/verify-college-id`, {}, { headers });
+      setMembers(prev => prev.map(m => m.id === verifyModal.id ? { ...m, college_id_verified: true } : m));
+      showToast(`College ID verified for ${verifyModal.prefix ? verifyModal.prefix + ' ' : ''}${verifyModal.name}`);
+      setVerifyModal(null);
+    } catch (e) { showToast('Verification failed: ' + (e.response?.data?.detail || 'Error')); }
+    setVerifyLoading(false);
+  };
+
+  const handleRequestReupload = async () => {
+    if (!verifyModal) return;
+    setVerifyLoading(true);
+    try {
+      await axios.put(`${API}/admin/members/${verifyModal.id}/request-reupload-college-id`, {}, { headers });
+      setMembers(prev => prev.map(m => m.id === verifyModal.id ? { ...m, college_id_verified: false, college_id_url: '' } : m));
+      showToast(`Re-upload requested for ${verifyModal.prefix ? verifyModal.prefix + ' ' : ''}${verifyModal.name}`);
+      setVerifyModal(null);
+    } catch (e) { showToast('Request failed: ' + (e.response?.data?.detail || 'Error')); }
+    setVerifyLoading(false);
+  };
+
+  const isStudentUnverified = (m) => {
+    return ['student', 'students_membership'].includes(m.membership_type) && m.college_id_url && !m.college_id_verified;
   };
 
   const updateAddr = (which, key, val) => setForm(f => ({ ...f, [which]: { ...f[which], [key]: val } }));
@@ -242,7 +272,7 @@ export default function MembersAdmin() {
                       <div style={{ display: 'flex', gap: '4px', justifyContent: 'center', flexWrap: 'wrap' }}>
                         <button onClick={() => setDetailModal(m)} title="View" data-testid={`view-member-${m.id}`} style={{ background: '#f0f9ff', color: '#0c3c60', border: 'none', padding: '5px', borderRadius: '6px', cursor: 'pointer' }}><Eye size={14} /></button>
                         {(m.status === 'pending' || m.status === 'hold') && (
-                          <button onClick={() => handleAction(m.id, 'approve')} data-testid={`approve-${m.id}`} title="Approve" style={{ background: '#d1fae5', color: '#065f46', border: 'none', padding: '5px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '11px', fontWeight: 700, fontFamily: 'Poppins' }}><Check size={13} /></button>
+                          <button onClick={() => { if (isStudentUnverified(m)) { showToast('Verify student college ID before approving'); return; } handleAction(m.id, 'approve'); }} data-testid={`approve-${m.id}`} title={isStudentUnverified(m) ? 'Verify college ID first' : 'Approve'} style={{ background: isStudentUnverified(m) ? '#f3f4f6' : '#d1fae5', color: isStudentUnverified(m) ? '#9ca3af' : '#065f46', border: 'none', padding: '5px 8px', borderRadius: '6px', cursor: isStudentUnverified(m) ? 'not-allowed' : 'pointer', fontSize: '11px', fontWeight: 700, fontFamily: 'Poppins', opacity: isStudentUnverified(m) ? 0.6 : 1 }}><Check size={13} /></button>
                         )}
                         {(m.status === 'pending' || m.status === 'hold') && (
                           <button onClick={() => handleAction(m.id, 'reject')} data-testid={`reject-${m.id}`} title="Reject" style={{ background: '#fee2e2', color: '#991b1b', border: 'none', padding: '5px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '11px', fontWeight: 700, fontFamily: 'Poppins' }}><X size={13} /></button>
@@ -256,7 +286,7 @@ export default function MembersAdmin() {
                           <button onClick={() => { setChangeTypeModal(m); setNewType(m.membership_type); }} title="Change Type" data-testid={`change-type-${m.id}`} style={{ background: '#f3e8ff', color: '#6b21a8', border: 'none', padding: '5px', borderRadius: '6px', cursor: 'pointer' }}><RefreshCw size={14} /></button>
                         )}
                         {['student','students_membership'].includes(m.membership_type) && m.college_id_url && !m.college_id_verified && (
-                          <button onClick={async () => { await axios.put(`${API}/admin/members/${m.id}/verify-college-id`, {}, { headers: { Authorization: `Bearer ${token}` } }); load(); }} title="Verify College ID" style={{ background: '#d1fae5', color: '#065f46', border: 'none', padding: '5px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '10px', fontWeight: 700, fontFamily: 'Poppins' }}>Verify ID</button>
+                          <button onClick={() => setVerifyModal(m)} data-testid={`verify-id-${m.id}`} title="Verify College ID" style={{ background: '#faf5ff', color: '#7c3aed', border: '1px solid #e9d5ff', padding: '5px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '10px', fontWeight: 700, fontFamily: 'Poppins', display: 'flex', alignItems: 'center', gap: '3px' }}><ShieldCheck size={12} /> Verify ID</button>
                         )}
                         {['student','students_membership'].includes(m.membership_type) && (m.status === 'expired' || m.status === 'approved') && (
                           <button onClick={async () => { if (!window.confirm(`Upgrade ${m.prefix ? m.prefix + ' ' : ''}${m.name} to Academic membership?`)) return; await axios.post(`${API}/admin/members/${m.id}/upgrade`, { new_type: 'academic' }, { headers: { Authorization: `Bearer ${token}` } }); load(); }} title="Upgrade to Academic" style={{ background: '#eff6ff', color: '#1e40af', border: 'none', padding: '5px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '10px', fontWeight: 700, fontFamily: 'Poppins' }}>Upgrade</button>
@@ -475,6 +505,49 @@ export default function MembersAdmin() {
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
               <button onClick={() => setChangeTypeModal(null)} className="btn-secondary">Cancel</button>
               <button onClick={handleChangeType} className="btn-primary" data-testid="confirm-change-type">Change Type</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Verify College ID Modal */}
+      {verifyModal && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '520px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2 style={{ fontFamily: 'Poppins', fontSize: '17px', fontWeight: 700, color: '#7c3aed', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <ShieldCheck size={20} /> Verify College ID
+              </h2>
+              <button onClick={() => setVerifyModal(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af' }} data-testid="close-verify-modal"><X size={20} /></button>
+            </div>
+            <div style={{ background: '#f8fafc', borderRadius: '10px', padding: '14px', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                {verifyModal.photo_url ? <img src={verifyModal.photo_url.startsWith('/api') ? `${API.replace('/api', '')}${verifyModal.photo_url}` : verifyModal.photo_url} alt="" style={{ width: '42px', height: '42px', borderRadius: '50%', objectFit: 'cover' }} /> : <div style={{ width: '42px', height: '42px', borderRadius: '50%', background: '#0c3c60', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '15px' }}>{verifyModal.name?.charAt(0)}</div>}
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: '15px', color: '#111827', fontFamily: 'Poppins' }}>{verifyModal.prefix ? `${verifyModal.prefix} ` : ''}{verifyModal.name}</div>
+                  <div style={{ fontSize: '12px', color: '#6b7280' }}>{verifyModal.email} | {verifyModal.enrollment_number || 'No enrollment #'}</div>
+                  <div style={{ fontSize: '11px', color: '#9ca3af', marginTop: '2px' }}>{verifyModal.organization || ''} {verifyModal.year_of_study ? `| Year: ${verifyModal.year_of_study}` : ''} {verifyModal.graduation_year ? `| Grad: ${verifyModal.graduation_year}` : ''}</div>
+                </div>
+              </div>
+            </div>
+            <div style={{ background: '#faf5ff', borderRadius: '10px', padding: '16px', border: '1px solid #e9d5ff', marginBottom: '16px' }}>
+              <div style={{ fontWeight: 700, fontSize: '13px', color: '#7c3aed', marginBottom: '10px' }}>Uploaded College ID</div>
+              {verifyModal.college_id_url ? (
+                verifyModal.college_id_url.endsWith('.pdf') ? (
+                  <a href={verifyModal.college_id_url.startsWith('/api') ? `${API.replace('/api', '')}${verifyModal.college_id_url}` : verifyModal.college_id_url} target="_blank" rel="noreferrer" style={{ color: '#7c3aed', fontSize: '13px', fontWeight: 600, textDecoration: 'underline' }}>View PDF Document</a>
+                ) : (
+                  <img src={verifyModal.college_id_url.startsWith('/api') ? `${API.replace('/api', '')}${verifyModal.college_id_url}` : verifyModal.college_id_url} alt="College ID" data-testid="verify-modal-college-id-img" style={{ width: '100%', maxHeight: '300px', borderRadius: '8px', objectFit: 'contain', background: 'white', border: '1px solid #e5e7eb' }} />
+                )
+              ) : <p style={{ color: '#9ca3af', fontSize: '13px' }}>No document uploaded</p>}
+            </div>
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button onClick={handleRequestReupload} disabled={verifyLoading} className="btn-secondary" data-testid="request-reupload-btn" style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#d97706', borderColor: '#fbbf24' }}>
+                <RotateCcw size={14} /> Request Re-upload
+              </button>
+              <button onClick={() => setVerifyModal(null)} className="btn-secondary" data-testid="cancel-verify-btn">Cancel</button>
+              <button onClick={handleVerifyId} disabled={verifyLoading} className="btn-primary" data-testid="confirm-verify-btn" style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#059669' }}>
+                <ShieldCheck size={14} /> {verifyLoading ? 'Processing...' : 'Verify ID'}
+              </button>
             </div>
           </div>
         </div>

@@ -1784,8 +1784,13 @@ async def approve_member(member_id: str, background_tasks: BackgroundTasks, admi
     if not member:
         raise HTTPException(status_code=404, detail="Member not found")
 
-    # Generate membership ID — reuse existing if member already has one (prevents gaps on re-approval)
+    # Block approval for student members whose college ID is not verified
     mtype = member.get("membership_type", "academic")
+    if mtype in ("student", "students_membership"):
+        if member.get("college_id_url") and not member.get("college_id_verified"):
+            raise HTTPException(status_code=400, detail="Cannot approve: Student's college ID must be verified first")
+
+    # Generate membership ID — reuse existing if member already has one (prevents gaps on re-approval)
     existing_mid = member.get("membership_id", "")
     if existing_mid and member.get("status") == "approved":
         membership_id = existing_mid
@@ -5902,8 +5907,64 @@ async def upgrade_student_to_academic(member_id: str, data: dict, background_tas
 @api_router.put("/admin/members/{member_id}/verify-college-id")
 async def verify_college_id(member_id: str, admin=Depends(get_current_admin)):
     """Mark student's college ID as verified"""
-    await db.members.update_one({"id": member_id}, {"$set": {"college_id_verified": True, "updated_at": now_iso()}})
-    return {"message": "College ID verified"}
+    member = await db.members.find_one({"id": member_id}, {"_id": 0})
+    if not member:
+        raise HTTPException(status_code=404, detail="Member not found")
+    if member.get("membership_type") not in ("student", "students_membership"):
+        raise HTTPException(status_code=400, detail="Only student members can have college ID verified")
+    if not member.get("college_id_url"):
+        raise HTTPException(status_code=400, detail="No college ID uploaded for this member")
+    result = await db.members.update_one({"id": member_id}, {"$set": {"college_id_verified": True, "updated_at": now_iso()}})
+    logging.info(f"Verify college ID: member_id={member_id}, matched={result.matched_count}, modified={result.modified_count}")
+    return {"message": "College ID verified", "member_id": member_id}
+
+
+@api_router.put("/admin/members/{member_id}/request-reupload-college-id")
+async def request_reupload_college_id(member_id: str, background_tasks: BackgroundTasks, admin=Depends(get_current_admin)):
+    """Request student to re-upload their college ID"""
+    member = await db.members.find_one({"id": member_id}, {"_id": 0})
+    if not member:
+        raise HTTPException(status_code=404, detail="Member not found")
+    await db.members.update_one({"id": member_id}, {"$set": {"college_id_verified": False, "college_id_url": "", "updated_at": now_iso()}})
+    # Send email notification to student
+    if member.get("email"):
+        smtp_settings = await db.smtp_settings.find_one({}, {"_id": 0})
+        member_name = f"{member.get('prefix', '')} {member.get('name', '')}".strip()
+        email_body = f"""<div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+  <div style="background: #0c3c60; padding: 24px; text-align: center;">
+    <h1 style="color: white; margin: 0; font-size: 20px;">College ID Re-upload Required</h1>
+  </div>
+  <div style="padding: 28px; background: white;">
+    <p style="font-size: 15px; color: #374151;">Dear {member_name},</p>
+    <p style="font-size: 14px; color: #374151; line-height: 1.7;">Your college ID document could not be verified. Please re-upload a clear, valid college/university ID card to complete your student membership verification.</p>
+    <p style="font-size: 14px; color: #374151; line-height: 1.7;">You can re-upload your college ID by visiting our membership portal.</p>
+    <p style="font-size: 14px; color: #6b7280; margin-top: 24px;">Regards,<br/>IDSEA Team</p>
+  </div>
+  <div style="padding: 16px; background: #f8fafc; text-align: center; font-size: 11px; color: #9ca3af;">
+    Developed by ANIMitra Softwares | www.idsea.in
+  </div>
+</div>"""
+        async def _send():
+            try:
+                host = smtp_settings.get("smtp_host", SMTP_HOST) if smtp_settings else SMTP_HOST
+                port = int(smtp_settings.get("smtp_port", SMTP_PORT_VAL) if smtp_settings else SMTP_PORT_VAL)
+                user = smtp_settings.get("smtp_user", SMTP_USER) if smtp_settings else SMTP_USER
+                passwd = smtp_settings.get("smtp_pass", SMTP_PASS) if smtp_settings else SMTP_PASS
+                from_email = smtp_settings.get("from_email", FROM_EMAIL) if smtp_settings else FROM_EMAIL
+                if not host or not user: return
+                msg = MIMEMultipart('mixed')
+                msg['Subject'] = "IDSEA - College ID Re-upload Required"
+                msg['From'] = f"IDSEA <{from_email}>"
+                msg['To'] = member["email"]
+                msg.attach(MIMEText(email_body, 'html'))
+                with smtplib.SMTP(host, port) as server:
+                    server.starttls()
+                    server.login(user, passwd)
+                    server.sendmail(from_email, [member["email"]], msg.as_string())
+            except Exception as e:
+                logging.error(f"Reupload email error: {e}")
+        background_tasks.add_task(_send)
+    return {"message": "Re-upload requested, student notified", "member_id": member_id}
 
 
 @api_router.post("/public/membership-lookup")
