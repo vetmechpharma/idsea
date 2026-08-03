@@ -1783,7 +1783,7 @@ async def approve_member(member_id: str, background_tasks: BackgroundTasks, admi
     # Set validity dates for student memberships
     update_fields = {"status": "approved", "membership_id": membership_id, "state": state, "approved_at": now_iso(), "updated_at": now_iso()}
     if mtype in ("student", "students_membership"):
-        plan = await db.membership_plans.find_one({"key": "student"}, {"_id": 0})
+        plan = await db.membership_plans.find_one({"key": {"$in": ["student", "students_membership"]}}, {"_id": 0})
         validity_months = (plan or {}).get("validity_months", 12)
         from dateutil.relativedelta import relativedelta
         start = datetime.now(timezone.utc)
