@@ -44,7 +44,13 @@ export default function MembersPage() {
       if (type !== 'all') params.membership_type = type;
       if (search) params.search = search;
       const r = await axios.get(`${API}/public/members`, { params });
-      setMembers(r.data);
+      // Sort by membership_id serial number ascending
+      const sorted = (r.data || []).sort((a, b) => {
+        const aNum = parseInt((a.membership_id || '').split('/').pop()) || 999999;
+        const bNum = parseInt((b.membership_id || '').split('/').pop()) || 999999;
+        return aNum - bNum;
+      });
+      setMembers(sorted);
       setPage(1);
     } catch { setMembers([]); }
     setLoading(false);
