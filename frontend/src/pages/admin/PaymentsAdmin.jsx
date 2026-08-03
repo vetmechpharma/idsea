@@ -38,6 +38,8 @@ export default function PaymentsAdmin() {
   const [payerResults, setPayerResults] = useState([]);
   const [payerSearching, setPayerSearching] = useState(false);
   const [payerSelected, setPayerSelected] = useState(false);
+  const [page, setPage] = useState(1);
+  const PER_PAGE = 20;
   const token = localStorage.getItem('idsea_token');
   const headers = { Authorization: `Bearer ${token}` };
 
@@ -46,7 +48,10 @@ export default function PaymentsAdmin() {
   const load = async () => {
     try {
       const r = await axios.get(`${API}/admin/payments`, { headers });
-      setPayments(r.data);
+      // Sort by newest first
+      const sorted = (r.data || []).sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+      setPayments(sorted);
+      setPage(1);
     } catch (e) { console.error(e); }
     setLoading(false);
   };
@@ -215,7 +220,7 @@ export default function PaymentsAdmin() {
           <tbody>
             {loading ? <tr><td colSpan={8} style={{ textAlign: 'center', padding: '40px', color: '#9ca3af' }}>Loading...</td></tr>
               : filtered.length === 0 ? <tr><td colSpan={8} style={{ textAlign: 'center', padding: '40px', color: '#9ca3af' }}>No payments found</td></tr>
-                : filtered.map(p => (
+                : filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE).map(p => (
                   <tr key={p.id} data-testid={`payment-row-${p.id}`}>
                     <td>
                       <div style={{ fontWeight: 600, fontSize: '13px', color: '#111827' }}>{p.member_name || 'N/A'}</div>
@@ -287,6 +292,17 @@ export default function PaymentsAdmin() {
                 ))}
           </tbody>
         </table>
+        {/* Pagination */}
+        {filtered.length > PER_PAGE && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 16px', borderTop: '1px solid #e5e7eb', background: '#f8fafc' }}>
+            <span style={{ fontSize: '12px', color: '#6b7280' }}>Showing {(page - 1) * PER_PAGE + 1}-{Math.min(page * PER_PAGE, filtered.length)} of {filtered.length}</span>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} style={{ padding: '6px 14px', borderRadius: '6px', border: '1px solid #e5e7eb', background: 'white', cursor: page === 1 ? 'default' : 'pointer', opacity: page === 1 ? 0.4 : 1, fontSize: '12px', fontWeight: 600 }}>Prev</button>
+              <span style={{ padding: '6px 12px', fontSize: '12px', fontWeight: 700, color: '#0c3c60' }}>Page {page} of {Math.ceil(filtered.length / PER_PAGE)}</span>
+              <button onClick={() => setPage(p => Math.min(Math.ceil(filtered.length / PER_PAGE), p + 1))} disabled={page >= Math.ceil(filtered.length / PER_PAGE)} style={{ padding: '6px 14px', borderRadius: '6px', border: '1px solid #e5e7eb', background: 'white', cursor: page >= Math.ceil(filtered.length / PER_PAGE) ? 'default' : 'pointer', opacity: page >= Math.ceil(filtered.length / PER_PAGE) ? 0.4 : 1, fontSize: '12px', fontWeight: 600 }}>Next</button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Detail Modal */}
