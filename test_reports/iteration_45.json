@@ -1,0 +1,23 @@
+{
+  "summary": "Verified bug fix for /members type filter pill counts. Frontend-only test. The pill counts (All/Academic/Entrepreneur/Corporate/International/Student) now remain constant regardless of which type filter is selected. Confirmed by clicking each filter and checking counts identical to initial load. Note: hot reload had not applied the fix on first pass - after `sudo supervisorctl restart frontend` the fix worked correctly.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "MembersPage.jsx line 45: useEffect depends on [state, type] but calls loadMembers which also uses `search`. ESLint warns about missing dep 'loadMembers'. Not a functional bug but worth noting.",
+    "Data note: Preview DB currently returns 33 members (not ~48 as mentioned in request), with 0 international and 0 student members. This is expected data state, not a bug — pill counts still correctly show 0 for those categories and stay constant across filter changes."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A", "frontend": "100%"},
+  "test_credentials": "Not needed - public page",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Verified initial counts: All(33), Academic(20), Entrepreneur(11), Corporate(2), International(0), Student(0). After clicking International, Corporate, Academic, and All pills sequentially, counts remained identical. Fix in MembersPage.jsx (allCounts loaded once from unfiltered /api/public/members, typeCounts derived from allCounts) works correctly. Only had to restart frontend once for HMR to pick it up.",
+  "rca of the issue": "Original bug: typeCounts was derived from filtered `members` array so it recalculated on every filter change. Fix separates unfiltered count fetch (setAllCounts in mount useEffect) from filtered display fetch (loadMembers). Verified working."
+}

@@ -29,9 +29,17 @@ export default function MembersPage() {
   const [pc, setPc] = useState(null);
   const [page, setPage] = useState(1);
   const [view, setView] = useState('grid');
+  const [allCounts, setAllCounts] = useState({ all: 0, academic: 0, entrepreneur: 0, corporate: 0, international: 0, student: 0, students_membership: 0 });
 
   useEffect(() => {
     axios.get(`${API}/public/page-content/members`).then(r => setPc(r.data)).catch(() => setPc({}));
+    // Load counts from all members (no filter)
+    axios.get(`${API}/public/members`).then(r => {
+      const all = r.data || [];
+      const c = { all: all.length, academic: 0, entrepreneur: 0, corporate: 0, international: 0, student: 0, students_membership: 0 };
+      all.forEach(m => { if (c[m.membership_type] !== undefined) c[m.membership_type]++; });
+      setAllCounts(c);
+    }).catch(() => {});
   }, []);
 
   useEffect(() => { loadMembers(); }, [state, type]);
@@ -61,11 +69,14 @@ export default function MembersPage() {
   const totalPages = Math.ceil(members.length / PER_PAGE);
   const paginated = useMemo(() => members.slice((page - 1) * PER_PAGE, page * PER_PAGE), [members, page]);
 
-  const typeCounts = useMemo(() => {
-    const c = { all: members.length, academic: 0, entrepreneur: 0, corporate: 0, international: 0, student: 0 };
-    members.forEach(m => { if (c[m.membership_type] !== undefined) c[m.membership_type]++; });
-    return c;
-  }, [members]);
+  const typeCounts = useMemo(() => ({
+    all: allCounts.all,
+    academic: allCounts.academic,
+    entrepreneur: allCounts.entrepreneur,
+    corporate: allCounts.corporate,
+    international: allCounts.international,
+    student: (allCounts.student || 0) + (allCounts.students_membership || 0),
+  }), [allCounts]);
 
   const fullName = (m) => m.prefix ? `${m.prefix} ${m.name}` : m.name;
   const tc = (t) => TYPE_COLORS[t] || TYPE_COLORS.academic;
