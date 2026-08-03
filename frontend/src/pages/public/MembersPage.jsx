@@ -18,7 +18,11 @@ const TYPE_COLORS = {
   students_membership: { bg: '#fdf2f8', border: '#f9a8d4', text: '#9d174d', dot: '#ec4899' },
 };
 
-const capitalize = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
+const capitalize = (s) => {
+  if (!s) return '';
+  if (s === 'students_membership' || s === 'student') return 'Student';
+  return s.charAt(0).toUpperCase() + s.slice(1);
+};
 
 export default function MembersPage() {
   const [members, setMembers] = useState([]);
