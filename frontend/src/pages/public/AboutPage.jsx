@@ -4,8 +4,9 @@ import PublicNavbar from '../../components/public/PublicNavbar';
 import PublicFooter from '../../components/public/PublicFooter';
 import { API } from '../../contexts/AuthContext';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Target, Compass, Award, MapPin, Mail, Phone, ShieldCheck, FileCheck } from 'lucide-react';
+import { ArrowRight, Target, Compass, Award, MapPin, Mail, Phone, ShieldCheck, FileCheck, BookOpen } from 'lucide-react';
 import SEOHead from '../../components/SEOHead';
+import PDFFlipbook from '../../components/PDFFlipbook';
 
 const ACCENT_COLORS = [
   { border: '#d97706', bg: '#fffbeb', badge: '#fbbf24', ring: '#fcd34d' },
@@ -229,6 +230,26 @@ export default function AboutPage() {
                   </div>
                 )}
               </div>
+            </div>
+          </section>
+        )}
+
+        {/* Byelaws PDF Flipbook */}
+        {cms.byelaws_pdf_url && (
+          <section style={{ padding: '80px 24px', background: '#fafbfc' }} data-testid="byelaws-section">
+            <div style={{ maxWidth: '900px', margin: '0 auto' }}>
+              <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', color: '#1e7a4d', fontWeight: 700, fontSize: '13px', textTransform: 'uppercase', letterSpacing: '1.5px', fontFamily: 'Poppins, sans-serif', marginBottom: '12px' }}>
+                  <BookOpen size={16} /> Official Document
+                </div>
+                <h2 style={{ fontFamily: 'Poppins, sans-serif', fontSize: 'clamp(24px,3vw,34px)', fontWeight: 800, color: '#0c3c60', marginBottom: '10px' }}>
+                  IDSEA - Byelaws
+                </h2>
+                <p style={{ fontSize: '15px', color: '#6b7280', fontFamily: 'Inter, sans-serif' }}>
+                  View the official byelaws and constitution of IDSEA
+                </p>
+              </div>
+              <PDFFlipbook url={cms.byelaws_pdf_url} title="IDSEA Byelaws" downloadable={true} />
             </div>
           </section>
         )}

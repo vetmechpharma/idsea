@@ -1,9 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
-import { Plus, Search, Edit, Trash2, Check, X, Download, Mail, Pause, RefreshCw, Eye, ChevronDown, ShieldCheck, RotateCcw } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Check, X, Download, Mail, Pause, RefreshCw, Eye, ChevronDown, ShieldCheck, RotateCcw, MessageCircle, Paperclip, RefreshCcw } from 'lucide-react';
 import { API } from '../../contexts/AuthContext';
 import { FileUpload } from '../../components/admin/FileUpload';
 import PhoneInput from '../../components/PhoneInput';
+import ReactQuill from 'react-quill-new';
+import 'react-quill-new/dist/quill.snow.css';
 
 const PREFIXES = ['', 'Dr.', 'Mr.', 'Mrs.', 'Ms.', 'Prof.', 'Shri', 'Smt.'];
 const STATES = ['', 'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 'Delhi', 'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka', 'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal'];
@@ -27,7 +29,8 @@ export default function MembersAdmin() {
   const [toast, setToast] = useState('');
   const [detailModal, setDetailModal] = useState(null);
   const [emailModal, setEmailModal] = useState(null);
-  const [emailForm, setEmailForm] = useState({ subject: '', body: '' });
+  const [emailForm, setEmailForm] = useState({ subject: '', body: '', cc: '', send_email: true, send_whatsapp: false, attachments: [] });
+  const [regenLoading, setRegenLoading] = useState(false);
   const [changeTypeModal, setChangeTypeModal] = useState(null);
   const [newType, setNewType] = useState('');
   const [verifyModal, setVerifyModal] = useState(null);
@@ -103,11 +106,45 @@ export default function MembersAdmin() {
 
   const handleSendEmail = async () => {
     if (!emailModal || !emailForm.subject || !emailForm.body) return;
+    if (!emailForm.send_email && !emailForm.send_whatsapp) { showToast('Select at least Email or WhatsApp'); return; }
     try {
-      await axios.post(`${API}/admin/members/${emailModal.id}/send-email`, emailForm, { headers });
-      showToast(`Email sent to ${emailModal.email}`);
-      setEmailModal(null); setEmailForm({ subject: '', body: '' });
-    } catch { showToast('Email failed'); }
+      // Convert file objects to base64 data URLs
+      const attachments = [];
+      for (const file of emailForm.attachments) {
+        const dataUrl = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.readAsDataURL(file);
+        });
+        attachments.push({ filename: file.name, data_url: dataUrl });
+      }
+      await axios.post(`${API}/admin/members/${emailModal.id}/send-email`, {
+        ...emailForm, attachments
+      }, { headers });
+      const channels = [emailForm.send_email && 'Email', emailForm.send_whatsapp && 'WhatsApp'].filter(Boolean).join(' & ');
+      showToast(`${channels} sent to ${emailModal.name}`);
+      setEmailModal(null);
+      setEmailForm({ subject: '', body: '', cc: '', send_email: true, send_whatsapp: false, attachments: [] });
+    } catch (e) { showToast('Send failed: ' + (e.response?.data?.detail || 'Error')); }
+  };
+
+  const handleFileAttach = (e) => {
+    const files = Array.from(e.target.files);
+    setEmailForm(prev => ({ ...prev, attachments: [...prev.attachments, ...files] }));
+  };
+
+  const removeAttachment = (idx) => {
+    setEmailForm(prev => ({ ...prev, attachments: prev.attachments.filter((_, i) => i !== idx) }));
+  };
+
+  const handleRegenerateCerts = async () => {
+    if (!window.confirm('Regenerate certificates for ALL approved members using the latest template and send via email?\n\nThis may take several minutes for 100+ members.')) return;
+    setRegenLoading(true);
+    try {
+      const r = await axios.post(`${API}/admin/members/regenerate-certificates`, { send_email: true }, { headers });
+      showToast(r.data.message || 'Certificate regeneration started');
+    } catch (e) { showToast('Failed: ' + (e.response?.data?.detail || 'Error')); }
+    setRegenLoading(false);
   };
 
   const handleChangeType = async () => {
@@ -207,6 +244,10 @@ export default function MembersAdmin() {
               className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', padding: '6px 12px' }} data-testid="export-excel-btn"><Download size={14} /> Excel</button>
             <button onClick={() => { axios.get(`${API}/admin/members/export/pdf`, { params: { ...(statusFilter !== 'all' && { status: statusFilter }), ...(typeFilter !== 'all' && { membership_type: typeFilter }) }, responseType: 'blob', headers }).then(r => { const url = URL.createObjectURL(r.data); const a = document.createElement('a'); a.href = url; a.download = 'IDSEA_Members.pdf'; a.click(); URL.revokeObjectURL(url); }); }}
               className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', padding: '6px 12px' }} data-testid="export-pdf-btn"><Download size={14} /> PDF</button>
+            <button onClick={handleRegenerateCerts} disabled={regenLoading} data-testid="regen-certs-btn"
+              className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', padding: '6px 12px', color: '#7c3aed', borderColor: '#e9d5ff' }}>
+              <RefreshCcw size={14} className={regenLoading ? 'animate-spin' : ''} /> {regenLoading ? 'Regenerating...' : 'Regen Certs & Email'}
+            </button>
           </div>
         </div>
       </div>
@@ -466,20 +507,86 @@ export default function MembersAdmin() {
         </div>
       )}
 
-      {/* Email Modal */}
+      {/* Email & WhatsApp Modal */}
       {emailModal && (
         <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: '500px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h2 style={{ fontFamily: 'Poppins', fontSize: '17px', fontWeight: 700, color: '#0c3c60', margin: 0 }}>Send Email to {emailModal.prefix ? `${emailModal.prefix} ` : ''}{emailModal.name}</h2>
-              <button onClick={() => setEmailModal(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af' }}><X size={20} /></button>
+          <div className="modal-content" style={{ maxWidth: '640px', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h2 style={{ fontFamily: 'Poppins', fontSize: '17px', fontWeight: 700, color: '#0c3c60', margin: 0 }}>Send Message to {emailModal.prefix ? `${emailModal.prefix} ` : ''}{emailModal.name}</h2>
+              <button onClick={() => setEmailModal(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af' }} data-testid="close-email-modal"><X size={20} /></button>
             </div>
-            <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '16px' }}>To: {emailModal.email}</p>
-            <div className="form-group"><label className="form-label">Subject *</label><input value={emailForm.subject} onChange={e => setEmailForm({ ...emailForm, subject: e.target.value })} className="form-input" placeholder="Email subject" data-testid="email-subject" /></div>
-            <div className="form-group"><label className="form-label">Message *</label><textarea value={emailForm.body} onChange={e => setEmailForm({ ...emailForm, body: e.target.value })} className="form-textarea" rows={6} placeholder="Type your message..." data-testid="email-body" /></div>
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '16px' }}>
+
+            {/* Channel Selection */}
+            <div style={{ display: 'flex', gap: '16px', marginBottom: '16px', padding: '12px 16px', background: '#f8fafc', borderRadius: '10px', border: '1px solid #e5e7eb' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>
+                <input type="checkbox" checked={emailForm.send_email} onChange={e => setEmailForm(f => ({ ...f, send_email: e.target.checked }))} data-testid="toggle-email" />
+                <Mail size={14} style={{ color: '#2563eb' }} /> Email {emailModal.email ? `(${emailModal.email})` : '(No email)'}
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>
+                <input type="checkbox" checked={emailForm.send_whatsapp} onChange={e => setEmailForm(f => ({ ...f, send_whatsapp: e.target.checked }))} data-testid="toggle-whatsapp" />
+                <MessageCircle size={14} style={{ color: '#25d366' }} /> WhatsApp {emailModal.phone ? `(${emailModal.phone})` : '(No phone)'}
+              </label>
+            </div>
+
+            <div className="form-group" style={{ margin: '0 0 12px' }}>
+              <label className="form-label">Subject *</label>
+              <input value={emailForm.subject} onChange={e => setEmailForm(f => ({ ...f, subject: e.target.value }))} className="form-input" placeholder="Email subject" data-testid="email-subject" />
+            </div>
+
+            {emailForm.send_email && (
+              <div className="form-group" style={{ margin: '0 0 12px' }}>
+                <label className="form-label">CC (comma-separated)</label>
+                <input value={emailForm.cc} onChange={e => setEmailForm(f => ({ ...f, cc: e.target.value }))} className="form-input" placeholder="cc@example.com, cc2@example.com" data-testid="email-cc" />
+              </div>
+            )}
+
+            <div className="form-group" style={{ margin: '0 0 12px' }}>
+              <label className="form-label">Message * (Rich Text)</label>
+              <ReactQuill
+                value={emailForm.body}
+                onChange={(val) => setEmailForm(f => ({ ...f, body: val }))}
+                theme="snow"
+                style={{ background: 'white', borderRadius: '8px' }}
+                modules={{ toolbar: [
+                  [{ 'header': [1, 2, 3, false] }],
+                  ['bold', 'italic', 'underline', 'strike'],
+                  [{ 'color': [] }, { 'background': [] }],
+                  [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+                  [{ 'align': [] }],
+                  ['link'],
+                  ['clean']
+                ]}}
+                placeholder="Type your message..."
+                data-testid="email-body"
+              />
+            </div>
+
+            {/* Attachments */}
+            <div style={{ marginBottom: '16px' }}>
+              <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Paperclip size={14} /> Attachments
+              </label>
+              <input type="file" multiple onChange={handleFileAttach} style={{ display: 'none' }} id="email-attach-input" data-testid="email-attach-input" />
+              <label htmlFor="email-attach-input" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 14px', border: '1px dashed #d1d5db', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', color: '#6b7280', fontWeight: 600, background: '#fafbfc' }}>
+                <Paperclip size={13} /> Add Files
+              </label>
+              {emailForm.attachments.length > 0 && (
+                <div style={{ marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                  {emailForm.attachments.map((file, idx) => (
+                    <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 10px', background: '#eff6ff', borderRadius: '6px', fontSize: '11px', color: '#1e40af', fontWeight: 600 }}>
+                      {file.name} ({(file.size / 1024).toFixed(0)}KB)
+                      <button onClick={() => removeAttachment(idx)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', padding: 0 }}><X size={12} /></button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
               <button onClick={() => setEmailModal(null)} className="btn-secondary">Cancel</button>
-              <button onClick={handleSendEmail} className="btn-primary" data-testid="send-email-btn"><Mail size={14} /> Send Email</button>
+              <button onClick={handleSendEmail} className="btn-primary" data-testid="send-email-btn" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                {emailForm.send_email && emailForm.send_whatsapp ? <><Mail size={14} /> Send Both</> : emailForm.send_whatsapp ? <><MessageCircle size={14} /> Send WhatsApp</> : <><Mail size={14} /> Send Email</>}
+              </button>
             </div>
           </div>
         </div>

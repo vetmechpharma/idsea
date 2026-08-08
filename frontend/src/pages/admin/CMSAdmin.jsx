@@ -528,6 +528,22 @@ export default function CMSAdmin() {
         </div>
       </Section>
 
+      <Section title="IDSEA Byelaws PDF">
+        <div className="form-group">
+          <label className="form-label">Byelaws Document (PDF)</label>
+          <p style={{ fontSize: '12px', color: '#6b7280', marginBottom: '8px' }}>Upload the official IDSEA Byelaws PDF. It will be displayed as a flipbook viewer on the About page.</p>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <FileUpload accept=".pdf,application/pdf" label="Upload PDF" onUpload={(url) => updateCms('byelaws_pdf_url', url)} />
+            {cmsForm.byelaws_pdf_url && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <a href={cmsForm.byelaws_pdf_url.startsWith('/api') ? `${API.replace('/api', '')}${cmsForm.byelaws_pdf_url}` : cmsForm.byelaws_pdf_url} target="_blank" rel="noreferrer" style={{ fontSize: '12px', color: '#2563eb', fontWeight: 600 }}>View PDF</a>
+                <button onClick={() => updateCms('byelaws_pdf_url', '')} style={{ fontSize: '11px', color: '#dc2626', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>Remove</button>
+              </div>
+            )}
+          </div>
+        </div>
+      </Section>
+
       <div style={{ background: '#f0f9ff', borderRadius: '10px', padding: '14px 18px', marginBottom: '20px', border: '1px solid #bae6fd' }}>
         <div style={{ fontSize: '13px', color: '#0369a1', fontWeight: 600, fontFamily: 'Poppins, sans-serif', marginBottom: '4px' }}>Google Indexing & SEO</div>
         <div style={{ fontSize: '12px', color: '#6b7280', lineHeight: 1.5 }}>

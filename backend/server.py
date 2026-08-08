@@ -520,6 +520,8 @@ class CMSSettings(BaseModel):
     custom_body_end_scripts: Optional[str] = ""
     site_url: Optional[str] = ""
     membership_cc_email: Optional[str] = ""
+    byelaws_pdf_url: Optional[str] = ""
+    document_pdfs: Optional[list] = Field(default_factory=list)  # [{id, title, url, page}]
 
 
 # =================== AUTH UTILS ===================
@@ -1426,11 +1428,19 @@ async def apply_membership(data: MemberCreate, background_tasks: BackgroundTasks
     # Send WhatsApp notification with application PDF
     if member.phone:
         app_pdf_wa = generate_registration_pdf(member.model_dump()) if not member.email else app_pdf
-        background_tasks.add_task(
-            send_whatsapp_document_bytes, member.phone, app_pdf_wa,
-            f"IDSEA_Application_{member.name.replace(' ', '_')}.pdf",
-            f"Hello {member.prefix} {member.name}!\n\nThank you for applying for IDSEA {member.membership_type} membership. Please find your application form attached.\n\nRegards,\nIDSEA Team"
-        )
+        wa_greeting = f"Hello {member.prefix} {member.name}!\n\nThank you for applying for IDSEA {member.membership_type} membership. Your application has been received and is under review.\n\nRegards,\nIDSEA Team"
+        async def _send_wa_application():
+            try:
+                await send_whatsapp_message(member.phone, wa_greeting)
+                await asyncio.sleep(2)
+                await send_whatsapp_document_bytes(
+                    member.phone, app_pdf_wa,
+                    f"IDSEA_Application_{member.name.replace(' ', '_')}.pdf",
+                    f"Application Form - {member.prefix} {member.name}"
+                )
+            except Exception as e:
+                logging.error(f"WhatsApp application send error: {e}")
+        background_tasks.add_task(_send_wa_application)
 
     return {"message": "Application submitted successfully", "id": member.id}
 
@@ -1835,6 +1845,7 @@ async def approve_member(member_id: str, background_tasks: BackgroundTasks, admi
             "organization": member.get("organization", ""), "membership_type": _membership_label(mtype),
             "state": state, "country": member.get("country", "India"),
             "certificate_id": cert_id, "_site_url": site_url,
+            "photo_url": member.get("photo_url", ""),
         }
         # Add validity dates for student certificates
         if update_fields.get("validity_start"):
@@ -1897,10 +1908,16 @@ async def approve_member(member_id: str, background_tasks: BackgroundTasks, admi
         except KeyError:
             for k, v in wa_variables.items():
                 wa_msg_text = wa_msg_text.replace("{" + k + "}", str(v))
-        # Send WhatsApp with certificate PDF attached
-        background_tasks.add_task(
-            send_whatsapp_document_bytes, member["phone"], cert_pdf, cert_filename, wa_msg_text
-        )
+        # Send WhatsApp text message first, then certificate PDF separately
+        async def _send_wa_approval():
+            try:
+                if wa_msg_text:
+                    await send_whatsapp_message(member["phone"], wa_msg_text)
+                    await asyncio.sleep(2)
+                await send_whatsapp_document_bytes(member["phone"], cert_pdf, cert_filename, f"Membership Certificate - {_full_name(member)}")
+            except Exception as e:
+                logging.error(f"WhatsApp approval send error: {e}")
+        background_tasks.add_task(_send_wa_approval)
 
     return {"message": "Member approved", "membership_id": membership_id}
 
@@ -1954,27 +1971,85 @@ async def send_member_email(member_id: str, data: dict, background_tasks: Backgr
         raise HTTPException(status_code=404, detail="Member not found")
     subject = data.get("subject", "")
     body = data.get("body", "")
+    cc = data.get("cc", "")
+    send_email = data.get("send_email", True)
+    send_whatsapp = data.get("send_whatsapp", False)
+    attachment_files = data.get("attachments", [])  # list of {filename, data_url}
     if not subject or not body:
         raise HTTPException(status_code=400, detail="Subject and body required")
-    log_id = str(uuid.uuid4())
-    await db.email_logs.insert_one({
-        "id": log_id, "to": member["email"], "subject": subject,
-        "status": "sending", "created_at": now_iso(), "sent_at": "", "template": "custom"
-    })
 
-    async def _send_and_update():
-        smtp_settings = await db.smtp_settings.find_one({}, {"_id": 0})
+    # Wrap body in styled HTML template
+    member_name = _full_name(member)
+    html_body = f"""<div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+  <div style="background: #0c3c60; padding: 24px; text-align: center;">
+    <h1 style="color: white; margin: 0; font-size: 20px;">IDSEA</h1>
+  </div>
+  <div style="padding: 28px; background: white;">
+    {body}
+  </div>
+  <div style="padding: 16px; background: #f8fafc; text-align: center; font-size: 11px; color: #9ca3af;">
+    Developed by ANIMitra Softwares | www.idsea.in
+  </div>
+</div>"""
+
+    # Parse attachments from base64 data URLs
+    email_attachments = []
+    for att in attachment_files:
         try:
-            success = send_email_smtp([member["email"]], subject, body, smtp_settings)
-            if success:
-                await db.email_logs.update_one({"id": log_id}, {"$set": {"status": "sent", "sent_at": now_iso()}})
-            else:
-                await db.email_logs.update_one({"id": log_id}, {"$set": {"status": "failed", "error": "SMTP send failed"}})
-        except Exception as e:
-            await db.email_logs.update_one({"id": log_id}, {"$set": {"status": "failed", "error": str(e)[:200]}})
+            fname = att.get("filename", "attachment")
+            data_url = att.get("data_url", "")
+            if data_url and "," in data_url:
+                b64_data = data_url.split(",", 1)[1]
+                file_bytes = base64.b64decode(b64_data)
+                email_attachments.append({"filename": fname, "data": file_bytes})
+        except Exception as ae:
+            logging.warning(f"Attachment parse error: {ae}")
 
-    background_tasks.add_task(_send_and_update)
-    return {"message": f"Email sending to {member['email']}"}
+    # Parse CC
+    cc_list = [c.strip() for c in cc.split(",") if c.strip() and "@" in c.strip()] if cc else []
+
+    results = {"email": None, "whatsapp": None}
+
+    if send_email and member.get("email"):
+        log_id = str(uuid.uuid4())
+        await db.email_logs.insert_one({
+            "id": log_id, "to": member["email"], "subject": subject,
+            "status": "sending", "created_at": now_iso(), "sent_at": "", "template": "custom"
+        })
+        async def _send_email_and_update():
+            smtp_settings = await db.smtp_settings.find_one({}, {"_id": 0})
+            try:
+                success = send_email_smtp([member["email"]], subject, html_body, smtp_settings, email_attachments or None, cc=cc_list or None)
+                if success:
+                    await db.email_logs.update_one({"id": log_id}, {"$set": {"status": "sent", "sent_at": now_iso()}})
+                else:
+                    await db.email_logs.update_one({"id": log_id}, {"$set": {"status": "failed", "error": "SMTP send failed"}})
+            except Exception as e:
+                await db.email_logs.update_one({"id": log_id}, {"$set": {"status": "failed", "error": str(e)[:200]}})
+        background_tasks.add_task(_send_email_and_update)
+        results["email"] = "sending"
+
+    if send_whatsapp and member.get("phone"):
+        # Strip HTML for WhatsApp plain text
+        import re
+        plain_text = re.sub(r'<[^>]+>', '', body).strip()
+        plain_text = re.sub(r'\n{3,}', '\n\n', plain_text)
+        async def _send_wa():
+            try:
+                await send_whatsapp_message(member["phone"], plain_text)
+                # Send attachments as documents if any
+                for att in email_attachments:
+                    await asyncio.sleep(1)
+                    await send_whatsapp_document_bytes(member["phone"], att["data"], att["filename"], "")
+            except Exception as e:
+                logging.error(f"WhatsApp custom send error: {e}")
+        background_tasks.add_task(_send_wa)
+        results["whatsapp"] = "sending"
+
+    channels = []
+    if results["email"]: channels.append("Email")
+    if results["whatsapp"]: channels.append("WhatsApp")
+    return {"message": f"{' & '.join(channels)} sending to {member_name}", "results": results}
 
 
 @api_router.post("/admin/members/{member_id}/send-whatsapp")
@@ -1993,6 +2068,114 @@ async def send_member_whatsapp(member_id: str, data: dict, admin=Depends(get_cur
         "name": _full_name(member), "message": message
     })
     return {"status": "success" if success else "error", "message": "WhatsApp sent" if success else "Send failed"}
+
+
+@api_router.post("/admin/members/regenerate-certificates")
+async def regenerate_certificates(data: dict, background_tasks: BackgroundTasks, admin=Depends(get_current_admin)):
+    """Regenerate certificates for approved members using latest template and optionally email them"""
+    send_email_flag = data.get("send_email", True)
+    membership_type_filter = data.get("membership_type", "all")
+    
+    query = {"status": "approved", "membership_id": {"$ne": ""}}
+    if membership_type_filter and membership_type_filter != "all":
+        if membership_type_filter in ("student", "students_membership"):
+            query["membership_type"] = {"$in": ["student", "students_membership"]}
+        else:
+            query["membership_type"] = membership_type_filter
+    
+    members = await db.members.find(query, {"_id": 0}).to_list(5000)
+    if not members:
+        raise HTTPException(400, "No approved members found")
+    
+    async def _regenerate_and_send():
+        success_count = 0
+        fail_count = 0
+        for member in members:
+            try:
+                mtype = member.get("membership_type", "academic")
+                membership_id = member.get("membership_id", "")
+                if not membership_id:
+                    continue
+                state = member.get("state", "") or member.get("permanent_address", {}).get("state", "")
+                
+                # Find latest template for this membership type
+                cert_template = await db.certificate_templates.find_one(
+                    {"$or": [{"linked_membership_types": mtype}, {"linked_membership_type": mtype}]},
+                    {"_id": 0}
+                )
+                cert_pdf = None
+                cert_id = membership_id
+                cert_filename = f"IDSEA_Membership_Certificate_{membership_id.replace('/', '_')}.pdf"
+                
+                if cert_template:
+                    site_url = await _get_site_url()
+                    cert_data = {
+                        "name": _full_name(member),
+                        "membership_id": membership_id,
+                        "date": datetime.now().strftime("%d.%m.%Y"), "year": str(datetime.now().year),
+                        "email": member.get("email", ""), "phone": member.get("phone", ""),
+                        "qualification": member.get("qualification", ""), "specialization": member.get("specialization", ""),
+                        "organization": member.get("organization", ""), "membership_type": _membership_label(mtype),
+                        "state": state, "country": member.get("country", "India"),
+                        "certificate_id": cert_id, "_site_url": site_url,
+                        "photo_url": member.get("photo_url", ""),
+                    }
+                    # Add validity dates for student certificates
+                    if member.get("validity_start"):
+                        try: cert_data["validity_start"] = datetime.fromisoformat(member["validity_start"].replace("Z","+00:00")).strftime("%d/%m/%Y")
+                        except: pass
+                    if member.get("validity_end"):
+                        try: cert_data["validity_end"] = datetime.fromisoformat(member["validity_end"].replace("Z","+00:00")).strftime("%d/%m/%Y")
+                        except: pass
+                    try:
+                        cert_pdf = generate_template_pdf(cert_template, cert_data, cert_id=cert_id)
+                        # Update certificate record
+                        await db.certificate_records.delete_many({"cert_id": cert_id})
+                        store_data = {k: v for k, v in cert_data.items() if not k.startswith("_")}
+                        await db.certificate_records.insert_one({
+                            "cert_id": cert_id, "type": "membership", "template_id": cert_template.get("id", ""),
+                            "member_id": member["id"], "recipient_name": cert_data["name"],
+                            "membership_id": membership_id, "membership_type": _membership_label(mtype),
+                            "issued_date": now_iso(), "data": store_data,
+                        })
+                    except Exception as e:
+                        logging.error(f"Cert regen failed for {membership_id}: {e}")
+                        cert_pdf = None
+                
+                if not cert_pdf:
+                    cert_pdf = generate_certificate_pdf_bytes(member_name=_full_name(member), membership_id=membership_id, cert_type="membership")
+                
+                # Send email with certificate if requested
+                if send_email_flag and member.get("email"):
+                    variables = {
+                        "member_name": _full_name(member),
+                        "email": member.get("email", ""),
+                        "membership_id": membership_id,
+                        "membership_type": _membership_label(mtype),
+                        "qualification": member.get("qualification", ""),
+                        "organization": member.get("organization", ""),
+                        "state": state,
+                        "join_date": member.get("join_date", ""),
+                    }
+                    attachments = [{"filename": cert_filename, "data": cert_pdf}]
+                    await send_templated_email("membership_approved", [member["email"]], variables, attachments)
+                    await asyncio.sleep(1)  # Rate limit
+                
+                success_count += 1
+            except Exception as e:
+                logging.error(f"Cert regen error for member {member.get('id','?')}: {e}")
+                fail_count += 1
+        
+        logging.info(f"Certificate regeneration complete: {success_count} success, {fail_count} failed")
+        # Store result for polling
+        await db.background_tasks.insert_one({
+            "id": str(uuid.uuid4()), "type": "cert_regen", "status": "completed",
+            "success_count": success_count, "fail_count": fail_count,
+            "total": len(members), "completed_at": now_iso()
+        })
+    
+    background_tasks.add_task(_regenerate_and_send)
+    return {"message": f"Regenerating certificates for {len(members)} members", "total": len(members)}
 
 
 @api_router.post("/admin/members/send-payment-reminder")
