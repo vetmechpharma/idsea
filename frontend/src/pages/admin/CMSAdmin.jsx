@@ -122,6 +122,10 @@ export default function CMSAdmin() {
         await Promise.all(seoPages.map(p => axios.put(`${API}/admin/page-content/${p}`, pageContents[p] || {})));
         // Save favicon to CMS
         await axios.put(`${API}/admin/cms`, cmsForm);
+      } else if (activeTab === 'about') {
+        await axios.put(`${API}/admin/page-content/${activeTab}`, pageContents[activeTab] || {});
+        // Also save CMS for byelaws_pdf_url
+        await axios.put(`${API}/admin/cms`, cmsForm);
       } else {
         await axios.put(`${API}/admin/page-content/${activeTab}`, pageContents[activeTab] || {});
       }
@@ -192,6 +196,14 @@ export default function CMSAdmin() {
       <Section title="Map Location (Footer)">
         <Field label="Google Maps Embed URL" value={cmsForm.map_embed_url} onChange={v => updateCms('map_embed_url', v)} type="url" placeholder="https://www.google.com/maps/embed?pb=..." />
         <span style={{ fontSize: '10px', color: '#9ca3af' }}>Go to Google Maps → Share → Embed a map → Copy the src URL from the iframe code</span>
+      </Section>
+
+      <Section title="Terms & Conditions (Membership Application)">
+        <div className="form-group">
+          <label className="form-label">Terms & Conditions Content</label>
+          <p style={{ fontSize: '12px', color: '#6b7280', marginBottom: '8px' }}>This content will appear as a mandatory checkbox before membership application submission. Leave empty to disable.</p>
+          <textarea value={cmsForm.terms_conditions || ''} onChange={e => updateCms('terms_conditions', e.target.value)} className="form-textarea" rows={8} placeholder="Enter Terms & Conditions content (HTML supported)..." data-testid="cms-tc-content" />
+        </div>
       </Section>
     </>
   );
@@ -280,6 +292,22 @@ export default function CMSAdmin() {
 
       <Section title="Headquarters Section">
         <Field label="Section Title" value={pc.hq_title} onChange={v => updatePage('hq_title', v)} />
+      </Section>
+
+      <Section title="IDSEA Byelaws PDF (Flipbook)">
+        <div className="form-group">
+          <label className="form-label">Byelaws Document (PDF)</label>
+          <p style={{ fontSize: '12px', color: '#6b7280', marginBottom: '8px' }}>Upload the official IDSEA Byelaws PDF. It will be displayed as a flipbook viewer below the Registration Certificate on the About page.</p>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <FileUpload accept=".pdf,application/pdf" label="Upload PDF" onUpload={(url) => updateCms('byelaws_pdf_url', url)} />
+            {cmsForm.byelaws_pdf_url && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <a href={cmsForm.byelaws_pdf_url.startsWith('/api') ? `${API.replace('/api', '')}${cmsForm.byelaws_pdf_url}` : cmsForm.byelaws_pdf_url} target="_blank" rel="noreferrer" style={{ fontSize: '12px', color: '#2563eb', fontWeight: 600 }}>View PDF</a>
+                <button onClick={() => updateCms('byelaws_pdf_url', '')} style={{ fontSize: '11px', color: '#dc2626', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>Remove</button>
+              </div>
+            )}
+          </div>
+        </div>
       </Section>
     </>
   );
@@ -525,30 +553,6 @@ export default function CMSAdmin() {
           <label className="form-label">CC Email for Membership Notifications</label>
           <input type="text" value={cmsForm.membership_cc_email || ''} onChange={e => updateCms('membership_cc_email', e.target.value)} className="form-input" placeholder="admin@idsea.in, secretary@idsea.in" data-testid="cms-cc-email" />
           <p style={{ fontSize: '11px', color: '#9ca3af', marginTop: '4px' }}>All membership emails (submitted, approved, rejected, expiry) will CC this address. Separate multiple with commas.</p>
-        </div>
-      </Section>
-
-      <Section title="IDSEA Byelaws PDF">
-        <div className="form-group">
-          <label className="form-label">Byelaws Document (PDF)</label>
-          <p style={{ fontSize: '12px', color: '#6b7280', marginBottom: '8px' }}>Upload the official IDSEA Byelaws PDF. It will be displayed as a flipbook viewer on the About page.</p>
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-            <FileUpload accept=".pdf,application/pdf" label="Upload PDF" onUpload={(url) => updateCms('byelaws_pdf_url', url)} />
-            {cmsForm.byelaws_pdf_url && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <a href={cmsForm.byelaws_pdf_url.startsWith('/api') ? `${API.replace('/api', '')}${cmsForm.byelaws_pdf_url}` : cmsForm.byelaws_pdf_url} target="_blank" rel="noreferrer" style={{ fontSize: '12px', color: '#2563eb', fontWeight: 600 }}>View PDF</a>
-                <button onClick={() => updateCms('byelaws_pdf_url', '')} style={{ fontSize: '11px', color: '#dc2626', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>Remove</button>
-              </div>
-            )}
-          </div>
-        </div>
-      </Section>
-
-      <Section title="Terms & Conditions (Membership Application)">
-        <div className="form-group">
-          <label className="form-label">Terms & Conditions Content</label>
-          <p style={{ fontSize: '12px', color: '#6b7280', marginBottom: '8px' }}>This content will appear as a mandatory checkbox before membership application submission. Leave empty to disable.</p>
-          <textarea value={cmsForm.terms_conditions || ''} onChange={e => updateCms('terms_conditions', e.target.value)} className="form-textarea" rows={8} placeholder="Enter Terms & Conditions content (HTML supported)..." data-testid="cms-tc-content" />
         </div>
       </Section>
 
