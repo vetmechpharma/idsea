@@ -116,6 +116,9 @@ export default function MembershipApplyPage() {
   const [plans, setPlans] = useState([]);
   const [plansLoading, setPlansLoading] = useState(true);
   const [photoPreview, setPhotoPreview] = useState('');
+  const [tcAccepted, setTcAccepted] = useState(false);
+  const [tcContent, setTcContent] = useState('');
+  const [showTcModal, setShowTcModal] = useState(false);
   const fileInputRef = useRef(null);
   const idProofRef = useRef(null);
 
@@ -132,6 +135,9 @@ export default function MembershipApplyPage() {
       setPlans(r.data || []);
       setPlansLoading(false);
     }).catch(() => setPlansLoading(false));
+    axios.get(`${API}/public/cms`).then(r => {
+      setTcContent(r.data?.terms_conditions || '');
+    }).catch(() => {});
   }, []);
 
   const isInternational = form.membership_type === 'international';
@@ -222,7 +228,17 @@ export default function MembershipApplyPage() {
       setError(`Please fill required fields: ${missing.join(', ')}`);
       return;
     }
+    if (tcContent && !tcAccepted) {
+      setError('Please accept the Terms & Conditions to proceed');
+      return;
+    }
 
+    setError('');
+    setStep('payment');
+  };
+
+  // Called after payment is confirmed (Razorpay success or UTR submitted)
+  const submitApplication = async (paymentMethod) => {
     setLoading(true); setError('');
     try {
       const payload = { ...form };
@@ -236,16 +252,29 @@ export default function MembershipApplyPage() {
       }
       const res = await axios.post(`${API}/public/members/apply`, payload);
       setMemberId(res.data.id);
-      setStep('payment');
-    } catch (err) { setError(err.response?.data?.detail || 'Submission failed'); }
-    setLoading(false);
+      setPaymentStatus(paymentMethod === 'razorpay' ? 'paid' : 'verification_pending');
+      setStep('success');
+      return res.data.id;
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Submission failed');
+      return null;
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handlePaymentSuccess = (method) => {
-    setPaymentStatus(method === 'razorpay' ? 'paid' : 'verification_pending');
-    setStep('success');
+  const handlePaymentSuccess = async (method) => {
+    // For Razorpay: application is submitted first, then payment is recorded by Razorpay callback
+    // For UPI/Bank: application submitted with UTR by PaymentPage
+    if (!memberId) {
+      // Submit application if not yet submitted (Razorpay flow)
+      const newId = await submitApplication(method);
+      if (!newId) return; // submission failed
+    } else {
+      setPaymentStatus(method === 'razorpay' ? 'paid' : 'verification_pending');
+      setStep('success');
+    }
   };
-  const handlePaymentSkip = () => { setPaymentStatus('pending'); setStep('success'); };
 
   const photoUrl = photoPreview || (form.photo_url ? (form.photo_url.startsWith('/api') ? `${API.replace('/api', '')}${form.photo_url}` : form.photo_url) : '');
 
@@ -295,7 +324,7 @@ export default function MembershipApplyPage() {
             <div style={{ background: 'white', borderRadius: '16px', padding: '32px', boxShadow: '0 4px 12px rgba(0,0,0,0.06)' }} data-testid="membership-payment-step">
               <PaymentPage amount={fee} name={`${form.prefix} ${form.name}`.trim()} email={form.email} phone={form.phone}
                 purpose="membership" memberId={memberId} membershipType={form.membership_type}
-                onSuccess={handlePaymentSuccess} onCancel={handlePaymentSkip}
+                onSuccess={handlePaymentSuccess} onSubmitApplication={submitApplication}
                 currency={isInternational ? 'USD' : 'INR'} isInternational={isInternational} />
             </div>
           </div>
@@ -560,13 +589,53 @@ export default function MembershipApplyPage() {
                 <br /><span style={{ fontSize: '12px' }}>You will be directed to the payment page after submission.</span>
               </div>
 
-              <button type="submit" disabled={loading} className="btn-primary" data-testid="apply-submit-btn" style={{ width: '100%', justifyContent: 'center', padding: '14px', fontSize: '15px' }}>
+              {/* Terms & Conditions */}
+              {tcContent && (
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer', fontSize: '13px', color: '#374151', lineHeight: 1.6 }}>
+                    <input type="checkbox" checked={tcAccepted} onChange={e => setTcAccepted(e.target.checked)} data-testid="tc-checkbox"
+                      style={{ marginTop: '3px', width: '18px', height: '18px', flexShrink: 0, accentColor: '#0c3c60' }} />
+                    <span>
+                      I have read and agree to the{' '}
+                      <button type="button" onClick={() => setShowTcModal(true)} data-testid="tc-link"
+                        style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', fontWeight: 600, textDecoration: 'underline', padding: 0, fontSize: '13px' }}>
+                        Terms & Conditions
+                      </button>
+                      {' '}of IDSEA membership.
+                    </span>
+                  </label>
+                </div>
+              )}
+
+              <button type="submit" disabled={loading || (tcContent && !tcAccepted)} className="btn-primary" data-testid="apply-submit-btn"
+                style={{ width: '100%', justifyContent: 'center', padding: '14px', fontSize: '15px', opacity: (tcContent && !tcAccepted) ? 0.5 : 1 }}>
                 {loading ? 'Submitting...' : 'Submit & Proceed to Payment'}
               </button>
             </form>
           </div>
         </div>
       </div>
+
+      {/* Terms & Conditions Modal */}
+      {showTcModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+          <div style={{ background: 'white', borderRadius: '16px', maxWidth: '640px', width: '100%', maxHeight: '80vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 style={{ fontFamily: 'Poppins', fontSize: '18px', fontWeight: 700, color: '#0c3c60', margin: 0 }}>Terms & Conditions</h2>
+              <button onClick={() => setShowTcModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', fontSize: '20px' }} data-testid="close-tc-modal">&times;</button>
+            </div>
+            <div style={{ padding: '24px', overflowY: 'auto', flex: 1 }}>
+              <div style={{ fontSize: '14px', color: '#374151', lineHeight: 1.8, fontFamily: 'Inter, sans-serif' }} dangerouslySetInnerHTML={{ __html: tcContent }} />
+            </div>
+            <div style={{ padding: '16px 24px', borderTop: '1px solid #e5e7eb', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button onClick={() => { setTcAccepted(true); setShowTcModal(false); }} className="btn-primary" data-testid="accept-tc-btn" style={{ padding: '10px 24px' }}>
+                I Accept
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <PublicFooter />
     </div>
   );

@@ -4,7 +4,7 @@ import { CreditCard, QrCode, Building2, Copy, CheckCircle, Loader2, AlertCircle 
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
-export default function PaymentPage({ amount, name, email, phone, purpose, memberId, eventRegistrationId, membershipType, onSuccess, onCancel, currency = 'INR', isInternational = false }) {
+export default function PaymentPage({ amount, name, email, phone, purpose, memberId, eventRegistrationId, membershipType, onSuccess, onCancel, onSubmitApplication, currency = 'INR', isInternational = false }) {
   const [paySettings, setPaySettings] = useState(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('');
@@ -49,8 +49,15 @@ export default function PaymentPage({ amount, name, email, phone, purpose, membe
   const handleRazorpay = async () => {
     setRzpLoading(true); setError('');
     try {
+      // Submit application first if needed
+      let actualMemberId = memberId;
+      if (onSubmitApplication && !memberId) {
+        const newId = await onSubmitApplication('razorpay');
+        if (!newId) { setRzpLoading(false); return; }
+        actualMemberId = newId;
+      }
       const res = await axios.post(`${API}/payments/create-order`, {
-        amount, currency: currency || 'INR', member_id: memberId || '', member_name: name, member_email: email,
+        amount, currency: currency || 'INR', member_id: actualMemberId || '', member_name: name, member_email: email,
         membership_type: membershipType || '', event_registration_id: eventRegistrationId || '', purpose: purpose || 'membership'
       });
       const { payment_id, razorpay_order_id, key_id } = res.data;
@@ -99,9 +106,16 @@ export default function PaymentPage({ amount, name, email, phone, purpose, membe
     if (!utrNumber.trim()) { setError('Please enter UTR/Reference number'); return; }
     setSubmitting(true); setError('');
     try {
+      // If onSubmitApplication is provided, submit the application first
+      let actualMemberId = memberId;
+      if (onSubmitApplication && !memberId) {
+        const newId = await onSubmitApplication(payMethod || tab);
+        if (!newId) { setSubmitting(false); return; } // submission failed
+        actualMemberId = newId;
+      }
       const r = await axios.post(`${API}/payments/submit-utr`, {
         utr_number: utrNumber.trim(), payment_method: payMethod || tab, amount,
-        name, email, member_id: memberId || '', membership_type: membershipType || '',
+        name, email, member_id: actualMemberId || '', membership_type: membershipType || '',
         event_registration_id: eventRegistrationId || '', purpose: purpose || 'membership'
       });
       if (r.data?.duplicate) {

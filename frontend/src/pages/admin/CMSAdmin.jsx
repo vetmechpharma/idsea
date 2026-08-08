@@ -544,6 +544,14 @@ export default function CMSAdmin() {
         </div>
       </Section>
 
+      <Section title="Terms & Conditions (Membership Application)">
+        <div className="form-group">
+          <label className="form-label">Terms & Conditions Content</label>
+          <p style={{ fontSize: '12px', color: '#6b7280', marginBottom: '8px' }}>This content will appear as a mandatory checkbox before membership application submission. Leave empty to disable.</p>
+          <textarea value={cmsForm.terms_conditions || ''} onChange={e => updateCms('terms_conditions', e.target.value)} className="form-textarea" rows={8} placeholder="Enter Terms & Conditions content (HTML supported)..." data-testid="cms-tc-content" />
+        </div>
+      </Section>
+
       <div style={{ background: '#f0f9ff', borderRadius: '10px', padding: '14px 18px', marginBottom: '20px', border: '1px solid #bae6fd' }}>
         <div style={{ fontSize: '13px', color: '#0369a1', fontWeight: 600, fontFamily: 'Poppins, sans-serif', marginBottom: '4px' }}>Google Indexing & SEO</div>
         <div style={{ fontSize: '12px', color: '#6b7280', lineHeight: 1.5 }}>

@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
-import os, logging, uuid, hmac, hashlib, smtplib, io, asyncio, base64
+import os, logging, uuid, hmac, hashlib, smtplib, io, asyncio, base64, re, html as html_module
 import httpx
 from pathlib import Path
 from pydantic import BaseModel, Field
@@ -522,6 +522,7 @@ class CMSSettings(BaseModel):
     membership_cc_email: Optional[str] = ""
     byelaws_pdf_url: Optional[str] = ""
     document_pdfs: Optional[list] = Field(default_factory=list)  # [{id, title, url, page}]
+    terms_conditions: Optional[str] = ""
 
 
 # =================== AUTH UTILS ===================
@@ -1978,17 +1979,24 @@ async def send_member_email(member_id: str, data: dict, background_tasks: Backgr
     if not subject or not body:
         raise HTTPException(status_code=400, detail="Subject and body required")
 
-    # Wrap body in styled HTML template
+    # Wrap body in styled HTML template with branded sign-off
     member_name = _full_name(member)
     html_body = f"""<div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto;">
   <div style="background: #0c3c60; padding: 24px; text-align: center;">
     <h1 style="color: white; margin: 0; font-size: 20px;">IDSEA</h1>
+    <p style="color: rgba(255,255,255,0.7); margin: 4px 0 0; font-size: 12px;">Indian Dairy Scientists and Entrepreneurs Association</p>
   </div>
   <div style="padding: 28px; background: white;">
     {body}
+    <div style="margin-top: 28px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+      <p style="color: #374151; font-size: 14px; margin: 0;">Regards,</p>
+      <p style="color: #0c3c60; font-size: 14px; font-weight: 700; margin: 4px 0 0;">IDSEA Team</p>
+      <p style="color: #9ca3af; font-size: 12px; margin: 4px 0 0;">Indian Dairy Scientists and Entrepreneurs Association</p>
+    </div>
   </div>
   <div style="padding: 16px; background: #f8fafc; text-align: center; font-size: 11px; color: #9ca3af;">
-    Developed by ANIMitra Softwares | www.idsea.in
+    <p style="margin: 0;">www.idsea.in</p>
+    <p style="color: #c4b5fd; font-size: 10px; margin: 6px 0 0; font-style: italic;">Developed by ANIMitra Softwares</p>
   </div>
 </div>"""
 
@@ -2030,17 +2038,32 @@ async def send_member_email(member_id: str, data: dict, background_tasks: Backgr
         results["email"] = "sending"
 
     if send_whatsapp and member.get("phone"):
-        # Strip HTML for WhatsApp plain text
-        import re
-        plain_text = re.sub(r'<[^>]+>', '', body).strip()
-        plain_text = re.sub(r'\n{3,}', '\n\n', plain_text)
+        # Strip HTML for WhatsApp plain text — decode HTML entities like &nbsp;
+        plain_text = re.sub(r'<br\s*/?>', '\n', body)
+        plain_text = re.sub(r'</p>', '\n', plain_text)
+        plain_text = re.sub(r'<[^>]+>', '', plain_text)
+        plain_text = html_module.unescape(plain_text)
+        plain_text = re.sub(r'\n{3,}', '\n\n', plain_text).strip()
         async def _send_wa():
             try:
-                await send_whatsapp_message(member["phone"], plain_text)
-                # Send attachments as documents if any
+                if plain_text:
+                    await send_whatsapp_message(member["phone"], plain_text)
+                # Send attachments — images as images, others as documents
                 for att in email_attachments:
                     await asyncio.sleep(1)
-                    await send_whatsapp_document_bytes(member["phone"], att["data"], att["filename"], "")
+                    fname = att["filename"].lower()
+                    if fname.endswith(('.jpg', '.jpeg', '.png', '.gif', '.webp')):
+                        # Save temp image and send as WhatsApp image
+                        import tempfile
+                        with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(fname)[1]) as tmp:
+                            tmp.write(att["data"])
+                            tmp_path = tmp.name
+                        try:
+                            await send_whatsapp_image(member["phone"], tmp_path, att["filename"])
+                        finally:
+                            os.unlink(tmp_path)
+                    else:
+                        await send_whatsapp_document_bytes(member["phone"], att["data"], att["filename"], "")
             except Exception as e:
                 logging.error(f"WhatsApp custom send error: {e}")
         background_tasks.add_task(_send_wa)
@@ -4143,6 +4166,11 @@ async def download_certificate(cert_id: str):
     data["certificate_id"] = cert_id
     site_url = await _get_site_url()
     data["_site_url"] = site_url
+    # Enrich with member's current photo_url if not in stored data
+    if not data.get("photo_url") and rec.get("member_id"):
+        member = await db.members.find_one({"id": rec["member_id"]}, {"_id": 0, "photo_url": 1})
+        if member and member.get("photo_url"):
+            data["photo_url"] = member["photo_url"]
     pdf = generate_template_pdf(tpl, data, cert_id=cert_id)
     fn = f"certificate_{cert_id}.pdf"
     return StreamingResponse(io.BytesIO(pdf), media_type="application/pdf",

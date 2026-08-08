@@ -1,0 +1,36 @@
+{
+  "summary": "Iteration 48 tested new IDSEA fixes: cert download endpoint (photo_url enrichment path present in code + 404 branch verified), branded custom email template (Regards/IDSEA Team wrapper), CMS terms_conditions field persistence, T&C checkbox+modal on /apply page, delayed application submission to payment step (no API call), no Cancel/Pay Later button when membership flow uses PaymentPage without onCancel, and Admin CMS Terms & Conditions textarea (under SEO & Indexing tab). Backend pytest: 5 passed, 1 skipped (no cert records to exercise enrichment PDF path). Frontend Playwright verified T&C checkbox disables submit, modal opens with I Accept, checkbox is checked after accept, submit becomes enabled, and admin CMS textarea shows persisted T&C content.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/public/certificates/download/{cert_id}", "issue": "No existing certificate_records in DB to exercise the photo_url enrichment path end-to-end. Code inspection confirms enrichment (server.py L4169-4173) is correct, and 404 branch is verified."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Admin CMS", "issues": ["Terms & Conditions section is placed under the 'SEO & Indexing' tab. Semantically odd (also flagged in iter47 for byelaws PDF). Consider a dedicated 'Documents/Legal' tab for T&C + Byelaws + CC Email."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iteration48.py", "/app/test_reports/pytest/iter48.xml"],
+  "action_items": [
+    "OPTIONAL UX: Move Terms & Conditions (and Byelaws PDF) out of SEO & Indexing tab into a dedicated Documents/Legal tab for better admin discoverability.",
+    "OPTIONAL: Consider seeding at least one certificate_record so end-to-end PDF download + photo_url enrichment can be regression-tested."
+  ],
+  "critical_code_review_comments": [
+    "server.py remains large (~6395 lines). Splitting into modules (members, cms, email, certs, payments) is still recommended.",
+    "In send_member_email (server.py L2021), when send_email=True but member has no email, endpoint silently skips (results['email'] stays None) and channels list may be empty — response message becomes '  sending to <name>'. Should return a warning field so UI can display 'Email skipped: no email on file'.",
+    "handleSubmit in MembershipApplyPage (L199-238) correctly delays API call and only calls setStep('payment'). Good. However, if user backs out from payment step, form data stays in state — no explicit warning about un-submitted application. Consider a beforeunload prompt on payment step.",
+    "PaymentPage.jsx uses onCancel prop to conditionally show 'Cancel / Pay Later' (L270). Correctly omitted from MembershipApplyPage. Good pattern.",
+    "CMS Terms & Conditions textarea accepts raw HTML and is rendered via dangerouslySetInnerHTML in the T&C modal on /apply (MembershipApplyPage L628). Since admins are trusted, low risk, but consider sanitizing (DOMPurify) as defense-in-depth in case admin role is compromised."
+  ],
+  "updated_files": ["/app/backend/tests/test_iteration48.py"],
+  "success_rate": {"backend": "100% (5 passed, 1 skipped for no data)", "frontend": "100% (all T&C + CMS + payment-step gating verified)"},
+  "test_credentials": "admin@idsea.org / Admin@123",
+  "seed_data_creation": "Set CMS terms_conditions to '<h3>IDSEA Membership Terms</h3><p>Test T&C from iter48.</p>' during PUT test.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iter48 verified: cert download 404 branch + code path for photo_url enrichment; branded email endpoint accepts subject/body/cc/attachments and returns {message, results:{email,whatsapp}}; CMS PUT/GET persists terms_conditions and public /api/public/cms exposes it; /apply page renders T&C checkbox with data-testid='tc-checkbox', T&C link 'tc-link' opens modal with 'accept-tc-btn'; submit button 'apply-submit-btn' is disabled until tcAccepted or tcContent empty. To exercise the cert download enrichment PDF path, seed a certificate_record with a valid template_id and member_id lacking data.photo_url — then call /api/public/certificates/download/{cert_id} and confirm 200 + %PDF. WhatsApp HTML stripping is in server.py L2042-2046 (br→\\n, </p>→\\n, strip tags, html.unescape) and image detection L2055 (.jpg/.jpeg/.png/.gif/.webp → send_whatsapp_image) — not exercised in tests (no live WA sandbox); code review confirms logic is correct.",
+  "rca of the issue": "N/A — no blocking issues found. Only minor UX/organization suggestions."
+}
