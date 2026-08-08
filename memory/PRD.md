@@ -4,42 +4,40 @@
 React + TailwindCSS + Shadcn/UI | FastAPI + Motor (MongoDB) + ReportLab | Ubuntu VPS + Nginx + Supervisor
 
 ## Completed Features (Latest)
+- **Application Flow Overhaul (Aug 2026)**:
+  - Transaction number (UTR) now mandatory before application is submitted for UPI/Bank payments
+  - Application only saved to DB and emails sent AFTER payment is confirmed
+  - Terms & Conditions: CMS-managed content, mandatory checkbox + modal viewer on apply page
+  - "Cancel/Pay Later" removed from membership payment step
 - **Certificate & Messaging Overhaul (Aug 2026)**:
-  - Fixed cert design mismatch: approval now passes `photo_url` to cert template for accurate generation
-  - Fixed WhatsApp: sends text message first, then document separately (prevents message loss)
-  - Bulk certificate regeneration: "Regen Certs & Email" button regenerates all approved member certs using latest template and emails them
-  - Individual email modal upgraded: Rich Text editor (ReactQuill), file attachments, CC field, Email+WhatsApp channel toggles
-  - PDF Flipbook module: Reusable `PDFFlipbook` component for viewing PDFs page-by-page with zoom/fullscreen/download
+  - Certificate verify/download now enriches data with member's latest photo_url
+  - Custom email uses branded IDSEA template with header, Regards/IDSEA Team sign-off, ANIMitra footer
+  - WhatsApp: HTML entities (&nbsp;) properly stripped; images sent as images not documents
+  - WhatsApp approval: sends text message first, then certificate document separately
+  - Bulk certificate regeneration: "Regen Certs & Email" button for all approved members
+  - Individual email modal: Rich Text editor, file attachments, CC field, Email+WhatsApp toggles
+  - PDF Flipbook module: Reusable PDFFlipbook component with zoom/fullscreen/download
   - IDSEA Byelaws: Admin uploads PDF via CMS, displayed as flipbook on About page
-- **Student ID Verification Fix (Aug 2026)**: Fixed bug where verifying one student ID marked all as verified. Verify ID Modal with photo preview + Verify/Cancel/Request Re-upload. Approval blocked for unverified students.
-- **Admin Roles**: Super Admin / Admin / Event Manager with user CRUD, password reset, role-based sidebar
-- **Student → Academic Upgrade**: Self-service at /upgrade + admin approval with new Academic ID
-- **Certificate Validity**: validity_start/validity_end as template variables for student certs
-- **Student Membership**: validity-based, auto-expiry, college ID verification, 6-digit ID (STUD/IDSEA/YEAR/000001)
-- **CC Email**: Admin sets CC in CMS for all membership notifications
-- **College ID Upload**: Image only, auto-compress to WebP (quality 70, max 1200px)
-- Multi-plan cert template linking, QR auto-verify, clean membership labels
-- Phone input with country flag, name prefix everywhere, membership directory redesign
-- Dynamic CMS, event registration, Razorpay, SMTP batch email, WhatsApp automation
-- Full backup/restore, VPS deployment scripts
+- **Student ID Verification Fix (Aug 2026)**: Verify ID Modal, approval blocked for unverified
+- **Admin Roles**: Super Admin / Admin / Event Manager
+- **Student Membership**: validity-based, auto-expiry, college ID verification
+- **Core Features**: Dynamic CMS, event registration, Razorpay, SMTP batch email, WhatsApp automation, backup/restore, VPS deployment scripts
 
 ## Admin Credentials
 - Super Admin: admin@idsea.org / Admin@123
 
 ## Key Architecture Notes
-- server.py ~6400 lines — `app.include_router(api_router)` is at BOTTOM of file. All new routes MUST be defined ABOVE it.
-- Admin emails stored lowercase; login normalizes to lowercase
+- server.py ~6400 lines — `app.include_router(api_router)` is at BOTTOM. All new routes MUST be defined ABOVE it.
 - Student membership checks use both "student" and "students_membership" keys
-- Certificate validity: use `_membership_label()`, `_full_name()` helpers
 - Reusable PDFFlipbook component at `/app/frontend/src/components/PDFFlipbook.jsx`
 - Email modal uses `react-quill-new` for rich text editing
-- CMS model includes `byelaws_pdf_url` and `document_pdfs` fields
+- MembershipApplyPage delays API call until payment is confirmed (form data held in state)
 
-## Key API Endpoints (New/Modified)
-- `POST /api/admin/members/regenerate-certificates` — Bulk regen + email (background task)
-- `POST /api/admin/members/{id}/send-email` — Upgraded: HTML body, attachments, CC, WhatsApp toggle
-- `PUT /api/admin/members/{id}/verify-college-id` — Validates member exists, is student, has college ID
-- `PUT /api/admin/members/{id}/request-reupload-college-id` — Clears ID + notifies student
+## Key API Endpoints
+- `POST /api/admin/members/regenerate-certificates` — Bulk regen + email
+- `POST /api/admin/members/{id}/send-email` — HTML body, attachments, CC, WhatsApp toggle
+- `GET /api/public/certificates/download/{cert_id}` — Enriches with member photo_url
+- `PUT/GET /api/admin/cms` — Includes terms_conditions, byelaws_pdf_url
 
 ## Pending Tasks
 - P1: Upgrade Requests admin frontend page
